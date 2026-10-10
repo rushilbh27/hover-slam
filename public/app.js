@@ -102,12 +102,12 @@ function levelCfg() { return LEVELS[app.level]; }
 
 function newFlight() {
   if (app.attract) {
-    // the backdrop landing skips the long fall: it starts a little above the burn, so the action shows at once
+    // the backdrop landing is fast-forwarded to the middle of the burn, so the engine is already lit
+    // and the legs are about to open the moment the screen is revealed
     app.flight = makeFlight(SEEDS[app.attractIdx % SEEDS.length], undefined);
-    const st = app.flight.state, y0 = st.y, y1 = 1550;
-    st.vy = -Math.sqrt(st.vy * st.vy + 2 * G * (y0 - y1));
-    st.x *= 0.5; st.vx *= 0.5; // closer to the pad too, so the autopilot lands every wind
-    st.y = y1;
+    const f = app.flight;
+    for (let n = 0; n < 120 * 60 && f.state.y > 190 && !f.state.done; n++) step(f, autopilot(f, REFERENCE_GAINS), DT);
+    fx.legs = 0;
   }
   else if (app.mode === 'game') {
     if (!app.scenario) pickScenario();
@@ -223,7 +223,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const f = app.flight;
-  if (f && app.running && !f.state.done) {
+  if (f && app.running && !app.hold && !f.state.done) {
     const inp = app.input;
     if (app.mode === 'game' && $('raw').checked) inp.throttle = clamp(inp.throttle + ((inp.up ? 1 : 0) - (inp.down ? 1 : 0)) * 1.2 * dt, f.minThrottle, 1);
     // slow motion for the last metres
@@ -1634,8 +1634,9 @@ renderLevels();
 renderSliders();
 setMode('game');
 showStart('welcome'); // always open on the main screen
-requestAnimationFrame((t) => { last = t; frame(t); document.body.classList.add('go'); }); // the fog clears once the first frame is drawn
-setTimeout(() => { const c = $('curtain'); if (c) c.remove(); document.body.classList.remove('boot'); }, 5000);
+requestAnimationFrame((t) => { last = t; frame(t); document.body.classList.add('go'); setTimeout(() => { app.hold = false; }, 700); }); // the fog clears once the first frame is drawn; the landing starts as it thins
+app.hold = document.body.classList.contains('boot'); // the backdrop landing waits for the fog to clear
+setTimeout(() => { app.hold = false; const c = $('curtain'); if (c) c.remove(); document.body.classList.remove('boot'); }, 5000);
 
 // handle for tests and tinkering in the console
 window.hoverslam = { app, fx, cam, BANK, showIntro, showStart, setView, chooseLevel };
