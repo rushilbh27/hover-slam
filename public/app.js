@@ -40,7 +40,35 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const fx = { plume: [], smoke: [], fire: [], debris: [], steam: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1 };
+const freshFx = () => ({ standing: false, plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0 });
+const fx = freshFx();
+const rain = [];
+
+// One look per level, so the difficulty is visible: a sunset, a dusk with a moon, a night storm.
+const THEMES = {
+  sunset: {
+    sky: [[0, '#060b1d'], [0.45, '#121a3d'], [0.74, '#3b2350'], [0.9, '#a2464a'], [0.97, '#f0894f'], [1, '#ffc27a']],
+    stars: 0.8, sun: true, moon: false, glow: '255, 196, 120', sea: ['#2a2140', '#16203a', '#070d1b'], cloud: '255, 176, 150', cloudMul: 1,
+    swell: 1, glitter: '255, 190, 130', glx: 0.74, rain: false, bolts: false, whitecaps: false, ambient: 1, lights: 0.5,
+    hull: ['#3c4658', '#151b27'], deck: ['#505b6c', '#6a7587'], rim: '255, 170, 110',
+  },
+  dusk: {
+    sky: [[0, '#03050f'], [0.4, '#0a0f2e'], [0.72, '#221a49'], [0.9, '#55306a'], [0.97, '#9b476b'], [1, '#cf7468']],
+    stars: 1.7, sun: false, moon: true, glow: '205, 110, 140', sea: ['#2a1d45', '#111838', '#050a17'], cloud: '200, 140, 190', cloudMul: 1.4,
+    swell: 1.8, glitter: '210, 220, 255', glx: 0.64, rain: false, bolts: false, whitecaps: false, ambient: 0.72, lights: 1,
+    hull: ['#343d4f', '#10151f'], deck: ['#444e5f', '#5a6578'], rim: '200, 150, 200',
+  },
+  storm: {
+    sky: [[0, '#02050a'], [0.5, '#08111a'], [0.8, '#122030'], [1, '#243546']],
+    stars: 0, sun: false, moon: false, glow: '120, 150, 190', sea: ['#1c2937', '#0c1621', '#03080f'], cloud: '120, 145, 180', cloudMul: 3.4,
+    swell: 3.2, glitter: '150, 180, 220', glx: 0.5, rain: true, bolts: true, whitecaps: true, ambient: 0.4, lights: 1.7,
+    hull: ['#232b37', '#0a0e14'], deck: ['#2c3440', '#3a4452'], rim: '150, 180, 230',
+  },
+};
+function theme() {
+  if (app.mode !== 'game') return THEMES.sunset;
+  return THEMES[{ easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level]] || THEMES.sunset;
+}
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
 
 const stars = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random() * 0.62, r: Math.random() * 1.2 + 0.2, p: Math.random() * 6.28 }));
@@ -63,9 +91,10 @@ function newFlight() {
   app.steer = { want: 0, vHold: 0 };
   app.ended = false;
   app.acc = 0;
-  Object.assign(fx, { plume: [], smoke: [], fire: [], debris: [], steam: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1 });
+  Object.assign(fx, freshFx());
   cam.snap = true;
   $('outcome').classList.add('hidden');
+  $('caption').classList.add('hidden');
   $('cue').classList.add('hidden');
 }
 
@@ -82,9 +111,10 @@ function showIntro() {
   const intro = $('intro');
   if (app.mode === 'game') {
     $('i-title').textContent = 'Bring it home.';
+    const floor = Math.round(makeFlight(1, levelCfg().opts).minThrottle * 100);
     $('i-sub').textContent = app.level === 'easy'
-      ? 'Easy: light wind, a wide pad and an engine that can hover. Press Space when the cue appears, then ease it down.'
-      : 'The booster is falling at 140 m/s toward a barge at sea. Its engine can\'t throttle below 40%, so it can\'t hover. Light it too early and the fuel runs out. Too late and it hits the deck.';
+      ? `Easy: light wind, a wide pad and an engine that can hover (down to ${floor}%). Light it when the cue appears, then ease it down.`
+      : `The booster is falling at 140 m/s toward a barge at sea. Its engine can't throttle below ${floor}%, so it can't hover. Light it too early and the fuel runs out. Too late and it hits the deck.${app.level === 'hard' ? ' Night, rain and gusts.' : ''}`;
     $('start').textContent = 'Start descent';
   } else {
     $('i-title').textContent = 'Your settings, its flight.';
@@ -143,12 +173,17 @@ function frame(now) {
     app.acc += dt * app.speed * fx.slow;
     let n = 0;
     while (app.acc >= DT && n < 2000 && !f.state.done) {
-      step(f, control(f), DT);
+      const c = control(f);
+      fx.rcsCmd = c.rcs || 0;
+      fx.finCmd = app.mode === 'sim' ? clamp((-c.gimbal / BOOSTER.gimbalMax) * 0.8, -0.8, 0.8) : clamp((app.steer.want - f.state.theta) * 9, -0.8, 0.8);
+      step(f, c, DT);
       app.acc -= DT;
       n++;
     }
     if (!app.trail.length || f.state.t - app.trail[app.trail.length - 1][2] > 0.1) app.trail.push([f.state.x, f.state.y, f.state.t]);
     if (f.state.done && !app.ended) onEnd();
+  } else if (f && f.state.done) {
+    fx.slow = lerp(fx.slow, 1, Math.min(1, dt * 0.9)); // ease out of the touchdown slow motion
   }
   updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow);
   render(dt);
@@ -162,13 +197,23 @@ function onEnd() {
   const f = app.flight;
   const o = f.state.outcome;
   const s = f.state;
+  const c = o.checks || {};
+  const soft = c.vertical && c.horizontal && c.upright && c.steady;
   if (o.landed) {
     fx.landedAt = performance.now();
     fx.ring = { r: 0, a: 1 };
+    touchdown(s, 'Landed');
+  } else if (soft && o.distance <= 31) {
+    // down safely on the barge, just outside the pad: it stands, so no fireball
+    fx.landedAt = performance.now();
+    fx.standing = true;
+    touchdown(s, 'Off the pad', 'warn');
+  } else if (soft) {
+    splash(s); // a gentle touch in the water: it tips over and sinks
   } else if (o.reason !== 'Flew away' && o.reason !== 'Timed out') {
     explode(s);
   }
-  setTimeout(() => showOutcome(o), o.landed ? 900 : 1300);
+  setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
   if (app.mode === 'sim') renderReport();
   if (app.mode === 'game' && o.landed) {
     const sc = scoreFlight(o);
@@ -176,6 +221,39 @@ function onEnd() {
     if (!best[app.level] || sc > best[app.level]) { best[app.level] = sc; store.set('hs.best', best); }
     renderBest();
   }
+}
+
+// A landing that feels like one: dust rolls across the deck, sparks scatter, the camera punches in
+// and holds a beat in slow motion, and the word lands with it.
+function splash(s) {
+  fx.exploded = true; // it goes under
+  for (let i = 0; i < 46; i++) {
+    fx.sparks.push({ x: s.x + (Math.random() - 0.5) * 5, y: 0.2, vx: (Math.random() - 0.5) * 18, vy: 10 + Math.random() * 24, life: 0, max: 1.2 + Math.random() * 0.9, water: true });
+  }
+  for (let i = 0; i < 7; i++) fx.steam.push({ x: s.x + (Math.random() - 0.5) * 4, y: 0.8, vx: (Math.random() - 0.5) * 5, vy: 2 + Math.random() * 3, life: 0, max: 1.6, r: 1.2 + Math.random() });
+  fx.ring = { r: 0, a: 1, bad: true };
+  fx.shake = 0.3;
+}
+
+function touchdown(s, word, tone) {
+  for (let i = 0; i < 40; i++) {
+    const dir = i % 2 ? 1 : -1;
+    fx.dust.push({ x: s.x + (Math.random() - 0.5) * 5, y: 0.4 + Math.random() * 0.8, vx: dir * (6 + Math.random() * 36), vy: 0.3 + Math.random() * 2, life: 0, max: 0.8 + Math.random() * 1.0, r: 1.2 + Math.random() * 1.8 });
+  }
+  for (let i = 0; i < 26; i++) {
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    fx.sparks.push({ x: s.x + dir * (1 + Math.random() * 6), y: 0.6, vx: dir * (4 + Math.random() * 22), vy: 5 + Math.random() * 16, life: 0, max: 0.5 + Math.random() * 0.7 });
+  }
+  fx.slow = 0.25;
+  fx.punch = 1;
+  fx.shake = 0.3;
+  const cap = $('caption');
+  cap.textContent = word;
+  cap.classList.toggle('warn', tone === 'warn');
+  cap.classList.remove('hidden');
+  cap.classList.remove('pop');
+  void cap.offsetWidth;
+  cap.classList.add('pop');
 }
 
 function stat(label, value, ok) {
@@ -243,6 +321,23 @@ function updateFx(dt) {
   fx.flash = Math.max(0, fx.flash - dt * 2.2);
   fx.shake = Math.max(0, fx.shake - dt * 1.6);
   fx.legs = clamp(fx.legs + (s.y < 320 || s.done ? dt / 2.2 : 0), 0, 1);
+  fx.punch = Math.max(0, fx.punch - dt * 1.4);
+  fx.fin += (fx.finCmd - fx.fin) * Math.min(1, dt * 9);
+
+  // cold-gas thrusters near the top: the gas leaves on the side opposite the way the booster turns
+  if (!s.done && Math.abs(fx.rcsCmd) > 0.1 && Math.random() < Math.min(1, Math.abs(fx.rcsCmd) * 1.6)) {
+    fx.puffs.push({ side: -Math.sign(fx.rcsCmd), life: 0, max: 0.3, v: 0.6 + Math.abs(fx.rcsCmd) * 0.6, oy: (Math.random() - 0.5) * 0.9 });
+  }
+  for (const p of fx.puffs) p.life += dt;
+  fx.puffs = fx.puffs.filter((p) => p.life < p.max);
+
+  // lightning and the swell on the barge
+  const th = theme();
+  if (th.bolts && !s.done) {
+    if (fx.bolt) { fx.bolt.t += dt; if (fx.bolt.t > 0.7) fx.bolt = null; }
+    else { fx.nextBolt -= dt; if (fx.nextBolt <= 0) { fx.bolt = { t: 0, x: 0.12 + Math.random() * 0.76, seed: Math.random() * 1000 }; fx.nextBolt = 4 + Math.random() * 7; } }
+  } else fx.bolt = null;
+  fx.bob = Math.sin(performance.now() / 1000 * 0.9) * Math.min(0.22 * cam.s * th.swell, 1.6);
 
   // plume particles, stored relative to the nozzle in metres
   if (s.engineOn && !s.done) {
@@ -261,8 +356,8 @@ function updateFx(dt) {
     p.vx += (tvx - p.vx) * Math.min(1, dt * 2.6);
     p.vy += (tvy - p.vy) * Math.min(1, dt * 2.6);
     p.rx += p.vx * dt; p.ry += p.vy * dt;
-    if (p.ry < ground) { p.ry = ground; p.vy = Math.abs(p.vy) * 0.08; p.vx += (Math.random() < 0.5 ? -1 : 1) * 25; }
-    p.life += dt;
+    if (p.ry < ground) { p.ry = ground; p.vy = Math.abs(p.vy) * 0.08; p.vx += (Math.random() < 0.5 ? -1 : 1) * 14; p.life += dt * 1.5; }
+    p.life += dt * (s.done ? 4 : 1); // the flame dies the moment the engine cuts
     p.r += dt * 6;
   }
   fx.plume = fx.plume.filter((p) => p.life < p.max).slice(-700);
@@ -270,24 +365,37 @@ function updateFx(dt) {
   // deck smoke when the plume hits the barge
   if (s.engineOn && !s.done && s.y < 70) {
     const k = (1 - s.y / 70) * s.throttle;
-    for (let i = 0; i < Math.round(k * 6); i++) {
+    for (let i = 0; i < Math.round(k * 3); i++) {
       const dir = Math.random() < 0.5 ? -1 : 1;
-      fx.smoke.push({ x: s.x + (Math.random() - 0.5) * 4, y: 0.5, vx: dir * (15 + Math.random() * 40), vy: 1 + Math.random() * 4, life: 0, max: 1.6 + Math.random() * 2, r: 2 + Math.random() * 3 });
+      fx.smoke.push({ x: s.x + (Math.random() - 0.5) * 4, y: 0.5, vx: dir * (15 + Math.random() * 40), vy: 1 + Math.random() * 3, life: 0, max: 1.2 + Math.random() * 1.4, r: 1.6 + Math.random() * 2.2 });
     }
   }
-  for (const p of fx.smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.9; p.vy += dt * 1.5; p.life += dt; p.r += dt * 7; }
-  fx.smoke = fx.smoke.filter((p) => p.life < p.max).slice(-500);
+  for (const p of fx.dust) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.3; p.vy *= 1 - dt; p.life += dt; p.r += dt * 2.5; }
+  fx.dust = fx.dust.filter((p) => p.life < p.max);
+  for (const p of fx.sparks) {
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= G * (p.water ? 1 : 1.6) * dt; p.life += dt;
+    if (p.water) { if (p.y < 0 && p.vy < 0) p.life = p.max; } // droplets fall back into the sea
+    else if (p.y < 0.3) { p.y = 0.3; p.vy = Math.abs(p.vy) * 0.35; p.vx *= 0.7; }
+  }
+  fx.sparks = fx.sparks.filter((p) => p.life < p.max);
+  for (const p of fx.smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.9; p.vy += dt * 1.5; p.life += dt; p.r += dt * 4; }
+  fx.smoke = fx.smoke.filter((p) => p.life < p.max).slice(-260);
 
   // landed: steam venting
-  if (s.done && s.outcome && s.outcome.landed && performance.now() - fx.landedAt < 6000 && Math.random() < 0.6) {
+  if (s.done && s.outcome && (s.outcome.landed || fx.standing) && performance.now() - fx.landedAt < 6000 && Math.random() < 0.6) {
     fx.steam.push({ x: s.x + (Math.random() - 0.5) * 3, y: B.legHeight + 30 + Math.random() * 8, vx: (Math.random() - 0.3) * 4 + w * 0.3, vy: 2 + Math.random() * 3, life: 0, max: 2 + Math.random() * 2, r: 1.5 + Math.random() * 2 });
   }
   for (const p of fx.steam) { p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt; p.r += dt * 3; }
   fx.steam = fx.steam.filter((p) => p.life < p.max);
 
-  for (const p of fx.fire) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.5; p.vy = p.vy * (1 - dt * 1.5) + dt * 6; if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.3; } p.life += dt; p.r += dt * 9; }
-  fx.fire = fx.fire.filter((p) => p.life < p.max + 2.5);
-  for (const d of fx.debris) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy -= G * dt; d.a += d.va * dt; if (d.y < 0.5 && Math.abs(d.x) < 34) { d.y = 0.5; d.vy = -d.vy * 0.3; d.vx *= 0.6; d.va *= 0.5; } d.life += dt; }
+  for (const p of fx.fire) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.5; p.vy = p.vy * (1 - dt * 1.5) + dt * 6; if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.3; } p.life += dt; p.r += dt * (p.life < p.max ? 9 : 1.5); }
+  fx.fire = fx.fire.filter((p) => p.life < p.max + 2.5).slice(-260);
+  for (const d of fx.debris) {
+    d.x += d.vx * dt; d.y += d.vy * dt; d.vy -= G * dt; d.a += d.va * dt; d.life += dt;
+    if (d.y < 0.5 && Math.abs(d.x) < 34) { d.y = 0.5; d.vy = -d.vy * 0.3; d.vx *= 0.6; d.va *= 0.5; }
+    else if (d.y < 0) { d.dead = true; fx.steam.push({ x: d.x, y: 0.4, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0, max: 1.2, r: 1.5 }); } // splashes into the sea
+  }
+  fx.debris = fx.debris.filter((d) => !d.dead && d.life < 9);
   if (fx.ring) { fx.ring.r += dt * (fx.ring.bad ? 90 : 30); fx.ring.a -= dt * (fx.ring.bad ? 1.2 : 0.5); if (fx.ring.a <= 0) fx.ring = null; }
 }
 
@@ -301,7 +409,7 @@ function updateCam(dt) {
   const touchUI = getComputedStyle($('touch')).display !== 'none';
   // on touch layouts the deck sits higher so the thumb buttons never cover it
   const ground = touchUI ? (H < 420 ? 0.7 : 0.62) : 0.82;
-  const ts = clamp((H * (ground - 0.12)) / (y + 102), 0.18, 4.2);
+  const ts = clamp((H * (ground - 0.12)) / (y + 102), 0.18, 4.2) * (1 + 0.07 * fx.punch * fx.punch);
   const ty = ((ground - 0.5) * H) / ts;
   const span = (W * 0.36) / ts;
   // narrow portrait screens: slide the view so the booster flies on the right, clear of the readouts
@@ -322,71 +430,89 @@ function render(dt) {
   const shake = fx.shake * fx.shake * 14;
   ctx.save();
   if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-  drawSky();
-  drawClouds();
-  drawSea();
-  drawBarge(f);
+  const th = theme();
+  drawSky(th);
+  drawClouds(th);
+  drawBolt();
+  drawSea(th);
+  drawBarge(f, th);
   if (app.mode === 'game' && app.running && !s.done) drawPrediction(f);
   drawSmoke(fx.smoke, 'deck');
   if (!fx.exploded) {
     // nothing of the booster or its flame shows below the deck
     ctx.save();
     ctx.beginPath();
-    ctx.rect(-50, -50, W + 100, sy(0) + 50 - Math.max(0.5, 0.2 * cam.s));
+    ctx.rect(-50, -50, W + 100, sy(0) + fx.bob + 50 + clamp(6 * cam.s, 5, 30) * 0.15);
     ctx.clip();
     drawBooster(f);
     ctx.restore();
   }
   drawFire();
+  drawSmoke(fx.dust, 'dust');
   drawSmoke(fx.steam, 'steam');
+  drawSparks();
   drawRing();
   ctx.restore();
+  drawRain(dt, th);
+  if (fx.bolt) { const a = boltAlpha(); ctx.fillStyle = `rgba(190, 210, 255, ${a * 0.2})`; ctx.fillRect(0, 0, W, H); }
   if (fx.flash > 0) { ctx.fillStyle = `rgba(255, 214, 170, ${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
   drawPadArrow(f);
   drawMinimap(f);
 }
 
-function drawSky() {
+function drawSky(th) {
   const hy = sy(0);
   const g = ctx.createLinearGradient(0, 0, 0, hy);
-  g.addColorStop(0, '#060b1d');
-  g.addColorStop(0.45, '#121a3d');
-  g.addColorStop(0.74, '#3b2350');
-  g.addColorStop(0.9, '#a2464a');
-  g.addColorStop(0.97, '#f0894f');
-  g.addColorStop(1, '#ffc27a');
+  for (const [o, c] of th.sky) g.addColorStop(o, c);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, Math.max(0, hy) + 1);
   const t = performance.now() / 1000;
-  for (const st of stars) {
-    const y = st.y * hy;
-    const a = (1 - st.y / 0.62) * (0.55 + 0.45 * Math.sin(t * 1.3 + st.p));
-    ctx.fillStyle = `rgba(230, 236, 255, ${a * 0.8})`;
-    ctx.fillRect(st.x * W, y, st.r, st.r);
+  if (th.stars) {
+    for (const st of stars) {
+      const y = st.y * hy;
+      const a = (1 - st.y / 0.62) * (0.55 + 0.45 * Math.sin(t * 1.3 + st.p)) * th.stars;
+      ctx.fillStyle = `rgba(230, 236, 255, ${Math.min(1, a * 0.8)})`;
+      ctx.fillRect(st.x * W, y, st.r, st.r);
+    }
   }
-  // the sun, just setting
-  const sunX = W * 0.74 - cam.x * 0.02;
+  const sunX = W * th.glx - cam.x * 0.02;
   const glow = ctx.createRadialGradient(sunX, hy, 0, sunX, hy, W * 0.55);
-  glow.addColorStop(0, 'rgba(255, 196, 120, 0.55)');
-  glow.addColorStop(0.25, 'rgba(255, 130, 80, 0.18)');
-  glow.addColorStop(1, 'rgba(255, 120, 80, 0)');
+  glow.addColorStop(0, `rgba(${th.glow}, ${th.sun ? 0.55 : 0.3})`);
+  glow.addColorStop(0.25, `rgba(${th.glow}, ${th.sun ? 0.18 : 0.1})`);
+  glow.addColorStop(1, `rgba(${th.glow}, 0)`);
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, hy);
-  ctx.fillStyle = '#ffe2b0';
-  ctx.beginPath();
-  ctx.arc(sunX, hy + 2, Math.max(10, H * 0.035), Math.PI, 0);
-  ctx.fill();
+  if (th.sun) {
+    ctx.fillStyle = '#ffe2b0';
+    ctx.beginPath();
+    ctx.arc(sunX, hy + 2, Math.max(10, H * 0.035), Math.PI, 0);
+    ctx.fill();
+  }
+  if (th.moon) {
+    const mx = W * 0.64 - cam.x * 0.02, my = hy * 0.3, mr = Math.max(9, H * 0.028);
+    const mg = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 5);
+    mg.addColorStop(0, 'rgba(210, 220, 255, 0.25)');
+    mg.addColorStop(1, 'rgba(210, 220, 255, 0)');
+    ctx.fillStyle = mg;
+    ctx.fillRect(mx - mr * 5, my - mr * 5, mr * 10, mr * 10);
+    ctx.fillStyle = '#e8eefc';
+    ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(150, 165, 200, 0.35)'; // maria
+    ctx.beginPath(); ctx.arc(mx - mr * 0.3, my - mr * 0.15, mr * 0.28, 0, Math.PI * 2); ctx.arc(mx + mr * 0.25, my + mr * 0.3, mr * 0.2, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
-function drawClouds() {
+function drawClouds(th) {
+  const mul = th.cloudMul;
   for (const c of clouds) {
     const x = W / 2 + (c.x - cam.x * 0.7) * cam.s;
     const y = sy(c.y);
-    const w = c.w * cam.s, h = Math.max(2, c.h * cam.s);
+    const w = c.w * cam.s * (mul > 2 ? 1.5 : 1), h = Math.max(2, c.h * cam.s * (mul > 2 ? 1.8 : 1));
     if (y < -h || y > sy(0) - 2 || x + w < -50 || x - w > W + 50) continue;
+    const a = Math.min(0.55, c.a * mul);
     const g = ctx.createRadialGradient(x, y, 0, x, y, w);
-    g.addColorStop(0, `rgba(255, 176, 150, ${c.a})`);
-    g.addColorStop(1, 'rgba(255, 176, 150, 0)');
+    g.addColorStop(0, `rgba(${th.cloud}, ${a})`);
+    g.addColorStop(1, `rgba(${th.cloud}, 0)`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
@@ -394,91 +520,227 @@ function drawClouds() {
   }
 }
 
-function drawSea() {
+// lightning: a jagged bolt that flickers twice, lighting the sky
+function boltAlpha() {
+  const t = fx.bolt ? fx.bolt.t : 9;
+  return t < 0.08 ? 1 : t < 0.14 ? 0.15 : t < 0.22 ? 0.9 : Math.max(0, 1 - (t - 0.22) / 0.45) * 0.45;
+}
+function drawBolt() {
+  if (!fx.bolt) return;
+  const a = boltAlpha();
+  const hy = sy(0);
+  const hash = (n) => { const v = Math.sin(n * 127.1 + fx.bolt.seed) * 43758.5453; return v - Math.floor(v); };
+  let x = fx.bolt.x * W, y = 0;
+  const pts = [[x, y]];
+  const n = 16;
+  for (let i = 1; i <= n; i++) { y = (hy * 0.92 * i) / n; x += (hash(i) - 0.5) * W * 0.06; pts.push([x, y]); }
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = `rgba(150, 180, 255, ${a * 0.35})`;
+  ctx.lineWidth = 7;
+  ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
+  ctx.strokeStyle = `rgba(240, 246, 255, ${a})`;
+  ctx.lineWidth = 1.8;
+  ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRain(dt, th) {
+  if (!th.rain) { rain.length = 0; return; }
+  const want = Math.min(170, Math.round((W * H) / 7500));
+  while (rain.length < want) rain.push({ x: Math.random() * W, y: Math.random() * H, v: 0.8 + Math.random() * 0.6, l: 10 + Math.random() * 16 });
+  rain.length = want;
+  const f = app.flight;
+  const w = f ? windAt(f.wind, f.state.t, f.state.y) : 0;
+  const slant = clamp(w * 0.05, -0.6, 0.6);
+  ctx.strokeStyle = 'rgba(170, 195, 230, 0.26)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (const p of rain) {
+    const v = 1100 * p.v * Math.min(dt, 0.05);
+    p.y += v; p.x += v * slant;
+    if (p.y > H) { p.y = -20; p.x = Math.random() * W; }
+    if (p.x > W + 20) p.x = -20; else if (p.x < -20) p.x = W + 20;
+    ctx.moveTo(p.x - slant * p.l, p.y - p.l);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+}
+
+function drawSea(th) {
   const hy = sy(0);
   if (hy > H) return;
   const g = ctx.createLinearGradient(0, hy, 0, H);
-  g.addColorStop(0, '#2a2140');
-  g.addColorStop(0.08, '#16203a');
-  g.addColorStop(1, '#070d1b');
+  g.addColorStop(0, th.sea[0]);
+  g.addColorStop(0.08, th.sea[1]);
+  g.addColorStop(1, th.sea[2]);
   ctx.fillStyle = g;
   ctx.fillRect(0, hy, W, H - hy);
-  // sun glitter on the water
   const t = performance.now() / 1000;
-  const sunX = W * 0.74 - cam.x * 0.02;
-  for (let i = 0; i < 70; i++) {
-    const d = i / 70;
-    const y = hy + 2 + d * d * (H - hy);
-    const spread = 8 + d * W * 0.12;
-    const x = sunX + Math.sin(i * 12.9898 + t * 0.9) * spread;
-    const len = 6 + d * 40 * (0.5 + 0.5 * Math.sin(i * 3.1 + t * 2));
-    ctx.fillStyle = `rgba(255, 190, 130, ${0.35 * (1 - d)})`;
-    ctx.fillRect(x - len / 2, y, len, 1 + d * 1.5);
+  // glitter from the sun or the moon
+  if (th.glitter) {
+    const sunX = W * th.glx - cam.x * 0.02;
+    const strength = th.sun ? 0.35 : th.moon ? 0.22 : 0.07;
+    for (let i = 0; i < 70; i++) {
+      const d = i / 70;
+      const y = hy + 2 + d * d * (H - hy);
+      const spread = 8 + d * W * 0.12;
+      const x = sunX + Math.sin(i * 12.9898 + t * 0.9) * spread;
+      const len = 6 + d * 40 * (0.5 + 0.5 * Math.sin(i * 3.1 + t * 2));
+      ctx.fillStyle = `rgba(${th.glitter}, ${strength * (1 - d)})`;
+      ctx.fillRect(x - len / 2, y, len, 1 + d * 1.5);
+    }
   }
-  // swell lines
-  ctx.strokeStyle = 'rgba(140, 170, 220, 0.07)';
+  // swell lines, taller in rougher weather
+  ctx.strokeStyle = th.rain ? 'rgba(150, 180, 220, 0.13)' : 'rgba(140, 170, 220, 0.07)';
   ctx.lineWidth = 1;
   for (let j = 1; j < 7; j++) {
     const y = hy + (H - hy) * (j / 7) ** 1.6;
     ctx.beginPath();
-    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.02 + t * (0.6 + j * 0.1) + j) * (1 + j * 0.4));
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.02 + t * (0.6 + j * 0.1) + j) * (1 + j * 0.4) * th.swell);
     ctx.stroke();
+  }
+  // whitecaps on the crests
+  if (th.whitecaps) {
+    ctx.fillStyle = 'rgba(210, 225, 245, 0.28)';
+    for (let j = 1; j < 7; j++) {
+      const y = hy + (H - hy) * (j / 7) ** 1.6;
+      for (let x = 0; x <= W; x += 22) {
+        const ph = x * 0.02 + t * (0.6 + j * 0.1) + j;
+        if (Math.sin(ph * 2.3 + j * 5) > 0.82) ctx.fillRect(x, y + Math.sin(ph) * (1 + j * 0.4) * th.swell - 1, 8 + j * 3, 1.5);
+      }
+    }
   }
 }
 
-function drawBarge(f) {
+const BOX = ['#8a4b3a', '#3f5f7a', '#a8843a', '#4f6350'];
+const STACKS = [{ x: -30.4, boxes: [0, 1, 2] }, { x: 24.4, boxes: [3, 0] }];
+
+function drawBarge(f, th) {
   const s = cam.s;
+  const t = performance.now() / 1000;
   const halfDeck = 32;
-  const x0 = sx(-halfDeck), x1 = sx(halfDeck), y0 = sy(0);
-  const hull = 5 * s;
-  // hull
-  const hg = ctx.createLinearGradient(0, y0, 0, y0 + hull);
-  hg.addColorStop(0, '#3c4658');
-  hg.addColorStop(1, '#151b27');
+  const x0 = sx(-halfDeck), x1 = sx(halfDeck);
+  const d = clamp(6 * s, 5, 30); // the slice of deck we look down onto
+  const y0 = sy(0) + fx.bob;
+  const front = y0 + d / 2, back = y0 - d / 2;
+  const hull = Math.max(4, 5 * s);
+  const top = back - 3.8 * s - Math.max(2, 0.8 * s); // top of the end walls and beacon posts
+
+  // hull, with plating seams
+  const hg = ctx.createLinearGradient(0, front, 0, front + hull);
+  hg.addColorStop(0, th.hull[0]); hg.addColorStop(1, th.hull[1]);
   ctx.fillStyle = hg;
-  ctx.fillRect(x0, y0, x1 - x0, Math.max(3, hull));
-  // deck
-  ctx.fillStyle = '#5d6879';
-  ctx.fillRect(x0, y0 - Math.max(1, 0.4 * s), x1 - x0, Math.max(1.5, 0.6 * s));
-  // blast walls at the ends
-  ctx.fillStyle = '#2b3342';
-  ctx.fillRect(x0, y0 - 4 * s, 1.6 * s, 4 * s);
-  ctx.fillRect(x1 - 1.6 * s, y0 - 4 * s, 1.6 * s, 4 * s);
-  // landing zone
+  ctx.fillRect(x0, front, x1 - x0, hull);
+  if (s > 0.9) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    for (let m = -30; m <= 30; m += 6) ctx.fillRect(sx(m), front, 1, hull);
+  }
+  // deck top
+  const dg = ctx.createLinearGradient(0, back, 0, front);
+  dg.addColorStop(0, th.deck[0]); dg.addColorStop(1, th.deck[1]);
+  ctx.fillStyle = dg;
+  ctx.fillRect(x0, back, x1 - x0, d);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.fillRect(x0, front - 1, x1 - x0, 1);
+  // stacked containers along the back of the deck, clear of the landing zone
+  for (const st of STACKS) {
+    const bw = 6 * s, bh = 2.6 * s;
+    const bx = sx(st.x);
+    st.boxes.forEach((c, i) => {
+      const by = back + d * 0.28 - (i + 1) * bh;
+      ctx.fillStyle = BOX[c];
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+      ctx.fillRect(bx, by, bw, Math.max(1, 0.18 * s));
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fillRect(bx, by + bh - Math.max(1, 0.12 * s), bw, Math.max(1, 0.12 * s));
+      if (s > 1.2) { for (let k = 1; k < 6; k++) ctx.fillRect(bx + k * (bw / 6), by + 0.2 * s, 1, bh - 0.4 * s); }
+    });
+  }
+  // end walls
+  ctx.fillStyle = '#262d3a';
+  ctx.fillRect(x0, top + Math.max(2, 0.8 * s), 1.6 * s, front - top - Math.max(2, 0.8 * s));
+  ctx.fillRect(x1 - 1.6 * s, top + Math.max(2, 0.8 * s), 1.6 * s, front - top - Math.max(2, 0.8 * s));
+
+  // light level: darker themes dim the barge; its own lights are drawn on top afterwards
+  const dim = (1 - th.ambient) * 0.85;
+  if (dim > 0.02) {
+    ctx.fillStyle = `rgba(2, 6, 14, ${dim})`;
+    ctx.fillRect(x0 - 2, top, x1 - x0 + 4, front + hull - top + 2);
+  }
+  // sunset rim light on the end wall facing the sun
+  ctx.fillStyle = `rgba(${th.rim}, ${0.22 * th.ambient})`;
+  ctx.fillRect(x1 - 1.6 * s, top + Math.max(2, 0.8 * s), 0.5 * s, front - top - Math.max(2, 0.8 * s));
+
+  // deck lights along the front edge
+  const warm = th.lights;
+  for (let m = -29; m <= 29; m += 5.8) {
+    const lx = sx(m), ly = front - Math.max(1, 0.5 * s);
+    const r = Math.max(4, 1.5 * s) * (0.8 + 0.2 * warm);
+    const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+    lg.addColorStop(0, `rgba(255, 214, 150, ${Math.min(0.95, 0.5 * warm)})`);
+    lg.addColorStop(1, 'rgba(255, 190, 110, 0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+    ctx.fillStyle = 'rgba(255, 240, 210, 0.95)';
+    ctx.fillRect(lx - 0.7, ly - 0.7, 1.4, 1.4);
+  }
+
+  // landing zone: a ring the width of the real pad, with the X at its centre
   const half = f.pad.halfWidth;
-  const near = clamp(1 - f.state.y / 600, 0.25, 1);
-  const pz = ctx.createLinearGradient(sx(-half), 0, sx(half), 0);
-  pz.addColorStop(0, 'rgba(91, 227, 164, 0)');
-  pz.addColorStop(0.15, `rgba(91, 227, 164, ${0.7 * near})`);
-  pz.addColorStop(0.5, `rgba(220, 255, 236, ${0.95 * near})`);
-  pz.addColorStop(0.85, `rgba(91, 227, 164, ${0.7 * near})`);
-  pz.addColorStop(1, 'rgba(91, 227, 164, 0)');
-  ctx.fillStyle = pz;
-  ctx.fillRect(sx(-half), y0 - Math.max(1.5, 0.5 * s), sx(half) - sx(-half), Math.max(2, 0.5 * s));
-  // centre mark
-  ctx.fillStyle = `rgba(240, 255, 246, ${near})`;
-  ctx.fillRect(sx(0) - Math.max(1, 0.3 * s), y0 - Math.max(3, 1.2 * s), Math.max(2, 0.6 * s), Math.max(3, 1.2 * s));
-  // beacons
-  const blink = Math.sin(performance.now() / 260) > 0;
+  const near = clamp(1 - f.state.y / 600, 0.3, 1);
+  const rx = half * s, ry = d * 0.44;
+  const cx = sx(0), cy = y0;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = `rgba(91, 227, 164, ${0.1 * near})`;
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+  const glowA = (th.rain ? 0.35 : 0.2) * near;
+  ctx.strokeStyle = `rgba(91, 227, 164, ${glowA})`;
+  ctx.lineWidth = Math.max(5, 0.9 * s);
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = `rgba(190, 255, 224, ${0.95 * near})`;
+  ctx.lineWidth = Math.max(1.5, 0.35 * s);
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = Math.max(1, 0.2 * s);
+  ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.5, ry * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - rx * 0.26, cy - ry * 0.55); ctx.lineTo(cx + rx * 0.26, cy + ry * 0.55);
+  ctx.moveTo(cx + rx * 0.26, cy - ry * 0.55); ctx.lineTo(cx - rx * 0.26, cy + ry * 0.55);
+  ctx.stroke();
+
+  // blinking beacons on the end walls
+  const blink = Math.sin(t * 3.8) > 0;
   for (const bx of [-halfDeck + 0.8, halfDeck - 0.8]) {
-    const x = sx(bx), y = y0 - 4.6 * s;
+    const x = sx(bx), y = top - 0.4 * s;
     const r = Math.max(6, 3 * s);
     const g = ctx.createRadialGradient(x, y, 0, x, y, r * (blink ? 2.4 : 1.4));
     g.addColorStop(0, blink ? 'rgba(255, 110, 90, 0.95)' : 'rgba(255, 110, 90, 0.4)');
     g.addColorStop(1, 'rgba(255, 110, 90, 0)');
     ctx.fillStyle = g;
     ctx.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
+    ctx.fillStyle = '#ff8f7a';
+    ctx.fillRect(x - 1, y - 1, 2, 2);
   }
-  // water line foam
-  ctx.fillStyle = 'rgba(200, 220, 255, 0.18)';
-  ctx.fillRect(x0 - 3, y0 + hull - 1, x1 - x0 + 6, 2);
+  // waterline foam that slides along the hull
+  const wl = front + hull;
+  ctx.fillStyle = 'rgba(200, 220, 255, 0.16)';
+  ctx.fillRect(x0 - 3, wl - 1, x1 - x0 + 6, 2);
+  ctx.strokeStyle = 'rgba(200, 220, 255, 0.18)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 7; i++) {
+    const fxp = x0 + (((i / 7 + t * 0.02) % 1) * (x1 - x0));
+    ctx.beginPath(); ctx.ellipse(fxp, wl + 2, 8 + (i % 3) * 4, 1.6, 0, 0, Math.PI * 2); ctx.stroke();
+  }
   // engine light on the deck
   const st = f.state;
   if (st.engineOn && st.y < 150 && !st.done) {
     const k = (1 - st.y / 150) * st.throttle;
     const lx = sx(st.x), ly = y0;
     const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60 * s * 0.6 + 40);
-    lg.addColorStop(0, `rgba(255, 190, 110, ${0.65 * k})`);
+    lg.addColorStop(0, `rgba(255, 190, 110, ${0.4 * k})`);
     lg.addColorStop(1, 'rgba(255, 150, 80, 0)');
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = lg;
@@ -500,6 +762,11 @@ function drawBooster(f) {
   ctx.rotate(s.theta);
   ctx.scale(vs, vs);
   // in here: metres, body frame, y up is negative. Origin = nozzle exit.
+  // on touchdown the body settles onto its legs: a quick, damped bounce
+  const landed = s.done && s.outcome && (s.outcome.landed || fx.standing);
+  const tl = landed ? (performance.now() - fx.landedAt) / 1000 : 0;
+  const squash = landed ? Math.max(-0.12, 0.55 * Math.exp(-5 * tl) * Math.cos(16 * tl)) : 0;
+  if (landed) ctx.translate(0, fx.bob / vs);
 
   // plume first (behind the booster), additive
   ctx.save();
@@ -511,7 +778,10 @@ function drawBooster(f) {
 
   // legs
   const dep = easeInOut(fx.legs);
-  for (const side of [-1, 1]) drawLeg(side, dep);
+  for (const side of [-1, 1]) drawLeg(side, dep, squash);
+
+  ctx.save();
+  ctx.translate(0, squash); // everything above the feet rides the compression
 
   // nozzle
   ctx.save();
@@ -562,6 +832,7 @@ function drawBooster(f) {
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(side * 1.85, bodyTop + 2.4);
+    ctx.rotate(fx.fin * 0.75); // the fins swing to steer
     ctx.fillStyle = '#2c3038';
     ctx.fillRect(side > 0 ? 0 : -1.7, -0.55, 1.7, 1.1);
     ctx.strokeStyle = '#555c67';
@@ -585,19 +856,33 @@ function drawBooster(f) {
     ctx.fillRect(-7, -7, 14, 14);
     ctx.globalCompositeOperation = 'source-over';
   }
+  // cold-gas thruster puffs near the top
+  for (const p of fx.puffs) {
+    const k = p.life / p.max;
+    const px = p.side * (2.0 + k * 6 * p.v), py = bodyTop + 6 + p.oy;
+    const r = 0.5 + k * 1.7 * p.v;
+    const pg = ctx.createRadialGradient(px, py, 0, px, py, r);
+    pg.addColorStop(0, `rgba(245, 250, 255, ${(1 - k) * 0.85 * Math.min(1, p.v)})`);
+    pg.addColorStop(1, 'rgba(245, 250, 255, 0)');
+    ctx.fillStyle = pg;
+    ctx.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  ctx.restore();
   ctx.restore();
 }
 
 function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2; }
 
-function drawLeg(side, dep) {
-  // hinge near the base; stowed legs lie along the body pointing up, deployed legs reach the deck
-  const hx = side * 1.85, hy = -3.0;
-  const stowed = 0, deployed = 136 * DEG;
-  const ang = lerp(stowed, deployed, dep);
+function drawLeg(side, dep, squash = 0) {
+  // hinge near the base; stowed legs lie along the body pointing up. Deployed, the feet sit exactly
+  // legHeight below the engine, which is where the physics says the booster touches the deck.
+  const hx = side * 1.85, hy0 = -3.0;
   const len = 8.2;
+  const deployed = Math.acos(-(BOOSTER.legHeight - hy0) / len);
+  const ang = lerp(0, deployed, dep);
   const tx = hx + side * Math.sin(ang) * len;
-  const ty = hy - Math.cos(ang) * len;
+  const ty = hy0 - Math.cos(ang) * len;
+  const hy = hy0 + squash; // the body sinks onto fixed feet
   ctx.strokeStyle = '#1c2027';
   ctx.lineWidth = 0.75;
   ctx.lineCap = 'round';
@@ -610,7 +895,7 @@ function drawLeg(side, dep) {
     const mx = lerp(hx, tx, 0.5), my = lerp(hy, ty, 0.5);
     ctx.strokeStyle = '#3a414c';
     ctx.lineWidth = 0.28;
-    ctx.beginPath(); ctx.moveTo(side * 1.85, -9); ctx.lineTo(mx, my); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(side * 1.85, -9 + squash); ctx.lineTo(mx, my); ctx.stroke();
   }
   // foot
   ctx.fillStyle = '#2a3039';
@@ -689,14 +974,33 @@ function drawSmoke(list, kind) {
   for (const p of list) {
     const k = p.life / p.max;
     const x = sx(p.x), y = sy(p.y), r = p.r * cam.s;
-    const a = (kind === 'steam' ? 0.25 : 0.32) * (1 - k);
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    const c = kind === 'steam' ? '230, 236, 245' : '205, 190, 185';
+    const a = (kind === 'steam' ? 0.22 : kind === 'dust' ? 0.2 : 0.17) * (1 - k);
+    const c = kind === 'steam' ? '230, 236, 245' : kind === 'dust' ? '196, 184, 170' : '205, 190, 185';
+    ctx.save();
+    ctx.translate(x, y);
+    if (kind === 'dust' || kind === 'deck') ctx.scale(1, kind === 'dust' ? 0.42 : 0.55); // it rolls flat across the deck
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
     g.addColorStop(0, `rgba(${c}, ${a})`);
     g.addColorStop(1, `rgba(${c}, 0)`);
     ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+    ctx.restore();
   }
+}
+
+function drawSparks() {
+  if (!fx.sparks.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (const p of fx.sparks) {
+    const k = p.life / p.max;
+    const x = sx(p.x), y = sy(p.y);
+    ctx.strokeStyle = p.water ? `rgba(215, 232, 255, ${0.9 * (1 - k * 0.6)})` : `rgba(255, ${Math.round(190 - 80 * k)}, 100, ${1 - k})`;
+    ctx.lineWidth = p.water ? 2.2 : 1.6;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - p.vx * 0.035 * cam.s, y + p.vy * 0.035 * cam.s); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawFire() {
@@ -712,7 +1016,7 @@ function drawFire() {
       g.addColorStop(1, `rgba(${c}, 0)`);
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      const a = 0.35 * (1 - (p.life - p.max) / 2.5);
+      const a = 0.2 * (1 - (p.life - p.max) / 2.5);
       g.addColorStop(0, `rgba(40, 34, 36, ${a})`);
       g.addColorStop(1, 'rgba(40, 34, 36, 0)');
     }
@@ -724,7 +1028,7 @@ function drawFire() {
     ctx.save();
     ctx.translate(sx(d.x), sy(d.y));
     ctx.rotate(d.a);
-    ctx.fillStyle = d.life < 1.5 ? '#ffb070' : '#2a2e35';
+    ctx.fillStyle = d.life < 1.5 ? '#ffb070' : '#4a505b';
     ctx.fillRect((-d.w / 2) * cam.s, (-d.h / 2) * cam.s, d.w * cam.s, d.h * cam.s);
     ctx.restore();
   }
@@ -886,7 +1190,7 @@ function renderLevels() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(k === app.level));
     b.textContent = lv.label;
-    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderLevels(); showIntro(); });
+    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderLevels(); renderWindOptions(); showIntro(); });
     box.appendChild(b);
   }
   const lv = levelCfg();
@@ -998,16 +1302,25 @@ function setMode(mode) {
   for (const p of document.querySelectorAll('.pane')) p.classList.toggle('hidden', p.dataset.pane !== mode);
   document.body.dataset.mode = mode;
   app.ghosts = [];
+  renderWindOptions();
   showIntro();
 }
 for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setMode(t.dataset.tab));
 
-for (const seed of SEEDS) {
-  const w = makeFlight(seed).wind.steady;
-  const o = document.createElement('option');
-  o.value = seed;
-  o.textContent = `${seed}: ${Math.abs(w).toFixed(0)} m/s from the ${w > 0 ? 'left' : 'right'}`;
-  $('seed').appendChild(o);
+// the wind shown for each seed is the one the current level really uses
+function renderWindOptions() {
+  const sel = $('seed');
+  const keep = String(app.seed);
+  sel.innerHTML = '';
+  const opts = app.mode === 'game' ? levelCfg().opts : undefined;
+  for (const seed of SEEDS) {
+    const w = makeFlight(seed, opts).wind.steady;
+    const o = document.createElement('option');
+    o.value = seed;
+    o.textContent = Math.abs(w) < 0.5 ? `${seed}: calm, gusts only` : `${seed}: ${Math.abs(w).toFixed(0)} m/s from the ${w > 0 ? 'left' : 'right'}`;
+    sel.appendChild(o);
+  }
+  sel.value = keep;
 }
 $('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); app.mode === 'game' ? showIntro() : start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
@@ -1018,3 +1331,6 @@ renderLevels();
 renderSliders();
 setMode('game');
 requestAnimationFrame((t) => { last = t; frame(t); });
+
+// handle for tests and tinkering in the console
+window.hoverslam = { app, fx, cam };
