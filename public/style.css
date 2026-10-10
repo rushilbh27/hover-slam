@@ -74,10 +74,11 @@ html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text)
   padding: 28px 34px; border-radius: 16px; background: rgba(11, 18, 36, 0.78); border: 1px solid var(--line);
   backdrop-filter: blur(10px); width: min(560px, calc(100% - 32px));
 }
-.outcome { top: 38%; animation: rise 0.35s ease-out; }
+.outcome { left: 58%; top: 45%; padding: 20px 30px; animation: rise 0.35s ease-out; } /* clear of the readouts, low enough to leave the sky free */
 @keyframes rise { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
 .hidden { display: none !important; }
 .o-title, .i-title { font: 700 52px/1 var(--display); }
+.outcome .o-title { font-size: 46px; }
 .o-title.good { color: var(--pad); }
 .o-title.bad { color: var(--warn); }
 .o-sub, .i-sub { color: var(--muted); margin: 10px auto 16px; max-width: 46ch; }
@@ -192,6 +193,7 @@ body { touch-action: manipulation; }
   .panel { border-left: none; border-top: 1px solid var(--line); padding: 16px; }
   .o-title, .i-title { font-size: 38px; }
   .outcome, .intro { padding: 20px 22px; top: 44%; }
+  .outcome { left: 50%; }
   .o-stats { gap: 6px 14px; }
 }
 @media (max-width: 480px) {

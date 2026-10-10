@@ -30,6 +30,10 @@ On a phone you get touch buttons in two thumb clusters (lean on the left, thrott
 | Medium | Real crosswind, 14 m pad, no cue, 35% minimum throttle, landing assist only in the last few metres, drift hold on. Lands at up to 3.2 m/s down, 1.6 m/s sideways, 6.5° tilt |
 | Hard | Strong gusts, 11 m pad, the real 40% minimum throttle (it can never hover), no assist, no drift hold. You time one burn that ends at the deck. Lands at up to 3 m/s down, 1.5 m/s sideways, 6° tilt |
 
+Each level has its own look: Easy is a sunset, Medium is dusk with a moon, and Hard is a night storm with rain, lightning and a barge lit only by its own lights.
+
+![Hard: a night storm, with lightning and the barge lit by its own lights](docs/hard-storm.png)
+
 ![The final approach, with the plume hitting the deck](docs/game-final-approach.png)
 
 ### Tune the autopilot (the simulator)

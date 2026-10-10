@@ -91,6 +91,7 @@ function newFlight() {
   app.steer = { want: 0, vHold: 0 };
   app.ended = false;
   app.acc = 0;
+  clearTimeout(app.cardTimer); // a result card from the flight you just left must not appear over this one
   Object.assign(fx, freshFx());
   cam.snap = true;
   $('outcome').classList.add('hidden');
@@ -213,7 +214,7 @@ function onEnd() {
   } else if (o.reason !== 'Flew away' && o.reason !== 'Timed out') {
     explode(s);
   }
-  setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
+  app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
   if (app.mode === 'sim') renderReport();
   if (app.mode === 'game' && o.landed) {
     const sc = scoreFlight(o);
@@ -305,7 +306,7 @@ function explode(s) {
   for (let i = 0; i < 140; i++) {
     const a = Math.random() * Math.PI;
     const v = 8 + Math.random() * 45;
-    fx.fire.push({ x: s.x + (Math.random() - 0.5) * 6, y: y + Math.random() * 20, vx: Math.cos(a) * v * (Math.random() < 0.5 ? -1 : 1), vy: Math.sin(a) * v * 0.7 + 4, life: 0, max: 0.8 + Math.random() * 1.8, r: 3 + Math.random() * 6 });
+    fx.fire.push({ smoke: Math.random() < 0.3, x: s.x + (Math.random() - 0.5) * 6, y: y + Math.random() * 20, vx: Math.cos(a) * v * (Math.random() < 0.5 ? -1 : 1), vy: Math.sin(a) * v * 0.7 + 4, life: 0, max: 0.8 + Math.random() * 1.8, r: 3 + Math.random() * 6 });
   }
   for (let i = 0; i < 18; i++) {
     fx.debris.push({ x: s.x, y: y + Math.random() * 30, vx: (Math.random() - 0.5) * 50, vy: 10 + Math.random() * 35, a: Math.random() * 6, va: (Math.random() - 0.5) * 12, w: 1 + Math.random() * 3, h: 0.6 + Math.random() * 2, life: 0 });
@@ -389,7 +390,7 @@ function updateFx(dt) {
   fx.steam = fx.steam.filter((p) => p.life < p.max);
 
   for (const p of fx.fire) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.5; p.vy = p.vy * (1 - dt * 1.5) + dt * 6; if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.3; } p.life += dt; p.r += dt * (p.life < p.max ? 9 : 1.5); }
-  fx.fire = fx.fire.filter((p) => p.life < p.max + 2.5).slice(-260);
+  fx.fire = fx.fire.filter((p) => p.life < p.max + (p.smoke ? 2.5 : 0)).slice(-260);
   for (const d of fx.debris) {
     d.x += d.vx * dt; d.y += d.vy * dt; d.vy -= G * dt; d.a += d.va * dt; d.life += dt;
     if (d.y < 0.5 && Math.abs(d.x) < 34) { d.y = 0.5; d.vy = -d.vy * 0.3; d.vx *= 0.6; d.va *= 0.5; }
@@ -1016,7 +1017,7 @@ function drawFire() {
       g.addColorStop(1, `rgba(${c}, 0)`);
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      const a = 0.2 * (1 - (p.life - p.max) / 2.5);
+      const a = 0.13 * (1 - (p.life - p.max) / 2.5);
       g.addColorStop(0, `rgba(40, 34, 36, ${a})`);
       g.addColorStop(1, 'rgba(40, 34, 36, 0)');
     }
@@ -1028,8 +1029,10 @@ function drawFire() {
     ctx.save();
     ctx.translate(sx(d.x), sy(d.y));
     ctx.rotate(d.a);
+    ctx.globalAlpha = clamp(1 - (d.life - 2.5) / 2.5, 0, 1);
     ctx.fillStyle = d.life < 1.5 ? '#ffb070' : '#4a505b';
     ctx.fillRect((-d.w / 2) * cam.s, (-d.h / 2) * cam.s, d.w * cam.s, d.h * cam.s);
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 }
