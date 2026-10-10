@@ -1,0 +1,11 @@
+{
+  "name": "hover-slam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Land a rocket booster on a barge with thrust vector control. A game with three levels, and a simulator that explains every autopilot setting and what went wrong.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "build": "node scripts/build-standalone.mjs"
+  }
+}

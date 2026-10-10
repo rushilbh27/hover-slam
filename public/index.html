@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hoverslam</title>
+  <meta name="description" content="Land a rocket booster on a barge with thrust vector control. Fly it yourself on three levels, or tune the autopilot and see what went wrong.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23eef2f7' d='M12 1l3 5v12h-6V6z'/%3E%3Cpath fill='%23ffb347' d='M10 19h4l-2 4z'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="stage-wrap">
+      <canvas id="stage" aria-label="Booster landing view"></canvas>
+
+      <div class="hud top-left">
+        <div class="brand">Hoverslam</div>
+        <div class="tele">
+          <div><label>Altitude</label><b id="t-alt">0</b><i>m</i></div>
+          <div><label>Falling</label><b id="t-vy">0</b><i id="t-vy-target">m/s</i></div>
+          <div><label>Sideways</label><b id="t-vx">0</b><i>m/s</i></div>
+          <div><label>Off pad</label><b id="t-dx">0</b><i>m</i></div>
+          <div><label>Tilt</label><b id="t-tilt">0</b><i>°</i></div>
+          <div><label>Engine angle</label><b id="t-gim">0</b><i>°</i></div>
+        </div>
+        <div class="bars">
+          <div class="bar"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" title="Hover: above this it slows down, below it speeds up"></i></span><b id="t-thr">0%</b></div>
+          <div class="bar fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
+        </div>
+        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span></div>
+      </div>
+
+      <div class="hud top-right">
+        <div class="clock" id="t-clock">T+ 00:00</div>
+        <div class="wind">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
+        <div class="level-tag" id="t-level">Medium</div>
+      </div>
+
+      <div id="cue" class="cue hidden">Light the engine</div>
+
+      <canvas id="minimap" width="360" height="220" aria-label="Approach overview"></canvas>
+
+      <div id="outcome" class="outcome hidden" role="dialog" aria-live="polite">
+        <div class="o-title" id="o-title">Landed</div>
+        <div class="o-sub" id="o-sub"></div>
+        <div class="o-stats" id="o-stats"></div>
+        <div class="o-actions"><button id="o-retry" class="primary">Try again</button><button id="o-next">Next wind</button></div>
+      </div>
+
+      <div id="intro" class="intro">
+        <div class="i-title" id="i-title">Bring it home.</div>
+        <div class="i-sub" id="i-sub">The booster is falling at 140 m/s toward a barge at sea. Its engine can't throttle below 40%, so it can't hover. Light it too early and the fuel runs out. Too late and it hits the deck.</div>
+        <button id="start" class="primary big">Start descent</button>
+      </div>
+
+      <div class="touch" id="touch">
+        <button data-k="left" aria-label="Lean left">◀</button><button data-k="engine">Engine</button><button data-k="right" aria-label="Lean right">▶</button>
+        <button data-k="down">Speed up</button><button data-k="up">Slow down</button>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="game" role="tab">Fly it</button>
+        <button class="tab" data-tab="sim" role="tab">Tune the autopilot</button>
+      </div>
+
+      <div class="pane" data-pane="game">
+        <div class="levels" id="levels" role="radiogroup" aria-label="Level"></div>
+        <p class="muted" id="level-blurb"></p>
+        <ul class="keys">
+          <li><kbd>Space</kbd> Engine on or off</li>
+          <li><kbd>←</kbd><kbd>→</kbd> Lean the booster</li>
+          <li><kbd>↑</kbd> Slow down <kbd>↓</kbd> Speed up. Let go to hold your speed.</li>
+          <li><kbd>R</kbd> Restart</li>
+        </ul>
+        <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
+        <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>
+        <p class="muted" id="limits-text"></p>
+        <div class="best" id="best"></div>
+      </div>
+
+      <div class="pane hidden" data-pane="sim">
+        <p>You don't fly this time. The flight computer does, using the nine settings below. Change them, press <b>Run flight</b>, and watch what happens.</p>
+        <div class="run-row">
+          <button id="run" class="primary">Run flight</button>
+          <button id="test-all">Test all 5 winds</button>
+          <button id="reset-gains" class="ghost">Reset</button>
+        </div>
+        <div id="report" class="report"></div>
+        <div id="test-result" class="result"></div>
+        <div id="sliders"></div>
+      </div>
+
+      <div class="row controls">
+        <label>Wind <select id="seed"></select></label>
+        <label>Speed <select id="speed"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+        <button id="restart" class="ghost">Restart</button>
+      </div>
+
+      <footer class="foot">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</footer>
+    </aside>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
