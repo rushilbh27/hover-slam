@@ -101,7 +101,14 @@ const clouds = [];
 function levelCfg() { return LEVELS[app.level]; }
 
 function newFlight() {
-  if (app.attract) app.flight = makeFlight(SEEDS[app.attractIdx % SEEDS.length], undefined);
+  if (app.attract) {
+    // the backdrop landing skips the long fall: it starts a little above the burn, so the action shows at once
+    app.flight = makeFlight(SEEDS[app.attractIdx % SEEDS.length], undefined);
+    const st = app.flight.state, y0 = st.y, y1 = 1550;
+    st.vy = -Math.sqrt(st.vy * st.vy + 2 * G * (y0 - y1));
+    st.x *= 0.5; st.vx *= 0.5; // closer to the pad too, so the autopilot lands every wind
+    st.y = y1;
+  }
   else if (app.mode === 'game') {
     if (!app.scenario) pickScenario();
     app.flight = scenarioFlight(app.level, app.scenario);
