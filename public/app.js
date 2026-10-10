@@ -3,6 +3,7 @@ import { SETTINGS, SETTING, debrief, NUDGE } from './explain.js';
 import { humanControl } from './controls.js';
 import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
+import { audio } from './audio.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -75,10 +76,11 @@ const THEMES = {
     birds: 0, haze: '58, 84, 110',
   },
 };
-function theme() {
-  if (app.mode !== 'game' || app.attract) return THEMES.sunset;
-  return THEMES[{ easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level]] || THEMES.sunset;
+function themeKey() {
+  if (app.mode !== 'game' || app.attract) return 'sunset';
+  return { easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level] || 'sunset';
 }
+function theme() { return THEMES[themeKey()]; }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
 // Extra background life, shuffled so each flight shows a different pair and the sky never feels like a loop.
 const SHARED = ['birds', 'lighthouse', 'shoot', 'kite', 'balloon', 'buoy', 'dolphins']; // Easy and Medium rotate through the same set
@@ -133,6 +135,7 @@ function newFlight() {
   app.steer = { want: 0, vHold: 0 };
   app.ended = false;
   app.acc = 0;
+  audio.reset(); // cut off the last flight's one-off sounds
   clearTimeout(app.cardTimer); // a result card from the flight you just left must not appear over this one
   Object.assign(fx, freshFx());
   fx.scene = pickScene();
@@ -261,7 +264,19 @@ function frame(now) {
   updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow);
   render(dt);
   hud();
+  if (app.flight) audio.tick(dt, audioState());
   requestAnimationFrame(frame);
+}
+
+// what the sound engine needs to know, every frame
+function audioState() {
+  const f = app.flight, s = f.state;
+  return {
+    menu: app.attract, running: app.running, done: s.done,
+    lit: s.engineOn && !s.cut && !s.done && s.fuel > 0, throttle: s.throttle,
+    fall: -s.vy, alt: Math.max(0, s.y - BOOSTER.legHeight), wind: Math.abs(windAt(f.wind, s.t, s.y)),
+    theme: themeKey(), scene: fx.scene,
+  };
 }
 
 // ---------- outcome ----------
@@ -314,6 +329,7 @@ function splash(s) {
   for (let i = 0; i < 7; i++) fx.steam.push({ x: s.x + (Math.random() - 0.5) * 4, y: 0.8, vx: (Math.random() - 0.5) * 5, vy: 2 + Math.random() * 3, life: 0, max: 1.6, r: 1.2 + Math.random() });
   fx.ring = { r: 0, a: 1, bad: true };
   fx.shake = 0.3;
+  audio.splash();
 }
 
 function touchdown(s, word, tone) {
@@ -328,7 +344,8 @@ function touchdown(s, word, tone) {
   fx.slow = 0.25;
   fx.punch = 1;
   fx.shake = 0.3;
-  if (app.attract) return; // no captions behind the menu
+  if (app.attract) return; // no captions or sounds behind the menu
+  audio.touchdown(tone === 'warn' ? 'rough' : 'soft');
   const cap = $('caption');
   cap.textContent = word;
   cap.classList.toggle('warn', tone === 'warn');
@@ -396,6 +413,7 @@ $('restart').addEventListener('click', () => (app.mode === 'game' ? start() : sh
 
 function explode(s) {
   fx.exploded = true;
+  audio.crash(Math.abs(s.vy));
   fx.flash = 1;
   fx.shake = 1;
   const y = Math.max(0, s.y);
@@ -417,7 +435,9 @@ function updateFx(dt) {
   const B = BOOSTER;
   fx.flash = Math.max(0, fx.flash - dt * 2.2);
   fx.shake = Math.max(0, fx.shake - dt * 1.6);
+  const legs0 = fx.legs;
   fx.legs = clamp(fx.legs + (s.y < 320 || s.done ? dt / 2.2 : 0), 0, 1);
+  if (legs0 === 0 && fx.legs > 0 && !app.attract) audio.legs();
   fx.punch = Math.max(0, fx.punch - dt * 1.4);
   fx.fin += (fx.finCmd - fx.fin) * Math.min(1, dt * 9);
 
@@ -1796,6 +1816,7 @@ $('st-tune').addEventListener('click', () => { leaveStart(); setMode('sim'); });
 $('menu-btn').addEventListener('click', () => showStart('levels'));
 
 // ---------- boot ----------
+audio.init();
 resize();
 renderLevels();
 renderSliders();
@@ -1806,4 +1827,4 @@ app.hold = document.body.classList.contains('boot'); // the backdrop landing wai
 setTimeout(() => { app.hold = false; const c = $('curtain'); if (c) c.remove(); document.body.classList.remove('boot'); }, 5000);
 
 // handle for tests and tinkering in the console
-window.hoverslam = { app, fx, cam, BANK, showIntro, showStart, setView, chooseLevel };
+window.hoverslam = { app, fx, cam, audio, BANK, showIntro, showStart, setView, chooseLevel };

@@ -351,3 +351,14 @@ body.boot.go .fine { animation-delay: 1.3s; }
 .bugs.corner { position: fixed; right: 22px; bottom: 18px; z-index: 50; display: none; }
 body.in-menu .bugs.corner { display: block; }
 @media (max-width: 700px) { .bugs.corner { right: 14px; bottom: 12px; font-size: 12px; } }
+
+/* sound and music toggles: icon buttons. Top left of the start screen, in line with its text; beside the minimap in a flight */
+.sound { position: fixed; left: clamp(24px, 5vw, 64px); top: 22px; z-index: 55; display: flex; gap: 8px; }
+.sound button { width: 38px; height: 34px; padding: 0; display: grid; place-items: center; }
+.sound svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sound button[aria-pressed="false"] { color: var(--dim); }
+body:not(.in-menu) .sound { left: 218px; top: auto; bottom: 22px; }
+@media (max-width: 700px) {
+  .sound { left: auto; right: 12px; top: 12px; }
+  body:not(.in-menu) .sound { right: 12px; top: 78px; bottom: auto; flex-direction: column; align-items: flex-end; }
+}
