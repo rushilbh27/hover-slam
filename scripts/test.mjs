@@ -69,9 +69,9 @@ test('the engine cannot hover on the real throttle floor: tiny fuel + 40% thrust
   assert.ok(thrustAcc > G, 'a nearly empty booster at 40% should out-push gravity');
 });
 
-test('the throttle floor follows the level: 15% Easy, 35% Medium, the real 40% on Hard', () => {
+test('the throttle floor follows the level: 15% Easy, 30% Medium, the real 40% on Hard', () => {
   assert.equal(makeFlight(1, LEVELS.easy.opts).minThrottle, 0.15);
-  assert.equal(makeFlight(1, LEVELS.medium.opts).minThrottle, 0.35);
+  assert.equal(makeFlight(1, LEVELS.medium.opts).minThrottle, 0.3);
   assert.equal(makeFlight(1, LEVELS.hard.opts).minThrottle, 0.4);
 });
 
@@ -173,7 +173,7 @@ test('game: on Easy a player who never touches up or down still wins every wind'
 test('game: a careful player wins every Easy wind and some Medium winds', () => {
   assert.equal(landedCount('easy', 'careful'), 5);
   const medium = landedCount('medium', 'careful', WINDS);
-  assert.ok(medium >= 4 && medium <= 16, `Medium should be winnable but not trivial, got ${medium} of 20`);
+  assert.ok(medium >= 8, `Medium should be winnable by a careful player, got ${medium} of 20`);
 });
 
 test('game: Medium and Hard need real piloting, so a player who only lights the engine loses', () => {
@@ -232,6 +232,62 @@ test('game: with the engine on, the booster never climbs when the keys are left 
     if (f.state.vy > 1.5) climbed = true;
   }
   assert.equal(climbed, false);
+});
+
+// ---------- regression: Medium must be winnable by someone following the HUD ----------
+test('Medium can hover until the tank is nearly empty (the engine floor is below the weight of the nearly empty booster)', () => {
+  const floorThrust = LEVELS.medium.opts.minThrottle * BOOSTER.thrustMax;
+  const weight = (fuelKg) => (BOOSTER.dryMass + fuelKg) * G;
+  assert.ok(floorThrust < weight(1000), 'at 1000 kg left the booster must be able to descend gently');
+  assert.ok(floorThrust < weight(3000), 'and at the 3000 kg a normal landing ends with');
+});
+
+// A pilot who does what the screen says: light the engine, then keep the falling speed at the "aim for" number.
+function hudPilot(level, seed, igniteAt) {
+  const lv = LEVELS[level];
+  const f = makeFlight(seed, lv.opts);
+  const s = f.state;
+  const inp = { left: false, right: false, up: false, down: false, engine: false, throttle: 0.8 };
+  const st = { want: 0, vHold: 0 };
+  let react = 0;
+  while (!s.done) {
+    if ((react += DT) >= 0.15) {
+      react = 0;
+      const h = s.y - BOOSTER.legHeight;
+      if (!inp.engine && h <= igniteAt) inp.engine = true;
+      const aim = Math.sqrt(1 + 6 * Math.max(0, h));
+      inp.up = -s.vy > aim + 0.5;
+      inp.down = -s.vy < aim - 3;
+      const toward = Math.sign(-s.x);
+      const away = s.vx * toward;
+      const want = clamp(Math.abs(s.x) * 0.08, 0, 8);
+      inp.left = inp.right = false;
+      if (h > 25 && Math.abs(s.x) > 3 && away < want - 0.5) (toward > 0 ? (inp.right = true) : (inp.left = true));
+    }
+    step(f, humanControl(f, DT, st, inp, lv), DT);
+  }
+  return s.outcome;
+}
+
+test('Medium: following the aim-for speed after an early light lands most of the time (the bug that made Medium crash)', () => {
+  let n = 0;
+  for (const seed of WINDS) if (hudPilot('medium', seed, 1600).landed) n++;
+  assert.ok(n >= 16, `only ${n} of 20 landed`);
+});
+
+test('the speed hold never asks for a climb, and letting go of the keys holds the speed you have', () => {
+  const lv = LEVELS.medium;
+  const f = makeFlight(1, { ...lv.opts, windScale: 0 });
+  Object.assign(f.state, { y: 1500, vy: -30, engineOn: true, ignited: true, throttle: 0.5 });
+  const st = { want: 0, vHold: -30 };
+  const up = { left: false, right: false, up: true, down: false, engine: true, throttle: 0.8 };
+  const none = { left: false, right: false, up: false, down: false, engine: true, throttle: 0.8 };
+  for (let i = 0; i < 2 * 120; i++) step(f, humanControl(f, DT, st, up, lv), DT); // slow right down
+  assert.ok(st.vHold <= -0.8, `the target is ${st.vHold.toFixed(1)} m/s, which is not a descent`);
+  const vAtRelease = f.state.vy;
+  for (let i = 0; i < 3 * 120; i++) step(f, humanControl(f, DT, st, none, lv), DT);
+  assert.ok(Math.abs(f.state.vy - vAtRelease) < 3, `speed drifted from ${vAtRelease.toFixed(1)} to ${f.state.vy.toFixed(1)}`);
+  assert.ok(f.state.vy < 0, 'it must still be descending');
 });
 
 console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);

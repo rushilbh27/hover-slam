@@ -253,8 +253,8 @@ export const LEVELS = {
   },
   medium: {
     label: 'Medium',
-    blurb: 'Real crosswind, a smaller pad and no cue: you pick the moment to light the engine, then brake down to the deck. Lands at up to 3.2 m/s. The landing assist only helps in the last few metres, and it still stops drifting when you let go of the arrows.',
-    opts: { windScale: 1.0, fuel: 8600, padHalf: 14, minThrottle: 0.35, offsetScale: 0.85, limits: { vy: 3.2, vx: 1.6, tilt: 6.5 * DEG, omega: 6.5 * DEG } },
+    blurb: 'Real crosswind, a smaller pad and no cue: you pick the moment to light the engine. Light early enough to steer, then follow the aim-for speed down to the deck. Lands at up to 3.2 m/s. The landing assist only helps in the last few metres, and it still stops drifting when you let go of the arrows.',
+    opts: { windScale: 1.0, fuel: 8600, padHalf: 14, minThrottle: 0.3, offsetScale: 0.85, limits: { vy: 3.2, vx: 1.6, tilt: 6.5 * DEG, omega: 6.5 * DEG } },
     flare: { c: 1.4, a: 6 },
     lean: 12, cue: false, target: true, driftHold: true,
   },

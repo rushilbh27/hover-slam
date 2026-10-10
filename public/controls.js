@@ -24,7 +24,9 @@ export function humanControl(f, dt, st, inp, lv, raw = false) {
   // speed hold
   if (!s.engineOn) st.vHold = s.vy;
   const rate = inp.up ? 18 : inp.down ? -8 : 0;
-  st.vHold = clamp(Math.min(st.vHold + rate * dt, 1.5), s.vy - 6, s.vy + 6);
+  if (rate === 0 && st.rate) st.vHold = s.vy; // let go: hold the speed you have now, not the one the key was chasing
+  st.rate = rate;
+  st.vHold = clamp(Math.min(st.vHold + rate * dt, -0.8), s.vy - 6, s.vy + 6); // it never asks for a climb
   // landing assist (Easy, Medium): never let the held speed exceed a safe descent for this height
   if (lv.flare && !inp.down) st.vHold = Math.max(st.vHold, -Math.sqrt(lv.flare.c ** 2 + 2 * lv.flare.a * h));
   const throttle = (mass(s) * (G + rate + 3 * (st.vHold - s.vy))) / (B.thrustMax * Math.max(0.6, Math.cos(s.theta)));
