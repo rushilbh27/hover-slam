@@ -47,7 +47,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0 });
+const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5 });
 const fx = freshFx();
 const rain = [];
 
@@ -80,6 +80,17 @@ function theme() {
   return THEMES[{ easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level]] || THEMES.sunset;
 }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
+// Extra background life, shuffled so each flight shows a different pair and the sky never feels like a loop.
+const SCENE_POOL = { medium: ['shoot', 'plane', 'moonpath', 'lighthouse'], hard: ['sheet', 'scud', 'swell'] };
+function pickScene() {
+  if (app.mode !== 'game' || app.attract) return [];
+  const pool = (SCENE_POOL[app.level] || []).slice();
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.slice(0, 2);
+}
+const has = (k) => fx.scene.includes(k);
+const scud = Array.from({ length: 9 }, (_, i) => ({ x: i / 9, y: 0.5 + ((i * 37) % 11) / 30, w: 0.09 + ((i * 13) % 7) / 60, v: 0.7 + ((i * 29) % 10) / 14 }));
+
 
 // Gulls over the water, with a thin haze where the sea meets the sky.
 const birds = [];
@@ -121,6 +132,7 @@ function newFlight() {
   app.acc = 0;
   clearTimeout(app.cardTimer); // a result card from the flight you just left must not appear over this one
   Object.assign(fx, freshFx());
+  fx.scene = pickScene();
   cam.snap = true;
   $('outcome').classList.add('hidden');
   $('caption').classList.add('hidden');
@@ -430,7 +442,19 @@ function updateFx(dt) {
     if (fx.bolt) { fx.bolt.t += dt; if (fx.bolt.t > 0.7) fx.bolt = null; }
     else { fx.nextBolt -= dt; if (fx.nextBolt <= 0) { fx.bolt = { t: 0, x: 0.12 + Math.random() * 0.76, seed: Math.random() * 1000 }; fx.nextBolt = 4 + Math.random() * 7; } }
   } else fx.bolt = null;
-  fx.bob = Math.sin(performance.now() / 1000 * 0.9) * Math.min(0.22 * cam.s * th.swell, 1.6);
+  const tt = performance.now() / 1000;
+  fx.bob = has('swell')
+    ? (Math.sin(tt * 0.55) * 0.75 + Math.sin(tt * 1.1 + 1.3) * 0.25) * Math.min(0.5 * cam.s * th.swell, 2.8)
+    : Math.sin(tt * 0.9) * Math.min(0.22 * cam.s * th.swell, 1.6);
+  // a shooting star every so often, and sheet lightning that lights the clouds from inside
+  if (has('shoot') && !s.done) {
+    if (fx.shoot) { fx.shoot.t += dt; if (fx.shoot.t > fx.shoot.life) fx.shoot = null; }
+    else { fx.nextShoot -= dt; if (fx.nextShoot <= 0) { const d = Math.random() < 0.5 ? 1 : -1; fx.shoot = { t: 0, life: 0.9 + Math.random() * 0.5, x: 0.15 + Math.random() * 0.7, y: 0.05 + Math.random() * 0.3, d, len: 0.12 + Math.random() * 0.1, slope: 0.25 + Math.random() * 0.3 }; fx.nextShoot = 7 + Math.random() * 7; } }
+  } else fx.shoot = null;
+  if (has('sheet') && !s.done) {
+    if (fx.sheet) { fx.sheet.t += dt; if (fx.sheet.t > 0.9) fx.sheet = null; }
+    else { fx.nextSheet -= dt; if (fx.nextSheet <= 0) { fx.sheet = { t: 0, x: 0.1 + Math.random() * 0.8, y: 0.15 + Math.random() * 0.35 }; fx.nextSheet = 2.5 + Math.random() * 4.5; } }
+  } else fx.sheet = null;
 
   // plume particles, stored relative to the nozzle in metres
   if (s.engineOn && !s.done && !s.cut) {
@@ -525,6 +549,7 @@ function render(dt) {
   drawBolt();
   drawSea(th);
   drawHorizonLife(th);
+  drawExtras(th);
   drawBarge(f, th);
   if (app.mode === 'game' && app.running && !s.done) drawPrediction(f);
   drawSmoke(fx.smoke, 'deck');
@@ -688,7 +713,7 @@ function drawSea(th) {
   for (let j = 1; j < 7; j++) {
     const y = hy + (H - hy) * (j / 7) ** 1.6;
     ctx.beginPath();
-    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.02 + t * (0.6 + j * 0.1) + j) * (1 + j * 0.4) * th.swell);
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.02 + t * (0.6 + j * 0.1) + j) * (1 + j * 0.4) * th.swell * (has('swell') ? 1.7 : 1));
     ctx.stroke();
   }
   // whitecaps on the crests
@@ -704,6 +729,87 @@ function drawSea(th) {
   }
 }
 
+
+// ---------- shuffled extras: medium (shooting star, plane, moon path, lighthouse) and hard (sheet lightning, scud, swell) ----------
+function drawExtras(th) {
+  const hy = sy(0);
+  if (!fx.scene.length || hy < 30 || hy > H + 4) return;
+  const t = performance.now() / 1000;
+  if (has('shoot') && fx.shoot) {
+    const s = fx.shoot, p = s.t / s.life;
+    const x = W * (s.x + s.d * p * s.len * 2.2), y = hy * (s.y + p * s.len * s.slope * 2.2);
+    const tail = W * s.len * 0.8 * Math.sin(Math.PI * Math.min(1, p * 1.1));
+    const a = Math.sin(Math.PI * Math.min(1, p)) ;
+    const g = ctx.createLinearGradient(x, y, x - s.d * tail, y - tail * s.slope);
+    g.addColorStop(0, `rgba(255, 244, 230, ${0.9 * a})`); g.addColorStop(1, 'rgba(255, 244, 230, 0)');
+    ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - s.d * tail, y - tail * s.slope); ctx.stroke();
+  }
+  if (has('plane')) {
+    const dur = 80, ph = ((t / dur) % 1 + 1) % 1;
+    const x = W * (-0.05 + ph * 1.1), y = hy * 0.16 + Math.sin(ph * 6.28) * 3;
+    const blinkR = Math.sin(t * 2.4) > 0.55, strobe = (t * 1.1) % 1 < 0.08;
+    ctx.fillStyle = 'rgba(8, 6, 20, 0.7)'; ctx.fillRect(x - 3, y - 0.5, 6, 1.2);
+    for (const [dx, col, on, r] of [[-3.2, '255, 70, 60', blinkR, 4], [3.2, '70, 255, 150', true, 3], [0, '255, 255, 255', strobe, 5]]) {
+      if (!on) continue;
+      const g = ctx.createRadialGradient(x + dx, y, 0, x + dx, y, r);
+      g.addColorStop(0, `rgba(${col}, 0.95)`); g.addColorStop(1, `rgba(${col}, 0)`);
+      ctx.fillStyle = g; ctx.fillRect(x + dx - r, y - r, r * 2, r * 2);
+    }
+  }
+  if (has('moonpath') && th.moon) {
+    const mx = W * 0.64 - cam.x * 0.02;
+    ctx.fillStyle = 'rgba(214, 226, 255, 1)';
+    for (let i = 0; i < 46; i++) {
+      const d = i / 46, y = hy + 3 + d * d * (H - hy) * 0.9;
+      const swell = Math.sin(i * 1.7 + t * (0.9 + d)) * 0.5 + 0.5;
+      const w = (6 + d * W * 0.09) * (0.35 + 0.65 * swell);
+      const x = mx + Math.sin(i * 3.3 + t * 0.7) * (4 + d * 26);
+      ctx.globalAlpha = (0.12 + 0.34 * swell) * (1 - d * 0.7);
+      ctx.fillRect(x - w / 2, y, w, 1 + d * 1.8);
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (has('lighthouse')) {
+    const lx = W * 0.18 - cam.x * 0.02 * cam.s, u = clamp(H * 0.006, 3, 7);
+    ctx.fillStyle = '#0a0d1a'; // the rock and the tower
+    ctx.beginPath(); ctx.ellipse(lx, hy + 0.5, u * 3, u * 0.7, 0, Math.PI, 0); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(lx - u * 0.7, hy); ctx.lineTo(lx - u * 0.4, hy - u * 4.2); ctx.lineTo(lx + u * 0.4, hy - u * 4.2); ctx.lineTo(lx + u * 0.7, hy); ctx.closePath(); ctx.fill();
+    const ly = hy - u * 4.6, rot = t * 0.7, c = Math.cos(rot), side = Math.sin(rot) >= 0 ? 1 : -1;
+    const power = c * c * c * c; // bright only when the lamp faces us or turns its beam along the horizon
+    const glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, u * 9);
+    glow.addColorStop(0, `rgba(255, 238, 190, ${0.35 + 0.55 * power})`); glow.addColorStop(1, 'rgba(255, 238, 190, 0)');
+    ctx.fillStyle = glow; ctx.fillRect(lx - u * 9, ly - u * 9, u * 18, u * 18);
+    const len = W * 0.55 * (1 - c * c) ** 0.5 * 0.9;
+    if (len > 8) {
+      const bg = ctx.createLinearGradient(lx, 0, lx + side * len, 0);
+      bg.addColorStop(0, 'rgba(255, 238, 190, 0.30)'); bg.addColorStop(1, 'rgba(255, 238, 190, 0)');
+      ctx.fillStyle = bg;
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + side * len, ly - u * 1.8); ctx.lineTo(lx + side * len, ly + u * 2.4); ctx.closePath(); ctx.fill();
+    }
+  }
+  if (has('scud')) {
+    const f = app.flight, wind = f ? f.wind.steady : 2, dir = wind >= 0 ? 1 : -1, sp = (0.012 + Math.min(Math.abs(wind), 12) * 0.0035) * dir;
+    for (const c of scud) {
+      const px = (((c.x + t * sp * c.v) % 1.3) + 1.3) % 1.3 - 0.15;
+      const cx = W * px, cy = hy * c.y, w = W * c.w;
+      for (let k = 0; k < 4; k++) {
+        const ox = (k - 1.5) * w * 0.55, oy = Math.sin(k * 2.1 + c.x * 9) * hy * 0.012;
+        const g = ctx.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, w * 0.7);
+        g.addColorStop(0, 'rgba(6, 10, 16, 0.42)'); g.addColorStop(1, 'rgba(6, 10, 16, 0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx + ox, cy + oy, w * 0.7, w * 0.17, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  if (has('sheet') && fx.sheet) {
+    const k = fx.sheet.t, a = k < 0.07 ? 1 : k < 0.14 ? 0.25 : k < 0.24 ? 0.85 : Math.max(0, 1 - (k - 0.24) / 0.6) * 0.4;
+    const gx = W * fx.sheet.x, gy = hy * fx.sheet.y, r = W * 0.5;
+    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, r);
+    g.addColorStop(0, `rgba(215, 228, 255, ${0.85 * a})`); g.addColorStop(0.5, `rgba(160, 188, 240, ${0.38 * a})`); g.addColorStop(1, 'rgba(150, 180, 235, 0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, hy);
+    ctx.fillStyle = `rgba(190, 210, 255, ${0.1 * a})`; ctx.fillRect(0, hy, W, H - hy); // and it catches the sea
+  }
+}
 
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
