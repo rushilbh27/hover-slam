@@ -1627,7 +1627,8 @@ renderLevels();
 renderSliders();
 setMode('game');
 showStart('welcome'); // always open on the main screen
-requestAnimationFrame((t) => { last = t; frame(t); });
+requestAnimationFrame((t) => { last = t; frame(t); document.body.classList.add('go'); }); // the fog clears once the first frame is drawn
+setTimeout(() => { const c = $('curtain'); if (c) c.remove(); document.body.classList.remove('boot'); }, 5000);
 
 // handle for tests and tinkering in the console
 window.hoverslam = { app, fx, cam, BANK, showIntro, showStart, setView, chooseLevel };
