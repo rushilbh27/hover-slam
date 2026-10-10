@@ -1,9 +1,31 @@
 {
   "name": "hover-slam",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "Land a rocket booster on a barge with thrust vector control. A game with three levels, and a simulator that explains every autopilot setting and what went wrong.",
+  "description": "Land a rocket booster on a barge. Fly it yourself on three levels, or tune the autopilot and see why a landing failed.",
+  "license": "MIT",
   "type": "module",
+  "homepage": "https://hoverslam.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rushilbh27/hover-slam.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rushilbh27/hover-slam/issues"
+  },
+  "keywords": [
+    "rocket",
+    "landing",
+    "simulator",
+    "game",
+    "thrust-vector-control",
+    "physics",
+    "canvas",
+    "javascript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.mjs",
     "test": "node scripts/test.mjs",

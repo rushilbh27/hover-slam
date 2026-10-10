@@ -253,17 +253,17 @@ export const LEVELS = {
   },
   medium: {
     label: 'Medium',
-    blurb: 'Real crosswind and no cue: you pick the moment to light the engine, then brake down to the deck. A lighter landing assist helps at the end, and it still stops drifting when you let go of the arrows.',
-    opts: { windScale: 0.6, fuel: 9000, padHalf: 18, minThrottle: 0.25, speedScale: 0.9, altScale: 0.9, offsetScale: 0.6, limits: { vy: 4.5, vx: 2.2, tilt: 9 * DEG, omega: 9 * DEG } },
-    flare: { c: 1.8, a: 3.6 },
+    blurb: 'Real crosswind, a smaller pad and no cue: you pick the moment to light the engine, then brake down to the deck. Lands at up to 3.2 m/s. The landing assist only helps in the last few metres, and it still stops drifting when you let go of the arrows.',
+    opts: { windScale: 1.0, fuel: 8600, padHalf: 14, minThrottle: 0.35, offsetScale: 0.85, limits: { vy: 3.2, vx: 1.6, tilt: 6.5 * DEG, omega: 6.5 * DEG } },
+    flare: { c: 1.4, a: 6 },
     lean: 12, cue: false, target: true, driftHold: true,
   },
   hard: {
     label: 'Hard',
-    blurb: 'Strong gusts, a smaller pad and tighter limits: 3.5 m/s down, 1.8 m/s sideways, 7° tilt. Only a light landing assist. The engine won\'t go below 30%, so with nearly empty tanks it climbs instead of hovering. Stronger gusts push you around, but it still steadies itself when you let go.',
-    opts: { windScale: 1.1, fuel: 8400, padHalf: 13, minThrottle: 0.3, limits: { vy: 3.5, vx: 1.8, tilt: 7 * DEG, omega: 7 * DEG } },
-    flare: { c: 1.2, a: 2.2 },
-    lean: 10, cue: false, target: true, driftHold: true,
+    blurb: 'The real thing. Strong gusts, a narrow pad, and an engine that can\'t throttle below 40%, so it can never hover: you have to time one burn that ends exactly at the deck. Land at under 3 m/s down, 1.5 m/s sideways and 6° of tilt. No landing assist, and nothing stops your drift but you.',
+    opts: { windScale: 1.4, fuel: 8200, padHalf: 11, minThrottle: 0.4, limits: { vy: 3, vx: 1.5, tilt: 6 * DEG, omega: 6 * DEG } },
+    flare: null,
+    lean: 10, cue: false, target: true, driftHold: false,
   },
 };
 

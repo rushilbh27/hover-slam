@@ -54,7 +54,8 @@ function player(level, mode) {
   };
 }
 
-const landedCount = (level, mode) => SEEDS.filter((seed) => player(level, mode)(seed).landed).length;
+const WINDS = Array.from({ length: 20 }, (_, i) => i + 1);
+const landedCount = (level, mode, winds = SEEDS) => winds.filter((seed) => player(level, mode)(seed).landed).length;
 
 // ---------- physics ----------
 test('same seed gives the same flight', () => {
@@ -68,10 +69,10 @@ test('the engine cannot hover on the real throttle floor: tiny fuel + 40% thrust
   assert.ok(thrustAcc > G, 'a nearly empty booster at 40% should out-push gravity');
 });
 
-test('the throttle floor follows the level: 15% Easy, 25% Medium, 35% Hard or lower', () => {
+test('the throttle floor follows the level: 15% Easy, 35% Medium, the real 40% on Hard', () => {
   assert.equal(makeFlight(1, LEVELS.easy.opts).minThrottle, 0.15);
-  assert.equal(makeFlight(1, LEVELS.medium.opts).minThrottle, 0.25);
-  assert.ok(makeFlight(1, LEVELS.hard.opts).minThrottle <= 0.35);
+  assert.equal(makeFlight(1, LEVELS.medium.opts).minThrottle, 0.35);
+  assert.equal(makeFlight(1, LEVELS.hard.opts).minThrottle, 0.4);
 });
 
 test('levels get harder: smaller pad and tighter landing limits', () => {
@@ -92,12 +93,11 @@ test('the reference settings land every wind; the starting settings leave someth
   assert.ok(evaluate(DEFAULT_GAINS).landed < 5);
 });
 
-test('the autopilot can land every wind on Easy and Medium', () => {
-  for (const level of ['easy', 'medium']) {
-    for (const seed of SEEDS) {
-      const o = fly({ seed, level: LEVELS[level].opts }, (f) => autopilot(f, REFERENCE_GAINS));
-      assert.equal(o.landed, true, `${level} wind ${seed}: ${o.reason}`);
-    }
+test('every level can be won: the reference autopilot lands most winds, even on Hard', () => {
+  for (const level of ['easy', 'medium', 'hard']) {
+    let n = 0;
+    for (let seed = 1; seed <= 10; seed++) if (fly({ seed, level: LEVELS[level].opts }, (f) => autopilot(f, REFERENCE_GAINS)).landed) n++;
+    assert.ok(n >= 7, `${level}: only ${n} of 10`);
   }
 });
 
@@ -170,13 +170,15 @@ test('game: on Easy a player who never touches up or down still wins every wind'
   assert.equal(landedCount('easy', 'lazy'), 5);
 });
 
-test('game: a careful player wins every wind on Easy and Medium', () => {
+test('game: a careful player wins every Easy wind and some Medium winds', () => {
   assert.equal(landedCount('easy', 'careful'), 5);
-  assert.equal(landedCount('medium', 'careful'), 5);
+  const medium = landedCount('medium', 'careful', WINDS);
+  assert.ok(medium >= 4 && medium <= 16, `Medium should be winnable but not trivial, got ${medium} of 20`);
 });
 
-test('game: Hard is winnable, on most winds for a careful player', () => {
-  assert.ok(landedCount('hard', 'careful') >= 2);
+test('game: Medium and Hard need real piloting, so a player who only lights the engine loses', () => {
+  assert.equal(landedCount('medium', 'lazy', WINDS), 0);
+  assert.equal(landedCount('hard', 'lazy', WINDS), 0);
 });
 
 test('game: releasing the arrows on Easy stops the sideways drift', () => {
