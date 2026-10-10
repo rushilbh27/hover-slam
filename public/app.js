@@ -58,21 +58,21 @@ const THEMES = {
     stars: 0.8, sun: true, moon: false, glow: '255, 196, 120', sea: ['#2a2140', '#16203a', '#070d1b'], cloud: '255, 176, 150', cloudMul: 1,
     swell: 1, glitter: '255, 190, 130', glx: 0.74, rain: false, bolts: false, whitecaps: false, ambient: 1, lights: 0.5,
     hull: ['#3c4658', '#151b27'], deck: ['#505b6c', '#6a7587'], rim: '255, 170, 110',
-    birds: 7, ships: 3, haze: '255, 172, 112', shipCol: '#1a1630', shipLit: 0.15,
+    birds: 7, haze: '255, 172, 112',
   },
   dusk: {
     sky: [[0, '#03050f'], [0.4, '#0a0f2e'], [0.72, '#221a49'], [0.9, '#55306a'], [0.97, '#9b476b'], [1, '#cf7468']],
     stars: 1.7, sun: false, moon: true, glow: '205, 110, 140', sea: ['#2a1d45', '#111838', '#050a17'], cloud: '200, 140, 190', cloudMul: 1.4,
     swell: 1.8, glitter: '210, 220, 255', glx: 0.64, rain: false, bolts: false, whitecaps: false, ambient: 0.72, lights: 1,
     hull: ['#343d4f', '#10151f'], deck: ['#444e5f', '#5a6578'], rim: '200, 150, 200',
-    birds: 3, ships: 3, haze: '196, 108, 132', shipCol: '#100c24', shipLit: 0.7,
+    birds: 3, haze: '196, 108, 132',
   },
   storm: {
     sky: [[0, '#02050a'], [0.5, '#08111a'], [0.8, '#122030'], [1, '#243546']],
     stars: 0, sun: false, moon: false, glow: '120, 150, 190', sea: ['#1c2937', '#0c1621', '#03080f'], cloud: '120, 145, 180', cloudMul: 3.4,
     swell: 3.2, glitter: '150, 180, 220', glx: 0.5, rain: true, bolts: true, whitecaps: true, ambient: 0.4, lights: 1.7,
     hull: ['#232b37', '#0a0e14'], deck: ['#2c3440', '#3a4452'], rim: '150, 180, 230',
-    birds: 0, ships: 2, haze: '58, 84, 110', shipCol: '#070d14', shipLit: 1,
+    birds: 0, haze: '58, 84, 110',
   },
 };
 function theme() {
@@ -81,15 +81,12 @@ function theme() {
 }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
 
-// Life on the horizon: a few gulls gliding over the water, and ships far out that cross, then melt into the haze.
+// Gulls over the water, with a thin haze where the sea meets the sky.
 const birds = [];
-const ships = [];
 {
   let seed = 31;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 9; i++) birds.push({ x0: (rnd() - 0.5) * 3000, y: 45 + rnd() * 300, v: (rnd() < 0.7 ? 1 : -1) * (5 + rnd() * 7), flap: 2.6 + rnd() * 2.2, ph: rnd() * 6.28, size: 0.8 + rnd() * 0.6, glide: rnd() * 6.28 });
-  const kinds = ['cargo', 'tanker', 'sail', 'cargo', 'tanker'];
-  for (let i = 0; i < 5; i++) ships.push({ kind: kinds[i], dir: i % 2 ? -1 : 1, dur: 110 + rnd() * 90, off: rnd(), size: 0.75 + rnd() * 0.6, lane: rnd() });
 }
 
 const stars = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random() * 0.62, r: Math.random() * 1.2 + 0.2, p: Math.random() * 6.28 }));
@@ -703,64 +700,29 @@ function drawSea(th) {
 
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-function drawGull(x, y, size, flapPhase, a, col) {
-  const w = size * 7, flap = Math.sin(flapPhase);
+// A gull is two jointed wings. The inner wing leads the stroke and the tip lags behind it, which gives the
+// whip of a real wingbeat. The body rises on the downstroke. When it glides, the wings hold still, slightly raised.
+function drawGull(x, y, size, phase, flapGain, a, col) {
+  const w = size * 7; // half the wingspan, in pixels
+  const inner = Math.sin(phase) * 0.62 * flapGain + 0.22 * (1 - flapGain); // radians above level
+  const tip = Math.sin(phase - 1.0) * 0.95 * flapGain - 0.5 * (1 - flapGain); // gliding: wrists up, tips drooped
+  const by = y + Math.cos(phase) * w * 0.1 * flapGain; // up on the downstroke
+  const ex = Math.cos(inner) * w * 0.55, ey = Math.sin(inner) * w * 0.55;
+  const tx = ex + Math.cos(inner + tip) * w * 0.45, ty = ey + Math.sin(inner + tip) * w * 0.45;
   ctx.strokeStyle = col.replace('A', a.toFixed(2));
-  ctx.lineWidth = Math.max(1, size * 0.9);
-  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(1, size * 0.85);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.moveTo(x - w, y - flap * w * 0.55);
-  ctx.quadraticCurveTo(x - w * 0.45, y - flap * w * 0.55 - w * 0.34, x, y);
-  ctx.quadraticCurveTo(x + w * 0.45, y - flap * w * 0.55 - w * 0.34, x + w, y - flap * w * 0.55);
+  ctx.moveTo(x - tx, by - ty); ctx.lineTo(x - ex, by - ey); ctx.lineTo(x, by);
+  ctx.lineTo(x + ex, by - ey); ctx.lineTo(x + tx, by - ty);
   ctx.stroke();
-}
-
-function drawShip(sh, x, hy, a, th, t) {
-  const u = clamp(H * 0.0075, 2.6, 7) * sh.size;
-  const y = hy + 1 + Math.sin(t * 0.7 + sh.off * 9) * 0.35;
-  const d = sh.dir;
-  ctx.save();
-  ctx.globalAlpha = a;
-  ctx.fillStyle = th.shipCol;
-  const lit = th.shipLit;
-  if (sh.kind === 'cargo') {
-    ctx.beginPath(); ctx.moveTo(x - u * 3.4, y - u * 0.7); ctx.lineTo(x + u * 3.4, y - u * 0.7); ctx.lineTo(x + u * 2.9 * d, y); ctx.lineTo(x - u * 3 * d, y); ctx.closePath(); ctx.fill();
-    ctx.fillRect(x - u * 3 * d - u * 0.7, y - u * 2.4, u * 1.4, u * 1.7); // bridge, aft
-    for (let i = 0; i < 4; i++) ctx.fillRect(x - u * 1.6 * d + i * u * 0.95 * d - u * 0.4, y - u * 1.5 - (i % 2) * u * 0.4, u * 0.8, u * 0.85); // container stacks
-    if (lit > 0.3) { ctx.fillStyle = `rgba(255, 214, 140, ${0.8 * lit})`; ctx.fillRect(x - u * 3 * d - u * 0.4, y - u * 2, u * 0.8, Math.max(1, u * 0.22)); }
-  } else if (sh.kind === 'tanker') {
-    ctx.beginPath(); ctx.moveTo(x - u * 4.2, y - u * 0.55); ctx.lineTo(x + u * 4.2, y - u * 0.55); ctx.lineTo(x + u * 3.8 * d, y); ctx.lineTo(x - u * 4 * d, y); ctx.closePath(); ctx.fill();
-    ctx.fillRect(x - u * 3.6 * d - u * 0.6, y - u * 2.1, u * 1.2, u * 1.6);
-    ctx.fillRect(x + u * 3.2 * d - u * 0.15, y - u * 1.1, u * 0.3, u * 0.6);
-    if (lit > 0.3) { ctx.fillStyle = `rgba(255, 214, 140, ${0.8 * lit})`; ctx.fillRect(x - u * 3.6 * d - u * 0.3, y - u * 1.8, u * 0.6, Math.max(1, u * 0.2)); }
-  } else { // a small sailing boat
-    ctx.beginPath(); ctx.moveTo(x - u * 1.1, y - u * 0.35); ctx.lineTo(x + u * 1.1, y - u * 0.35); ctx.lineTo(x + u * 0.7, y); ctx.lineTo(x - u * 0.8, y); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(x, y - u * 0.35); ctx.lineTo(x, y - u * 2.3); ctx.lineTo(x + u * 0.9 * d, y - u * 0.5); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(x - u * 0.15 * d, y - u * 0.4); ctx.lineTo(x - u * 0.15 * d, y - u * 1.7); ctx.lineTo(x - u * 0.9 * d, y - u * 0.45); ctx.closePath(); ctx.fill();
-  }
-  // a thin wake trailing behind it
-  ctx.fillStyle = `rgba(${th.haze}, 0.35)`;
-  ctx.fillRect(x - d * u * 4.4 - (d > 0 ? u * 3 : 0), y + 0.2, u * 3, 1);
-  ctx.restore();
 }
 
 function drawHorizonLife(th) {
   const hy = sy(0);
   if (hy < 20 || hy > H + 4) return;
   const t = performance.now() / 1000;
-  // ships: each crosses the horizon slowly, fading in and out of the haze
-  if (th.ships) {
-    for (let i = 0; i < Math.min(ships.length, th.ships); i++) {
-      const sh = ships[i];
-      const ph = ((t / sh.dur + sh.off) % 1 + 1) % 1;
-      const a = smooth(0, 0.14, ph) * (1 - smooth(0.86, 1, ph)) * 0.92;
-      if (a < 0.02) continue;
-      const frac = sh.dir > 0 ? -0.05 + ph * 1.1 : 1.05 - ph * 1.1;
-      const x = W * frac - cam.x * 0.012 * cam.s;
-      drawShip(sh, x, hy - sh.lane * 0, a, th, t);
-    }
-  }
-  // haze: the far water and anything on it melts into the sky
+  // haze where the far water melts into the sky
   const hz = ctx.createLinearGradient(0, hy - 26, 0, hy + 8);
   hz.addColorStop(0, `rgba(${th.haze}, 0)`);
   hz.addColorStop(0.72, `rgba(${th.haze}, 0.26)`);
@@ -778,10 +740,9 @@ function drawHorizonLife(th) {
       if (x < -20 || x > W + 20 || y < -10 || y > hy - 6) continue;
       const near = clamp(cam.s, 0.35, 1.8);
       const edge = 1 - smooth(1200, 1600, Math.abs(wx));
-      const flapPh = t * b.flap + b.ph;
-      // gulls glide more than they flap
-      const flapAmt = Math.sin(t * 0.35 + b.glide) > 0.2 ? flapPh : 0.5 + Math.sin(t * 0.8 + b.ph) * 0.18;
-      drawGull(x, y, b.size * (0.55 + near * 0.6), flapAmt, 0.7 * edge, col);
+      // gulls flap in bursts and glide in between, so the wing pose blends smoothly rather than snapping
+      const gain = smooth(-0.1, 0.35, Math.sin(t * 0.35 + b.glide));
+      drawGull(x, y, b.size * (0.55 + near * 0.6), t * b.flap + b.ph, gain, 0.7 * edge, col);
     }
   }
 }
