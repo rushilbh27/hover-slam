@@ -95,6 +95,8 @@ The flight computer flies, using nine settings you choose. Press **Run flight** 
 
 A 2D rigid body stepped 120 times a second. Engine gimbal ±7° at 20°/s, throttle with 0.25 s lag, fuel burn from an Isp of 282 s, drag that thins with altitude, a seeded crosswind with gusts that fade near the surface, and small cold-gas thrusters for turning. The autopilot follows a braking speed plan v = −√(c² + 2ah) with feed-forward, leans toward the pad from its offset and drift, and holds attitude with a PD loop.
 
+Sound is generated in the browser, so there is nothing to download or license. The engine's tone follows the throttle and stops dead when it cuts, the rush of air follows your falling speed, and each level has its own weather. Effects are on by default, music is off. Both toggles are in the corner and are remembered, and `M` toggles sound effects.
+
 | File | What it holds |
 | --- | --- |
 | `public/physics.js` | The simulation, the levels, the autopilot and the scoring |
@@ -104,6 +106,7 @@ A 2D rigid body stepped 120 times a second. Engine gimbal ±7° at 20°/s, throt
 | `public/explain.js` | Plain-language help for each setting and the flight debrief |
 | `public/app.js` | The renderer, HUD, panels and start screens |
 | `public/menu.js` | The how-to-play diagrams and level cards |
+| `public/audio.js` | The sound, all synthesised with Web Audio (no audio files) |
 | `scripts/test.mjs` | The tests |
 | `scripts/generate-scenarios.mjs` | Builds the scenario bank, by rules or with Claude |
 | `scripts/lib/` | The scripted players, the rule-based writer and the Claude writer |
