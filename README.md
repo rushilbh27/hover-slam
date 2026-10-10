@@ -2,7 +2,7 @@
 
 **Land a rocket booster on a barge. Fly it yourself on three levels, or tune the autopilot and see why a landing failed.**
 
-[**Play it: hoverslam.vercel.app**](https://hoverslam.vercel.app) · No install, no account, works on a phone.
+[**Play it: hoverslam.vercel.app**](https://hoverslam.vercel.app) · No install, no account, works on a phone and a laptop.
 
 ![The booster mid-burn on Easy](docs/game-burn.png)
 
@@ -22,7 +22,7 @@ You are the flight computer.
 | ↓ | Speed up. Let go of both to hold your falling speed |
 | R | Restart |
 
-Phones get touch buttons. The **Expert** checkbox swaps in raw controls: the arrows swivel the engine directly and ↑/↓ move a throttle lever.
+On a phone you get touch buttons in two thumb clusters (lean on the left, throttle and engine on the right), and it works in portrait or landscape. The **Expert** checkbox swaps in raw controls: the arrows swivel the engine directly and ↑/↓ move a throttle lever.
 
 | Level | What changes |
 | --- | --- |

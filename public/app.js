@@ -12,7 +12,7 @@ const store = {
 // ---------- state ----------
 const app = {
   mode: 'game', // 'game' (you fly) or 'sim' (autopilot flies your settings)
-  level: store.get('hs.level', 'medium'),
+  level: store.get('hs.level', 'easy'),
   seed: 1,
   speed: 1,
   gains: { ...DEFAULT_GAINS, ...store.get('hs.gains', {}) },
@@ -298,13 +298,18 @@ const sy = (y) => H / 2 - (y - cam.y) * cam.s;
 function updateCam(dt) {
   const s = app.flight.state;
   const y = Math.max(0, s.y);
-  const ts = clamp((H * 0.7) / (y + 102), 0.18, 4.2);
-  const ty = (0.32 * H) / ts;
+  const touchUI = getComputedStyle($('touch')).display !== 'none';
+  // on touch layouts the deck sits higher so the thumb buttons never cover it
+  const ground = touchUI ? (H < 420 ? 0.7 : 0.62) : 0.82;
+  const ts = clamp((H * (ground - 0.12)) / (y + 102), 0.18, 4.2);
+  const ty = ((ground - 0.5) * H) / ts;
   const span = (W * 0.36) / ts;
-  const tx = clamp(s.x * 0.5, s.x - span, s.x + span);
+  // narrow portrait screens: slide the view so the booster flies on the right, clear of the readouts
+  const shift = touchUI && W < 500 ? (0.17 * W) / ts : 0;
+  const tx = clamp(s.x * 0.5, s.x - span, s.x + span) - shift;
   if (cam.snap) { cam.s = ts; cam.x = tx; cam.y = ty; cam.snap = false; return; }
   const k = Math.min(1, dt * 3.5);
-  cam.s = lerp(cam.s, ts, k); cam.x = lerp(cam.x, tx, k); cam.y = (0.32 * H) / cam.s;
+  cam.s = lerp(cam.s, ts, k); cam.x = lerp(cam.x, tx, k); cam.y = ((ground - 0.5) * H) / cam.s;
 }
 
 function render(dt) {

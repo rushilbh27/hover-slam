@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Hoverslam</title>
   <meta name="description" content="Land a rocket booster on a barge with thrust vector control. Fly it yourself on three levels, or tune the autopilot and see what went wrong.">
   <meta property="og:type" content="website">
@@ -64,8 +64,8 @@
       </div>
 
       <div class="touch" id="touch">
-        <button data-k="left" aria-label="Lean left">◀</button><button data-k="engine">Engine</button><button data-k="right" aria-label="Lean right">▶</button>
-        <button data-k="down">Speed up</button><button data-k="up">Slow down</button>
+        <div class="pad"><button data-k="left" aria-label="Lean left">◀</button><button data-k="right" aria-label="Lean right">▶</button></div>
+        <div class="pad"><button data-k="up">Slow down</button><button data-k="down">Speed up</button><button data-k="engine" class="engine">Engine</button></div>
       </div>
     </section>
 
