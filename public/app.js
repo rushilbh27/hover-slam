@@ -1626,7 +1626,7 @@ resize();
 renderLevels();
 renderSliders();
 setMode('game');
-showStart(store.get('hs.seen', false) ? 'levels' : 'welcome'); // first visit: the full welcome; after that, straight to the levels
+showStart('welcome'); // always open on the main screen
 requestAnimationFrame((t) => { last = t; frame(t); });
 
 // handle for tests and tinkering in the console
