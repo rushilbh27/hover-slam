@@ -35,8 +35,9 @@
         </div>
         <div class="bars">
           <div class="bar"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" title="Hover: above this it slows down, below it speeds up"></i></span><b id="t-thr">0%</b></div>
-          <div class="bar fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
+          <div class="bar fuel" id="bar-fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
         </div>
+        <div class="faults" id="faults"></div>
         <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span></div>
       </div>
 
@@ -46,22 +47,29 @@
         <div class="level-tag" id="t-level">Medium</div>
       </div>
 
+      <div id="alert" class="alert hidden" role="status" aria-live="assertive"></div>
+
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
 
       <canvas id="minimap" width="360" height="220" aria-label="Approach overview"></canvas>
 
       <div id="outcome" class="outcome hidden" role="dialog" aria-live="polite">
+        <div class="o-scn" id="o-scn"></div>
         <div class="o-title" id="o-title">Landed</div>
         <div class="o-sub" id="o-sub"></div>
         <div class="o-stats" id="o-stats"></div>
-        <div class="o-actions"><button id="o-retry" class="primary">Try again</button><button id="o-next">Next wind</button></div>
+        <div class="o-actions"><button id="o-retry">Retry this one</button><button id="o-next" class="primary">New scenario</button></div>
       </div>
 
       <div id="intro" class="intro">
+        <div class="i-kicker" id="i-kicker">Medium · scenario 1 of 30</div>
         <div class="i-title" id="i-title">Bring it home.</div>
-        <div class="i-sub" id="i-sub">The booster is falling at 140 m/s toward a barge at sea. Its engine can't throttle below 40%, so it can't hover. Light it too early and the fuel runs out. Too late and it hits the deck.</div>
+        <div class="i-faults" id="i-faults"></div>
+        <div class="i-sub" id="i-sub"></div>
+        <div class="i-rule" id="i-rule"></div>
         <button id="start" class="primary big">Start descent</button>
+        <div class="i-hint" id="i-hint">Space starts the descent. <kbd>N</kbd> shows another scenario.</div>
       </div>
 
       <div class="touch" id="touch">
@@ -83,7 +91,8 @@
           <li><kbd>Space</kbd> Engine on or off</li>
           <li><kbd>←</kbd><kbd>→</kbd> Lean the booster</li>
           <li><kbd>↑</kbd> Slow down <kbd>↓</kbd> Speed up. Let go to hold your speed.</li>
-          <li><kbd>R</kbd> Restart</li>
+          <li><kbd>R</kbd> Retry this scenario</li>
+          <li><kbd>N</kbd> A new scenario</li>
         </ul>
         <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
         <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>
@@ -104,9 +113,10 @@
       </div>
 
       <div class="row controls">
-        <label>Wind <select id="seed"></select></label>
+        <label id="wind-label">Wind <select id="seed"></select></label>
         <label>Speed <select id="speed"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
         <button id="restart" class="ghost">Restart</button>
+        <button id="reroll" class="ghost">New scenario</button>
       </div>
 
       <footer class="foot">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</footer>

@@ -1,6 +1,8 @@
 import { BOOSTER, G, DEG, clamp, SEEDS, DT, LEVELS, DEFAULT_GAINS, GAIN_RANGES, makeFlight, step, autopilot, windAt, mass, scoreFlight, evaluate, simulate } from './physics.js';
 import { SETTINGS, SETTING, debrief, NUDGE } from './explain.js';
 import { humanControl } from './controls.js';
+import { BANK } from './bank.js';
+import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
 
 const $ = (id) => document.getElementById(id);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -17,6 +19,7 @@ const app = {
   speed: 1,
   gains: { ...DEFAULT_GAINS, ...store.get('hs.gains', {}) },
   flight: null,
+  scenario: null, // the scenario being played in the game (a variation of the level)
   running: false,
   input: { left: false, right: false, up: false, down: false, engine: false, throttle: 0.8 },
   trail: [],
@@ -40,7 +43,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0 });
+const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0 });
 const fx = freshFx();
 const rain = [];
 
@@ -83,8 +86,10 @@ const clouds = [];
 function levelCfg() { return LEVELS[app.level]; }
 
 function newFlight() {
-  const opts = app.mode === 'game' ? levelCfg().opts : undefined;
-  app.flight = makeFlight(app.seed, opts);
+  if (app.mode === 'game') {
+    if (!app.scenario) pickScenario();
+    app.flight = scenarioFlight(app.level, app.scenario);
+  } else app.flight = makeFlight(app.seed, undefined);
   app.input.engine = false;
   app.input.throttle = 0.8;
   app.trail = [];
@@ -97,6 +102,8 @@ function newFlight() {
   $('outcome').classList.add('hidden');
   $('caption').classList.add('hidden');
   $('cue').classList.add('hidden');
+  $('alert').classList.add('hidden');
+  renderFaultChips();
 }
 
 function start() {
@@ -106,23 +113,43 @@ function start() {
   if (app.mode === 'sim') app.report = debrief(app.gains, app.seed);
 }
 
-function showIntro() {
+// A new scenario from the shuffle bag: every one in the level is played before any repeats.
+function pickScenario() {
+  app.scenario = nextScenario(app.level, BANK, store);
+}
+
+function renderFaultChips() {
+  const labels = app.mode === 'game' && app.scenario ? faultLabels(app.scenario.faults) : [];
+  $('faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}" data-k="${l.key}">${l.text}</span>`).join('');
+  $('i-faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}">${l.text}</span>`).join('');
+}
+
+// fresh = true shows a new scenario; otherwise the same one comes back (retry, resize, tab switch)
+function showIntro(fresh = false) {
+  if (app.mode === 'game' && (fresh || !app.scenario)) pickScenario();
   newFlight();
   app.running = false;
   const intro = $('intro');
   if (app.mode === 'game') {
-    $('i-title').textContent = 'Bring it home.';
+    const sc = app.scenario;
+    const prog = bagProgress(app.level, BANK, store);
     const floor = Math.round(makeFlight(1, levelCfg().opts).minThrottle * 100);
-    $('i-sub').textContent = app.level === 'easy'
-      ? `Easy: light wind, a wide pad and an engine that can hover (down to ${floor}%). Light it when the cue appears, then ease it down.`
-      : `The booster is falling at 140 m/s toward a barge at sea. Its engine can't throttle below ${floor}%, so it can't hover. Light it too early and the fuel runs out. Too late and it hits the deck.${app.level === 'hard' ? ' Night, rain and gusts.' : ''}`;
+    $('i-kicker').textContent = `${levelCfg().label} · scenario ${prog.played} of ${prog.total} this round`;
+    $('i-title').textContent = sc.name;
+    $('i-sub').textContent = sc.briefing;
+    $('i-rule').textContent = app.level === 'easy' ? `The engine throttles down to ${floor}%, so it can hover.` : `The engine can't throttle below ${floor}%, so it can't hover: end the burn at the deck.`;
+    $('i-hint').classList.remove('hidden');
     $('start').textContent = 'Start descent';
   } else {
+    $('i-kicker').textContent = 'Simulator';
     $('i-title').textContent = 'Your settings, its flight.';
     $('i-sub').textContent = 'The flight computer will fly this booster using the nine settings in the panel. Press Run flight to watch, then read what went wrong.';
+    $('i-rule').textContent = '';
+    $('i-hint').classList.add('hidden');
     $('start').textContent = 'Run flight';
   }
   intro.classList.remove('hidden');
+  renderLevels();
 }
 
 // ---------- control ----------
@@ -143,6 +170,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (e.code === 'KeyR') return app.mode === 'game' ? start() : showIntro();
+  if (e.code === 'KeyN' && app.mode === 'game' && !e.ctrlKey && !e.metaKey) return showIntro(true);
   if (e.code === 'Enter' && !app.running) return start();
   const k = keys[e.code];
   if (k) { app.input[k] = true; e.preventDefault(); }
@@ -175,9 +203,9 @@ function frame(now) {
     let n = 0;
     while (app.acc >= DT && n < 2000 && !f.state.done) {
       const c = control(f);
-      fx.rcsCmd = c.rcs || 0;
       fx.finCmd = app.mode === 'sim' ? clamp((-c.gimbal / BOOSTER.gimbalMax) * 0.8, -0.8, 0.8) : $('raw').checked ? clamp((c.rcs || 0) * 0.8, -0.8, 0.8) : clamp((app.steer.want - f.state.theta) * 9, -0.8, 0.8);
       step(f, c, DT);
+      fx.rcsCmd = f.state.rcsEff; // what the thrusters really did, after faults
       app.acc -= DT;
       n++;
     }
@@ -220,6 +248,8 @@ function onEnd() {
     const sc = scoreFlight(o);
     const best = store.get('hs.best', {});
     if (!best[app.level] || sc > best[app.level]) { best[app.level] = sc; store.set('hs.best', best); }
+    const cleared = store.get('hs.cleared', {});
+    if (app.scenario && (!cleared[app.scenario.id] || sc > cleared[app.scenario.id])) { cleared[app.scenario.id] = sc; store.set('hs.cleared', cleared); }
     renderBest();
   }
 }
@@ -274,13 +304,24 @@ function showOutcome(o) {
   $('o-stats').innerHTML = isTouch
     ? stat('Falling', `${Math.abs(o.vy).toFixed(1)} m/s`, c.vertical) + stat('Sideways', `${Math.abs(o.vx).toFixed(1)} m/s`, c.horizontal) + stat('Tilt', `${Math.abs(o.tiltDeg).toFixed(1)}°`, c.upright) + stat('Off centre', `${o.distance.toFixed(1)} m`, c.onPad) + stat('Fuel left', `${Math.round(o.fuelLeft)} kg`)
     : stat('Time', `${o.time.toFixed(1)} s`) + stat('Fuel left', `${Math.round(o.fuelLeft)} kg`);
-  $('o-retry').textContent = app.mode === 'sim' ? 'Run again' : 'Try again';
+  const game = app.mode === 'game';
+  $('o-scn').textContent = game && app.scenario ? `${levelCfg().label} · ${app.scenario.name}` : '';
+  $('o-retry').textContent = game ? 'Retry this one' : 'Run again';
+  $('o-next').textContent = game ? 'New scenario' : 'Next wind';
+  // after a win the natural next step is a new scenario; after a loss it is another go
+  $('o-next').classList.toggle('primary', !game || o.landed);
+  $('o-retry').classList.toggle('primary', game && !o.landed);
   $('outcome').classList.remove('hidden');
 }
 
 function gameHint(o) {
   const f = app.flight;
   const L = f.limits;
+  const F = f.faults;
+  if (F && o.reason === 'Ran out of fuel' && F.leak > 0) return 'The leak drained the tank. Light the engine later and brake harder so the burn is shorter.';
+  if (F && F.thrustCap < 1 && o.reason === 'Hit too hard') return `The engine only gives ${Math.round(F.thrustCap * 100)}% thrust, so it brakes more slowly. Light it earlier than you would normally.`;
+  if (F && F.dropouts.length && (o.reason === 'Hit too hard' || o.reason === 'Ran out of fuel')) return 'The engine cut out during the burn. Keep extra height in hand so one cut-out is not fatal.';
+  if (F && F.weakSide && (o.reason === 'Missed the pad' || o.reason === 'Landed in the sea' || o.reason.startsWith('Slid'))) return `${F.weakSide === 'left' ? 'Left' : 'Right'} steering is weak. Start leaning early, and plan to steer the other way when you can.`;
   if (o.reason === 'Ran out of fuel') return 'You burned too long. Light the engine later and brake harder near the end.';
   if (o.reason === 'Hit too hard') return `You touched down at ${Math.abs(o.vy).toFixed(1)} m/s. Keep it under ${L.vy} m/s: light the engine earlier or hold more throttle at the end.`;
   if (o.reason === 'Missed the pad' || o.reason === 'Landed in the sea') return 'Lean toward the pad early, then lean back the other way to stop the drift before touchdown.';
@@ -292,7 +333,11 @@ function gameHint(o) {
 }
 
 $('o-retry').addEventListener('click', () => start());
-$('o-next').addEventListener('click', () => { app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start(); });
+$('o-next').addEventListener('click', () => {
+  if (app.mode === 'game') return showIntro(true);
+  app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start();
+});
+$('reroll').addEventListener('click', () => showIntro(true));
 $('start').addEventListener('click', () => start());
 $('restart').addEventListener('click', () => (app.mode === 'game' ? start() : showIntro()));
 
@@ -332,6 +377,17 @@ function updateFx(dt) {
   for (const p of fx.puffs) p.life += dt;
   fx.puffs = fx.puffs.filter((p) => p.life < p.max);
 
+  // a fuel leak: propellant vents from the side of the tank and streams away behind it
+  const F = f.faults;
+  if (F && F.leak > 0 && s.t >= F.leakStart && s.fuel > 0 && !s.done) {
+    for (let i = 0; i < 2; i++) {
+      const d = 8 + Math.random() * 8;
+      fx.vent.push({ x: s.x + Math.sin(s.theta) * d + Math.cos(s.theta) * 2, y: s.y + Math.cos(s.theta) * d, vx: s.vx * 0.2 + 3 + Math.random() * 6, vy: s.vy * 0.4 + (Math.random() - 0.5) * 3, life: 0, max: 0.9 + Math.random() * 0.8, r: 0.8 + Math.random() * 0.9 });
+    }
+  }
+  for (const p of fx.vent) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.7; p.life += dt; p.r += dt * 2.4; }
+  fx.vent = fx.vent.filter((p) => p.life < p.max).slice(-160);
+
   // lightning and the swell on the barge
   const th = theme();
   if (th.bolts && !s.done) {
@@ -341,7 +397,7 @@ function updateFx(dt) {
   fx.bob = Math.sin(performance.now() / 1000 * 0.9) * Math.min(0.22 * cam.s * th.swell, 1.6);
 
   // plume particles, stored relative to the nozzle in metres
-  if (s.engineOn && !s.done) {
+  if (s.engineOn && !s.done && !s.cut) {
     const a = s.theta + s.gimbal;
     const n = Math.round(3 + s.throttle * 5);
     for (let i = 0; i < n; i++) {
@@ -364,7 +420,7 @@ function updateFx(dt) {
   fx.plume = fx.plume.filter((p) => p.life < p.max).slice(-700);
 
   // deck smoke when the plume hits the barge
-  if (s.engineOn && !s.done && s.y < 70) {
+  if (s.engineOn && !s.cut && !s.done && s.y < 70) {
     const k = (1 - s.y / 70) * s.throttle;
     for (let i = 0; i < Math.round(k * 3); i++) {
       const dir = Math.random() < 0.5 ? -1 : 1;
@@ -449,6 +505,7 @@ function render(dt) {
     ctx.restore();
   }
   drawFire();
+  drawSmoke(fx.vent, 'vent');
   drawSmoke(fx.dust, 'dust');
   drawSmoke(fx.steam, 'steam');
   drawSparks();
@@ -737,7 +794,7 @@ function drawBarge(f, th) {
   }
   // engine light on the deck
   const st = f.state;
-  if (st.engineOn && st.y < 150 && !st.done) {
+  if (st.engineOn && !st.cut && st.y < 150 && !st.done) {
     const k = (1 - st.y / 150) * st.throttle;
     const lx = sx(st.x), ly = y0;
     const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, 60 * s * 0.6 + 40);
@@ -773,7 +830,7 @@ function drawBooster(f) {
   ctx.save();
   ctx.translate(0, -1.0);
   ctx.rotate(s.gimbal * 1.8);
-  if (s.engineOn && !s.done) drawFlame(s);
+  if (s.engineOn && !s.done && !s.cut) drawFlame(s);
   ctx.restore();
   drawPlumeParticles(s);
 
@@ -833,7 +890,7 @@ function drawBooster(f) {
   ctx.fillStyle = 'rgba(255, 170, 110, 0.22)';
   ctx.fillRect(1.45, bodyTop + 4.6, 0.4, bodyBot - bodyTop - 4.6);
   // engine glow on the base
-  if (s.engineOn) {
+  if (s.engineOn && !s.cut) {
     const eg = ctx.createRadialGradient(0, 0, 0, 0, 0, 7);
     eg.addColorStop(0, `rgba(255, 180, 100, ${0.35 * s.throttle})`);
     eg.addColorStop(1, 'rgba(255, 150, 80, 0)');
@@ -971,9 +1028,9 @@ function drawPlumeParticles(s) {
 function drawSmoke(list, kind) {
   for (const p of list) {
     const k = p.life / p.max;
-    const x = sx(p.x), y = sy(p.y), r = p.r * cam.s;
-    const a = (kind === 'steam' ? 0.22 : kind === 'dust' ? 0.2 : 0.17) * (1 - k);
-    const c = kind === 'steam' ? '230, 236, 245' : kind === 'dust' ? '196, 184, 170' : '205, 190, 185';
+    const x = sx(p.x), y = sy(p.y), r = kind === 'vent' ? Math.max(p.r * cam.s, 3.2) : p.r * cam.s; // vapour stays visible from high up
+    const a = (kind === 'steam' ? 0.22 : kind === 'dust' ? 0.2 : kind === 'vent' ? 0.45 : 0.17) * (1 - k);
+    const c = kind === 'steam' ? '230, 236, 245' : kind === 'dust' ? '196, 184, 170' : kind === 'vent' ? '190, 225, 255' : '205, 190, 185';
     ctx.save();
     ctx.translate(x, y);
     if (kind === 'dust' || kind === 'deck') ctx.scale(1, kind === 'dust' ? 0.42 : 0.55); // it rolls flat across the deck
@@ -1140,7 +1197,7 @@ function hud() {
   $('t-tilt').className = low ? (Math.abs(s.theta) <= L.tilt ? 'ok' : 'warn') : '';
   // target speed helper on Easy and Medium
   $('t-vy-target').textContent = guided ? `m/s, aim for ${aim.toFixed(0)}` : 'm/s';
-  const lit = s.engineOn && !s.done;
+  const lit = s.engineOn && !s.done && !s.cut;
   const thr = lit ? s.throttle : 0;
   $('b-thr').style.width = `${thr * 100}%`;
   const raw = $('raw').checked;
@@ -1151,6 +1208,13 @@ function hud() {
   mark.classList.toggle('hidden', app.mode !== 'game' || s.done || !raw);
   $('b-fuel').style.width = `${(s.fuel / f.fuel0) * 100}%`;
   $('t-fuel').textContent = `${Math.round(s.fuel)} kg`;
+  const F = f.faults;
+  $('bar-fuel').classList.toggle('leaking', Boolean(F && F.leak > 0 && s.t >= F.leakStart && s.fuel > 0 && !s.done));
+  const alert = $('alert');
+  if (s.cut && !s.done) { alert.textContent = 'Engine cut'; alert.classList.remove('hidden'); } else alert.classList.add('hidden');
+  $('faults').style.visibility = app.running || app.ended ? 'visible' : 'hidden'; // the briefing card shows them before the start
+  const cutChip = $('faults').querySelector('[data-k="dropouts"]');
+  if (cutChip) cutChip.classList.toggle('live', s.cut);
   const fe = $('f-engine');
   fe.textContent = lit ? 'Engine on' : 'Engine off';
   fe.className = 'flag' + (lit ? ' on' : '');
@@ -1164,7 +1228,7 @@ function hud() {
   const w = windAt(f.wind, s.t, s.y);
   $('t-wind').textContent = Math.abs(w).toFixed(1);
   $('wind-arrow').style.transform = `rotate(${w < 0 ? 180 : 0}deg)`;
-  $('t-level').textContent = app.mode === 'game' ? `${levelCfg().label} level` : 'Simulator';
+  $('t-level').textContent = app.mode === 'game' && app.scenario ? `${levelCfg().label} · ${app.scenario.name}` : 'Simulator';
 
   // cues: climbing (any level), and "light it now" on Easy
   const cue = $('cue');
@@ -1190,20 +1254,24 @@ function renderLevels() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(k === app.level));
     b.textContent = lv.label;
-    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderLevels(); renderWindOptions(); showIntro(); });
+    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); showIntro(true); });
     box.appendChild(b);
   }
   const lv = levelCfg();
   $('level-blurb').textContent = lv.blurb;
-  const f = makeFlight(1, lv.opts);
-  $('limits-text').textContent = `Land inside the green zone (±${f.pad.halfWidth} m) at under ${f.limits.vy} m/s down, ${f.limits.vx} m/s sideways and ${Math.round(f.limits.tilt / DEG)}° of tilt. The dotted line shows where you're heading.`;
+  const f = app.mode === 'game' && app.scenario ? scenarioFlight(app.level, app.scenario) : makeFlight(1, lv.opts);
+  $('limits-text').textContent = `Land inside the green zone (±${+f.pad.halfWidth.toFixed(1)} m) at under ${f.limits.vy} m/s down, ${f.limits.vx} m/s sideways and ${Math.round(f.limits.tilt / DEG)}° of tilt. The dotted line shows where you're heading.`;
   renderBest();
 }
 
 function renderBest() {
   const best = store.get('hs.best', {});
-  const parts = Object.entries(LEVELS).filter(([k]) => best[k]).map(([k, lv]) => `${lv.label} ${best[k]}`);
-  $('best').textContent = parts.length ? `Best scores: ${parts.join(', ')}` : '';
+  const cleared = store.get('hs.cleared', {});
+  const parts = Object.entries(LEVELS).map(([k, lv]) => {
+    const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
+    return n || best[k] ? `${lv.label}: ${n} of ${(BANK[k] || []).length} scenarios cleared${best[k] ? `, best ${best[k]}` : ''}` : null;
+  }).filter(Boolean);
+  $('best').innerHTML = parts.join('<br>');
 }
 
 // ---------- simulator pane ----------
@@ -1303,7 +1371,9 @@ function setMode(mode) {
   document.body.dataset.mode = mode;
   app.ghosts = [];
   renderWindOptions();
-  showIntro();
+  $('wind-label').classList.toggle('hidden', mode === 'game');
+  $('reroll').classList.toggle('hidden', mode !== 'game');
+  showIntro(true);
 }
 for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setMode(t.dataset.tab));
 
@@ -1322,7 +1392,7 @@ function renderWindOptions() {
   }
   sel.value = keep;
 }
-$('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); app.mode === 'game' ? showIntro() : start(); });
+$('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); if (app.mode === 'sim') start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
 
 // ---------- boot ----------
@@ -1333,4 +1403,4 @@ setMode('game');
 requestAnimationFrame((t) => { last = t; frame(t); });
 
 // handle for tests and tinkering in the console
-window.hoverslam = { app, fx, cam };
+window.hoverslam = { app, fx, cam, BANK, showIntro };

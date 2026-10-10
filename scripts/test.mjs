@@ -3,17 +3,34 @@ import assert from 'node:assert/strict';
 import { BOOSTER, G, DT, DEG, clamp, mass, SEEDS, LEVELS, GAIN_RANGES, DEFAULT_GAINS, REFERENCE_GAINS, makeFlight, step, autopilot, validateGains, scoreFlight, evaluate } from '../public/physics.js';
 import { SETTINGS, NUDGE, debrief } from '../public/explain.js';
 import { humanControl } from '../public/controls.js';
+import { RANGES, FAULT_RANGES, validateScenario, activeFaults, faultLabels, scenarioFlight, nextScenario, bagProgress } from '../public/scenario.js';
+import { BANK } from '../public/bank.js';
+import { winnable } from './lib/bots.mjs';
+import { proposeScenarios, SCHEMA } from './lib/claude.mjs';
+import { candidate } from './lib/procedural.mjs';
+import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 let passed = 0;
+const pending = [];
 function test(name, fn) {
-  try {
-    fn();
-    passed++;
-    console.log(`ok   ${name}`);
-  } catch (e) {
-    console.error(`FAIL ${name}\n     ${e.message}`);
-    process.exitCode = 1;
-  }
+  // run in order: each test waits for the one before it, so output stays in order even for async tests
+  const prev = pending[pending.length - 1] || Promise.resolve();
+  pending.push(
+    prev.then(async () => {
+      try {
+        await fn();
+        passed++;
+        console.log(`ok   ${name}`);
+      } catch (e) {
+        console.error(`FAIL ${name}\n     ${e.message}`);
+        process.exitCode = 1;
+      }
+    }),
+  );
 }
 
 function fly(opts, controller) {
@@ -290,4 +307,307 @@ test('the speed hold never asks for a climb, and letting go of the keys holds th
   assert.ok(f.state.vy < 0, 'it must still be descending');
 });
 
+// ---------- faults ----------
+const freeFall = (faults, seconds, engine = false) => {
+  const f = makeFlight(3, { ...LEVELS.hard.opts, faults });
+  Object.assign(f.state, { y: 3800, vy: engine ? -150 : -50 }); // below the 4000 m ceiling, with room to fall
+  const none = { engine, throttle: 1, gimbal: 0 };
+  for (let i = 0; i < seconds * 120; i++) step(f, none, DT);
+  return f;
+};
+
+test('a flight with no faults is exactly what it was before faults existed', () => {
+  assert.deepEqual(makeFlight(2, LEVELS.medium.opts).state, makeFlight(2, { ...LEVELS.medium.opts, faults: undefined }).state);
+  assert.equal(makeFlight(2, LEVELS.medium.opts).faults, null);
+});
+
+test('fault: a leak drains fuel at its rate once it opens', () => {
+  const a = freeFall(null, 10);
+  const b = freeFall({ leak: 60, leakStart: 2 }, 10);
+  assert.ok(Math.abs(a.state.fuel - b.state.fuel - 60 * 8) < 1, `lost ${(a.state.fuel - b.state.fuel).toFixed(0)} kg, expected 480`);
+});
+
+test('fault: a thrust cap really limits thrust', () => {
+  const full = freeFall(null, 2, true);
+  const half = freeFall({ thrustCap: 0.5 }, 2, true);
+  assert.ok(full.state.vy - half.state.vy > 5, 'the capped engine should brake clearly less');
+  assert.ok(half.state.fuel > full.state.fuel, 'and burn less fuel');
+});
+
+test('fault: engine cut-outs happen inside the first seven seconds of a burn, and thrust stops while one is active', () => {
+  const f = makeFlight(9, { ...LEVELS.hard.opts, faults: { dropouts: 2 } });
+  assert.equal(f.faults.dropouts.length, 2);
+  for (const d of f.faults.dropouts) assert.ok(d.at >= 1.5 && d.at + d.dur <= 7.5, `cut-out at ${d.at.toFixed(1)}`);
+  Object.assign(f.state, { y: 3800, vy: -150 });
+  let cutSteps = 0;
+  let fuelDuringCut = 0;
+  for (let i = 0; i < 10 * 120; i++) {
+    const before = f.state.fuel;
+    step(f, { engine: true, throttle: 1, gimbal: 0 }, DT);
+    if (f.state.cut) { cutSteps++; fuelDuringCut += before - f.state.fuel; }
+  }
+  assert.ok(cutSteps > 0.5 * 120, 'expected at least half a second of cut-out');
+  assert.equal(Math.round(fuelDuringCut), 0, 'no fuel burns while the engine is cut');
+});
+
+test('fault: weak left steering turns left less than right, and the other way round', () => {
+  const turn = (side, cmd) => {
+    const f = makeFlight(3, { ...LEVELS.hard.opts, faults: { weakSide: side, weakFactor: 0.3 } });
+    Object.assign(f.state, { y: 3800, vy: -50, theta: 0, omega: 0 });
+    for (let i = 0; i < 120; i++) step(f, { engine: false, throttle: 0, gimbal: 0, rcs: cmd }, DT);
+    return Math.abs(f.state.theta);
+  };
+  // negative thruster command leans left
+  assert.ok(turn('left', -1) < 0.45 * turn('left', 1), 'left weak: leaning left should be much slower');
+  assert.ok(turn('right', 1) < 0.45 * turn('right', -1), 'right weak: leaning right should be much slower');
+});
+
+test('fault: a flickering side sometimes does nothing at all', () => {
+  const f = makeFlight(3, { ...LEVELS.hard.opts, faults: { weakSide: 'left', weakFactor: 0.5, flicker: true } });
+  let off = 0;
+  let on = 0;
+  for (let i = 0; i < 6 * 120; i++) {
+    step(f, { engine: false, throttle: 0, gimbal: 0, rcs: -1 }, DT);
+    if (f.state.rcsEff === 0) off++; else on++;
+  }
+  assert.ok(off > 0.15 * 6 * 120 && on > 0.3 * 6 * 120, `off ${off}, on ${on}`);
+});
+
+test('the flight computer and the speed hold both allow for a thrust limit', () => {
+  const a = makeFlight(3, { ...LEVELS.hard.opts, faults: { thrustCap: 0.7 } });
+  const b = makeFlight(3, LEVELS.hard.opts);
+  Object.assign(a.state, { y: 400, vy: -75, ignited: true });
+  Object.assign(b.state, { y: 400, vy: -75, ignited: true });
+  assert.ok(autopilot(a, REFERENCE_GAINS).throttle > autopilot(b, REFERENCE_GAINS).throttle);
+});
+
+// ---------- scenarios ----------
+const good = () => ({ name: 'Slow leak', briefing: 'A fuel line is leaking.', seed: 4242, opts: { altScale: 1, offsetScale: 0.9, speedScale: 1, windScale: 1, fuel: 8800, padHalf: 14 }, faults: { leak: 50 } });
+
+test('scenario validator accepts a good scenario and rejects bad ones', () => {
+  assert.equal(validateScenario(good(), 'medium').ok, true);
+  assert.equal(validateScenario(good(), 'easy').ok, false, 'no faults on Easy');
+  assert.equal(validateScenario({ ...good(), faults: { leak: 50, thrustCap: 0.8 } }, 'medium').ok, false, 'one fault only on Medium');
+  assert.equal(validateScenario({ ...good(), faults: { weakSide: 'left', weakFactor: 0.4 } }, 'medium').ok, false, 'steering faults are Hard only');
+  assert.equal(validateScenario({ ...good(), opts: { ...good().opts, windScale: 5 } }, 'medium').ok, false);
+  assert.equal(validateScenario({ ...good(), faults: { leak: 9000 } }, 'medium').ok, false);
+  assert.equal(validateScenario({ ...good(), seed: 0.5 }, 'medium').ok, false);
+  assert.equal(validateScenario({ ...good(), name: '' }, 'medium').ok, false);
+  assert.equal(validateScenario(good(), 'nowhere').ok, false);
+  assert.equal(validateScenario(null, 'medium').ok, false);
+  const clean = validateScenario({ ...good(), faults: { leak: 0, thrustCap: 1, dropouts: 0, weakSide: null } }, 'medium');
+  assert.equal(clean.ok, true);
+  assert.equal(clean.scenario.faults, null, 'neutral values mean no faults');
+});
+
+test('fault labels say what is wrong in plain words', () => {
+  const t = faultLabels({ leak: 60, thrustCap: 0.8, dropouts: 1, weakSide: 'left', flicker: true }).map((l) => l.text).join(' | ');
+  assert.match(t, /Fuel leak: 60 kg\/s/);
+  assert.match(t, /limited to 80% thrust/);
+  assert.match(t, /cut-outs/);
+  assert.match(t, /Left steering weak and flickering/);
+});
+
+test('the bank has at least 24 scenarios per level, all valid, with unique ids, seeds and names', () => {
+  for (const level of ['easy', 'medium', 'hard']) {
+    const list = BANK[level];
+    assert.ok(list.length >= 24, `${level} has ${list.length}`);
+    assert.equal(new Set(list.map((s) => s.id)).size, list.length, `${level}: duplicate ids`);
+    assert.equal(new Set(list.map((s) => s.seed)).size, list.length, `${level}: duplicate seeds`);
+    assert.equal(new Set(list.map((s) => s.name)).size, list.length, `${level}: duplicate names`);
+    for (const sc of list) {
+      const v = validateScenario(sc, level);
+      assert.ok(v.ok, `${sc.id}: ${v.errors.join('; ')}`);
+      assert.ok(sc.briefing.length > 20, `${sc.id} needs a real briefing`);
+    }
+  }
+});
+
+test('the bank follows the level rules: Easy has no faults, Medium at most one, Hard one or two', () => {
+  for (const sc of BANK.easy) assert.equal(activeFaults(sc.faults).length, 0);
+  for (const sc of BANK.medium) assert.ok(activeFaults(sc.faults).length <= 1);
+  for (const sc of BANK.hard) assert.ok([1, 2].includes(activeFaults(sc.faults).length), `${sc.id}`);
+});
+
+test('the bank has a real mix of faults: every kind appears at least 4 times where allowed', () => {
+  const count = (level, kind) => BANK[level].filter((s) => activeFaults(s.faults).includes(kind)).length;
+  for (const k of ['leak', 'thrustCap']) assert.ok(count('medium', k) >= 4, `medium ${k}`);
+  for (const k of ['leak', 'thrustCap', 'dropouts', 'weakSide']) assert.ok(count('hard', k) >= 4, `hard ${k}`);
+  assert.ok(BANK.hard.some((s) => s.faults.weakSide === 'left') && BANK.hard.some((s) => s.faults.weakSide === 'right'));
+});
+
+test('the bank varies the start: Easy includes both low and high drops', () => {
+  const alts = BANK.easy.map((s) => scenarioFlight('easy', s).state.y);
+  assert.ok(Math.min(...alts) < 1300 && Math.max(...alts) > 1700, `${Math.min(...alts).toFixed(0)} to ${Math.max(...alts).toFixed(0)} m`);
+});
+
+test('every scenario in the bank can be won (checked by the same players that built it)', () => {
+  for (const level of ['easy', 'medium', 'hard']) {
+    for (const sc of BANK[level]) assert.ok(winnable(level, sc).ok, `${sc.id} ${sc.name} cannot be won`);
+  }
+});
+
+test('scenarios are deterministic: the same scenario flies the same flight', () => {
+  const sc = BANK.hard[0];
+  const run = () => { const f = scenarioFlight('hard', sc); while (!f.state.done) step(f, autopilot(f, REFERENCE_GAINS), DT); return f.state.outcome; };
+  assert.deepEqual(run(), run());
+});
+
+test('the rule-based generator is deterministic and only writes valid scenarios', () => {
+  assert.deepEqual(candidate('hard', 7), candidate('hard', 7));
+  for (const level of ['easy', 'medium', 'hard']) for (let i = 1; i <= 25; i++) {
+    const v = validateScenario(candidate(level, i), level);
+    assert.ok(v.ok, `${level} ${i}: ${v.errors.join('; ')}`);
+  }
+});
+
+// ---------- the shuffle bag ----------
+const memory = () => { const m = new Map(); return { get: (k, d) => (m.has(k) ? m.get(k) : d), set: (k, v) => m.set(k, JSON.parse(JSON.stringify(v))) }; };
+const seeded = (n) => () => { n = (n * 16807) % 2147483647; return n / 2147483647; };
+
+test('the shuffle bag plays every scenario once before any repeat', () => {
+  const st = memory();
+  const rnd = seeded(5);
+  const seen = [];
+  for (let i = 0; i < BANK.medium.length; i++) seen.push(nextScenario('medium', BANK, st, rnd).id);
+  assert.equal(new Set(seen).size, BANK.medium.length);
+  assert.deepEqual(bagProgress('medium', BANK, st), { played: BANK.medium.length, total: BANK.medium.length });
+});
+
+test('after the bag empties it reshuffles, and never repeats the last scenario straight away', () => {
+  const st = memory();
+  const rnd = seeded(11);
+  let last = null;
+  for (let round = 0; round < 6; round++) {
+    for (let i = 0; i < BANK.easy.length; i++) {
+      const id = nextScenario('easy', BANK, st, rnd).id;
+      assert.notEqual(id, last, 'same scenario twice in a row');
+      last = id;
+    }
+  }
+});
+
+test('the bag survives a bank that changes: removed scenarios are skipped, new ones appear next round', () => {
+  const st = memory();
+  const rnd = seeded(3);
+  const first = nextScenario('hard', BANK, st, rnd);
+  const smaller = { ...BANK, hard: BANK.hard.filter((s) => s.id !== first.id).slice(0, 10) };
+  for (let i = 0; i < 25; i++) {
+    const next = nextScenario('hard', smaller, st, rnd);
+    assert.ok(smaller.hard.some((s) => s.id === next.id), `${next && next.id} is not in the smaller bank`);
+  }
+});
+
+test('levels keep separate bags', () => {
+  const st = memory();
+  const a = nextScenario('easy', BANK, st, seeded(1));
+  const b = nextScenario('hard', BANK, st, seeded(1));
+  assert.equal(a.level, 'easy');
+  assert.equal(b.level, 'hard');
+  assert.equal(bagProgress('easy', BANK, st).played, 1);
+  assert.equal(bagProgress('medium', BANK, st).played, 0);
+});
+
+// ---------- Claude as scenario writer (against a fake API) ----------
+async function fakeApi(replies) {
+  const requests = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      requests.push({ url: req.url, headers: req.headers, body: JSON.parse(body) });
+      const text = replies[Math.min(requests.length - 1, replies.length - 1)];
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: `msg_${requests.length}`, type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text }], stop_reason: 'end_turn', usage: { input_tokens: 800, output_tokens: 300 } }));
+    });
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  return { requests, server, base: `http://127.0.0.1:${server.address().port}` };
+}
+const claudeScenario = (over = {}) => ({
+  name: 'Cracked seal',
+  briefing: 'A seal is failing. The tank loses fuel all the way down, so keep the burn short.',
+  seed: 31337,
+  opts: { altScale: 1, offsetScale: 0.9, speedScale: 1, windScale: 1, fuel: 8800, padHalf: 14 },
+  faults: { leak: 55, thrustCap: 1, dropouts: 0, weakSide: 'none', weakFactor: 1, flicker: false },
+  ...over,
+});
+
+test('Claude scenario call: right request, keeps valid scenarios, drops invalid ones', async () => {
+  const bad = claudeScenario({ name: 'Too much', faults: { leak: 55, thrustCap: 0.7, dropouts: 0, weakSide: 'none', weakFactor: 1, flicker: false } }); // two faults on Medium
+  const api = await fakeApi([JSON.stringify({ scenarios: [claudeScenario(), bad] })]);
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  process.env.ANTHROPIC_BASE_URL = api.base;
+  try {
+    const out = await proposeScenarios({ level: 'medium', count: 2, avoid: ['Slow leak'] });
+    assert.equal(out.scenarios.length, 1);
+    assert.equal(out.scenarios[0].name, 'Cracked seal');
+    assert.equal(out.scenarios[0].source, 'claude');
+    assert.equal(out.scenarios[0].faults.leak, 55);
+    assert.equal(out.rejected.length, 1);
+    assert.match(out.rejected[0].errors.join(' '), /at most 1 fault/);
+    const r = api.requests[0];
+    assert.equal(r.url, '/v1/messages');
+    assert.equal(r.headers['x-api-key'], 'test-key');
+    assert.equal(r.body.model, 'claude-opus-5-5');
+    assert.equal(r.body.fallbacks, 'default');
+    assert.match(String(r.headers['anthropic-beta']), /server-side-fallback-2026-07-01/);
+    assert.equal(r.body.output_config.format.type, 'json_schema');
+    assert.deepEqual(r.body.output_config.format.schema, SCHEMA);
+    assert.equal(r.body.tool_choice, undefined, 'must not force tool choice');
+    assert.match(r.body.messages[0].content, /Slow leak/);
+    assert.match(r.body.system, /MEDIUM/);
+    assert.match(r.body.system, /thrustCap/);
+  } finally {
+    api.server.close();
+  }
+});
+
+test('Claude scenario call: retries once when the answer is not JSON', async () => {
+  const api = await fakeApi(['Sure! Here are some scenarios', JSON.stringify({ scenarios: [claudeScenario()] })]);
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  process.env.ANTHROPIC_BASE_URL = api.base;
+  try {
+    const out = await proposeScenarios({ level: 'medium', count: 1 });
+    assert.equal(out.attempts, 2);
+    assert.match(api.requests[1].body.messages[0].content, /not valid JSON/);
+  } finally {
+    api.server.close();
+  }
+});
+
+test('Claude scenario call: gives up with a clear error when nothing valid comes back', async () => {
+  const api = await fakeApi([JSON.stringify({ scenarios: [claudeScenario({ faults: { leak: 55, thrustCap: 1, dropouts: 0, weakSide: 'left', weakFactor: 0.4, flicker: false } })] })]);
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  process.env.ANTHROPIC_BASE_URL = api.base;
+  try {
+    await assert.rejects(() => proposeScenarios({ level: 'medium', count: 1 }), /did not return any valid scenarios/);
+  } finally {
+    api.server.close();
+  }
+});
+
+test('the scenario schema asks for exactly the fields the game uses', () => {
+  const item = SCHEMA.properties.scenarios.items;
+  assert.deepEqual(Object.keys(item.properties).sort(), ['briefing', 'faults', 'name', 'opts', 'seed']);
+  assert.deepEqual(Object.keys(item.properties.faults.properties).sort(), ['dropouts', 'flicker', 'leak', 'thrustCap', 'weakFactor', 'weakSide']);
+  assert.deepEqual(Object.keys(item.properties.opts.properties).sort(), ['altScale', 'fuel', 'offsetScale', 'padHalf', 'speedScale', 'windScale']);
+});
+
+// ---------- the single-file build ----------
+test('the single-file build is valid JavaScript with the bank inside it', () => {
+  execFileSync(process.execPath, [path.join(import.meta.dirname, 'build-standalone.mjs')], { stdio: 'ignore' });
+  const html = fs.readFileSync(path.join(import.meta.dirname, '..', 'dist', 'hoverslam.html'), 'utf8');
+  const script = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf('</script>'));
+  assert.ok(script.includes('const BANK ='), 'bank is bundled');
+  const file = path.join(os.tmpdir(), `hoverslam-check-${process.pid}.mjs`);
+  fs.writeFileSync(file, script);
+  try {
+    execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
+  } finally {
+    fs.unlinkSync(file);
+  }
+});
+
+await Promise.all(pending);
 console.log(`\n${passed} passed${process.exitCode ? ', some FAILED' : ''}`);

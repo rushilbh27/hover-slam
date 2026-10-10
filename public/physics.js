@@ -40,7 +40,10 @@ export function mulberry32(seed) {
 }
 
 // Each seed fixes the entry conditions and the wind for one flight.
-// opts (game levels): windScale, fuel, padHalf, limits, minThrottle, speedScale, altScale
+// opts (game levels): windScale, fuel, padHalf, limits, minThrottle, speedScale, altScale, offsetScale, faults
+// faults (scenarios): { leak: kg/s of fuel lost in flight, thrustCap: 0..1 of full thrust,
+//   dropouts: number of short engine cut-outs, weakSide: 'left'|'right', weakFactor: 0..1 steering
+//   authority on that side, flicker: true if that side also cuts in and out }
 export function makeFlight(seed = 1, opts = {}) {
   const r = mulberry32(seed * 7919 + 13);
   const side = r() < 0.5 ? -1 : 1;
@@ -68,8 +71,30 @@ export function makeFlight(seed = 1, opts = {}) {
     done: false,
     outcome: null,
     maxG: 0,
+    burnT: 0, // seconds the engine has been running
+    cut: false, // true while an engine cut-out fault is active
+    rcsEff: 0, // thruster command after faults
   };
-  return { seed, wind, state, fuel0, pad: { x: PAD.x, halfWidth }, limits, minThrottle: opts.minThrottle ?? BOOSTER.minThrottle };
+  return { seed, wind, state, fuel0, pad: { x: PAD.x, halfWidth }, limits, minThrottle: opts.minThrottle ?? BOOSTER.minThrottle, faults: makeFaults(opts.faults, seed) };
+}
+
+// Faults get their own random stream so a flight without faults is exactly what it always was.
+export function makeFaults(f, seed) {
+  if (!f) return null;
+  const r = mulberry32(seed * 104729 + 7);
+  const dropouts = [];
+  for (let i = 0; i < (f.dropouts || 0); i++) dropouts.push({ at: 1.5 + r() * 5.5, dur: 0.45 + r() * 0.5 }); // inside the first seven seconds of the burn, so even a late burn meets it
+  dropouts.sort((a, b) => a.at - b.at);
+  return {
+    leak: f.leak || 0,
+    leakStart: f.leakStart ?? 2, // seconds into the flight when the leak opens
+    thrustCap: f.thrustCap ?? 1,
+    dropouts, // seconds after the engine is lit
+    weakSide: f.weakSide || null,
+    weakFactor: f.weakFactor ?? 1,
+    flicker: Boolean(f.flicker),
+    noise: r() * 1000,
+  };
 }
 
 export function windAt(wind, t, y) {
@@ -98,13 +123,30 @@ export function step(flight, control, dt) {
   s.throttle += (thrCmd - s.throttle) * Math.min(1, dt / B.throttleLag);
   if (!s.engineOn) s.throttle = 0;
 
-  // gimbal actuator: rate limited
-  const gCmd = clamp(control.gimbal || 0, -B.gimbalMax, B.gimbalMax);
+  // faults
+  const F = flight.faults;
+  if (s.engineOn) s.burnT += dt;
+  s.cut = Boolean(F && s.engineOn && F.dropouts.some((d) => s.burnT >= d.at && s.burnT < d.at + d.dur));
+  if (F && F.leak > 0 && s.t >= F.leakStart && s.fuel > 0) s.fuel = Math.max(0, s.fuel - F.leak * dt);
+  let gCmd = clamp(control.gimbal || 0, -B.gimbalMax, B.gimbalMax);
+  let rcsCmd = clamp(control.rcs || 0, -1, 1);
+  if (F && F.weakSide) {
+    // positive gimbal and negative thruster command both lean the booster left
+    const left = F.weakSide === 'left';
+    let k = F.weakFactor;
+    if (F.flicker) {
+      const h = Math.sin(Math.floor(s.t / 0.35) * 12.9898 + F.noise) * 43758.5453;
+      if (h - Math.floor(h) < 0.4) k = 0;
+    }
+    if (Math.sign(gCmd) === (left ? 1 : -1)) gCmd *= k;
+    if (Math.sign(rcsCmd) === (left ? -1 : 1)) rcsCmd *= k;
+  }
+  s.rcsEff = rcsCmd;
   const dg = clamp(gCmd - s.gimbal, -B.gimbalRate * dt, B.gimbalRate * dt);
   s.gimbal += dg;
 
   const m = mass(s);
-  const T = s.engineOn ? s.throttle * B.thrustMax : 0;
+  const T = s.engineOn && !s.cut ? s.throttle * B.thrustMax * (F ? F.thrustCap : 1) : 0;
   const I = (m * B.height * B.height) / 12;
 
   // thrust acts along the body, deflected by the gimbal
@@ -113,7 +155,7 @@ export function step(flight, control, dt) {
   let fy = T * Math.cos(a);
   // engine deflection at the base turns the booster the other way
   let torque = -T * B.armCoM * Math.sin(s.gimbal);
-  torque += clamp(control.rcs || 0, -1, 1) * B.rcsTorque;
+  torque += rcsCmd * B.rcsTorque;
 
   // drag against the air, with wind
   const w = windAt(flight.wind, s.t, s.y);
@@ -227,7 +269,8 @@ export function autopilot(flight, g) {
   // feed-forward the planned braking, correct the remaining error with kv
   const aUp = G + g.brake_decel + g.kv * (vTarget - s.vy);
   const thrust = (mass(s) * aUp) / Math.max(0.6, Math.cos(s.theta));
-  const throttle = clamp(thrust / B.thrustMax, 0, 1);
+  const cap = flight.faults ? flight.faults.thrustCap : 1; // the computer knows when the engine is limited
+  const throttle = clamp(thrust / (B.thrustMax * cap), 0, 1);
 
   // lateral: lean toward the pad, stand up straight near the ground
   const upright = clamp(h / 60, 0.15, 1);

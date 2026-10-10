@@ -1,6 +1,6 @@
 # Hoverslam
 
-**Land a rocket booster on a barge. Fly it yourself on three levels, or tune the autopilot and see why a landing failed.**
+**Land a rocket booster on a barge. Fly it yourself on three levels, where every run is a different scenario, or tune the autopilot and see why a landing failed.**
 
 [**Play it: hoverslam.vercel.app**](https://hoverslam.vercel.app) · No install, no account, works on a phone and a laptop.
 
@@ -20,7 +20,8 @@ You are the flight computer.
 | ← → | Lean the booster. On Easy and Medium it stops drifting by itself when you let go |
 | ↑ | Slow down |
 | ↓ | Speed up. Let go of both to hold your falling speed |
-| R | Restart |
+| R | Retry this scenario |
+| N | A new scenario |
 
 On a phone you get touch buttons in two thumb clusters (lean on the left, throttle and engine on the right), and it works in portrait or landscape. The **Expert** checkbox swaps in raw controls: the arrows swivel the engine directly and ↑/↓ move a throttle lever.
 
@@ -33,6 +34,32 @@ On a phone you get touch buttons in two thumb clusters (lean on the left, thrott
 Each level has its own look: Easy is a sunset, Medium is dusk with a moon, and Hard is a night storm with rain, lightning and a barge lit only by its own lights.
 
 ![Hard: a night storm, with lightning and the barge lit by its own lights](docs/hard-storm.png)
+
+### A new scenario every time
+
+Each level has a bank of 30 scenarios, and every play draws the next one from a shuffled bag. All 30 come up once, in random order, before any repeat, and you never get the same one twice in a row. Before each descent a briefing card says what is different this time: a long fall, a fuel leak, an engine that only gives 80% thrust, a flaky left thruster. Pick **Retry this one** to have another go, or **New scenario** (or press N) for a fresh one. The game remembers how many you have cleared.
+
+![The briefing for a Hard scenario with two faults](docs/scenario-briefing.png)
+
+| Level | What varies |
+| --- | --- |
+| Easy | The start: low or high, near or far, a calm day or a breeze. No faults |
+| Medium | A bit more of everything, and usually one fault: a fuel leak or a thrust limit |
+| Hard | Strong gusts and one or two faults: a leak, low thrust, engine cut-outs, or weak (sometimes flickering) steering on one side |
+
+Faults are always shown on screen, with a chip under the readouts, a flashing fuel bar for a leak, and an "Engine cut" warning, so a loss feels like the challenge and not a bug.
+
+![A Medium scenario with a fuel leak: the fuel bar is red and the tank is venting](docs/scenario-leak.png)
+
+**Where the scenarios come from.** A scenario is a small piece of data: a name, a briefing, a seed, a few numbers (start height, distance, wind, fuel, pad size) and up to two faults. Every scenario must pass two checks before it can enter the bank: its numbers must sit inside the level's allowed ranges, and the simulator must be able to land it (Easy by a player who only lights the engine and steers, Medium by a careful player or the flight computer with fuel to spare, Hard by at least the flight computer). The bank in `public/bank.js` was made by rules. To add more, run:
+
+```
+npm run scenarios                     # top the bank up from rules, no key needed
+npm run scenarios -- --claude         # also ask Claude to write scenarios
+npm run scenarios -- --per-level 50   # a bigger bank
+```
+
+For `--claude`, copy `.env.example` to `.env.local` and paste an Anthropic API key (the file is git-ignored). Claude writes the scenario data; the simulator still checks every one, so a bad or unwinnable scenario is dropped before it can reach a player. Scenarios are generated ahead of time in batches, not when you press a button, so playing is instant and the cost is predictable.
 
 ![The final approach, with the plume hitting the deck](docs/game-final-approach.png)
 
@@ -64,9 +91,13 @@ A 2D rigid body stepped 120 times a second. Engine gimbal ±7° at 20°/s, throt
 | --- | --- |
 | `public/physics.js` | The simulation, the levels, the autopilot and the scoring |
 | `public/controls.js` | The keyboard controls for the game |
+| `public/scenario.js` | Scenario rules and checks, fault labels and the shuffle bag |
+| `public/bank.js` | The scenario bank (generated) |
 | `public/explain.js` | Plain-language help for each setting and the flight debrief |
 | `public/app.js` | The renderer, HUD and panels |
 | `scripts/test.mjs` | The tests |
+| `scripts/generate-scenarios.mjs` | Builds the scenario bank, by rules or with Claude |
+| `scripts/lib/` | The scripted players, the rule-based writer and the Claude writer |
 
 ## Run it
 
@@ -76,7 +107,7 @@ cd hover-slam
 npm start
 ```
 
-Open http://localhost:3000. There are no dependencies to install. `npm run build` writes `dist/hoverslam.html`, a single file that opens straight from disk.
+Open http://localhost:3000. There are no dependencies to install (Node 18 or newer). `npm run build` writes `dist/hoverslam.html`, a single file that opens straight from disk.
 
 ## Tests
 
@@ -84,12 +115,16 @@ Open http://localhost:3000. There are no dependencies to install. `npm run build
 npm test
 ```
 
-23 checks, no browser needed:
+48 checks, no browser needed:
 
 - **Physics:** the same wind gives the same flight, fuel never goes negative, and a nearly empty booster at the real 40% throttle floor climbs.
-- **Autopilot:** the reference settings land every wind and the starting settings don't. Scoring and the settings validator behave. Every level can be won: the reference autopilot lands most winds even on Hard.
+- **Faults:** a leak drains fuel at its rate, a thrust cap really limits thrust, engine cut-outs stop the thrust and fall early in the burn, a weak side turns slower than the other, and a flickering side drops out. A flight with no faults is exactly what it was before.
+- **Autopilot:** the reference settings land every wind and the starting settings don't. Scoring and the settings validator behave.
 - **Explanations:** every setting has a plain-language description, and the debrief names the right cause for late ignition, a too-low touchdown speed, too little damping and ignoring the pad.
-- **Game controls:** a scripted player who never touches ↑ or ↓ wins every Easy wind, but never wins Medium or Hard. A careful player wins every Easy wind and about half the Medium winds. The lean builds up smoothly with no jump or overshoot, the arrows work with the engine off, letting go stops sideways drift, and the booster never climbs when the keys are left alone.
+- **Game controls:** a scripted player who never touches ↑ or ↓ wins every Easy wind, but never wins Medium or Hard. The lean builds up smoothly with no jump or overshoot, the arrows work with the engine off, letting go stops sideways drift, and the booster never climbs when the keys are left alone.
+- **Scenarios:** the validator rejects out-of-range numbers, too many faults and faults a level doesn't allow. The bank has at least 24 valid scenarios per level with unique ids, seeds and names, a real mix of faults, and every one can be won. The shuffle bag plays all of them before repeating and never repeats back to back.
+- **Claude as a scenario writer:** against a fake API, it sends the right request, keeps valid scenarios, drops invalid ones with a reason, retries once on bad output, and fails clearly when nothing valid comes back.
+- **Build:** the single-file build is valid JavaScript and contains the bank.
 
 ## Notes
 

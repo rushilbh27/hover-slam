@@ -29,6 +29,7 @@ export function humanControl(f, dt, st, inp, lv, raw = false) {
   st.vHold = clamp(Math.min(st.vHold + rate * dt, -0.8), s.vy - 6, s.vy + 6); // it never asks for a climb
   // landing assist (Easy, Medium): never let the held speed exceed a safe descent for this height
   if (lv.flare && !inp.down) st.vHold = Math.max(st.vHold, -Math.sqrt(lv.flare.c ** 2 + 2 * lv.flare.a * h));
-  const throttle = (mass(s) * (G + rate + 3 * (st.vHold - s.vy))) / (B.thrustMax * Math.max(0.6, Math.cos(s.theta)));
+  const thrustLimit = f.faults ? f.faults.thrustCap : 1; // the speed hold knows when the engine is limited
+  const throttle = (mass(s) * (G + rate + 3 * (st.vHold - s.vy))) / (B.thrustMax * thrustLimit * Math.max(0.6, Math.cos(s.theta)));
   return { engine: inp.engine, throttle, gimbal, rcs };
 }
