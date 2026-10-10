@@ -19,8 +19,8 @@ Phones get touch buttons. The "Expert" checkbox swaps in raw controls: the arrow
 | Level | What changes |
 | --- | --- |
 | Easy | Light wind, wide pad, extra fuel, engine throttles to 15% so it can hover, a cue says when to light it, landing assist softens the last metres. Lands at up to 6 m/s |
-| Medium | Real crosswind, no cue, lighter landing assist. Lands at up to 4.5 m/s |
-| Hard | Strong gusts, small pad, 35% minimum throttle, no assist. Real limits: 3 m/s down, 1.5 m/s sideways, 6° tilt |
+| Medium | Real crosswind, no cue, landing assist, 18 m pad. Lands at up to 4.5 m/s |
+| Hard | Strong gusts, smaller pad, 30% minimum throttle, light landing assist. Lands at up to 3.5 m/s down, 1.8 m/s sideways, 7° tilt |
 
 **Tune the autopilot (simulator).** The flight computer flies, using nine settings you choose. Press Run flight and watch. Afterwards it explains what went wrong using that flight's numbers (for example, "stopping needed 12.3 m/s² of braking; the engine could give 15.6") and offers buttons that nudge the setting to change. "Test all 5 winds" scores your settings on every wind.
 
