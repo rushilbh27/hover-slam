@@ -176,7 +176,7 @@ function frame(now) {
     while (app.acc >= DT && n < 2000 && !f.state.done) {
       const c = control(f);
       fx.rcsCmd = c.rcs || 0;
-      fx.finCmd = app.mode === 'sim' ? clamp((-c.gimbal / BOOSTER.gimbalMax) * 0.8, -0.8, 0.8) : clamp((app.steer.want - f.state.theta) * 9, -0.8, 0.8);
+      fx.finCmd = app.mode === 'sim' ? clamp((-c.gimbal / BOOSTER.gimbalMax) * 0.8, -0.8, 0.8) : $('raw').checked ? clamp((c.rcs || 0) * 0.8, -0.8, 0.8) : clamp((app.steer.want - f.state.theta) * 9, -0.8, 0.8);
       step(f, c, DT);
       app.acc -= DT;
       n++;
@@ -829,21 +829,6 @@ function drawBooster(f) {
   ctx.fillRect(-1.85, bodyTop, 3.7, 4.6);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
   ctx.fillRect(-1.85, bodyTop + 4.3, 3.7, 0.3);
-  // grid fins
-  for (const side of [-1, 1]) {
-    ctx.save();
-    ctx.translate(side * 1.85, bodyTop + 2.4);
-    ctx.rotate(fx.fin * 0.75); // the fins swing to steer
-    ctx.fillStyle = '#2c3038';
-    ctx.fillRect(side > 0 ? 0 : -1.7, -0.55, 1.7, 1.1);
-    ctx.strokeStyle = '#555c67';
-    ctx.lineWidth = 0.12;
-    for (let k = 0; k <= 4; k++) {
-      const xx = (side > 0 ? 0 : -1.7) + k * 0.425;
-      ctx.beginPath(); ctx.moveTo(xx, -0.55); ctx.lineTo(xx, 0.55); ctx.stroke();
-    }
-    ctx.restore();
-  }
   // rim light from the sunset (right side)
   ctx.fillStyle = 'rgba(255, 170, 110, 0.22)';
   ctx.fillRect(1.45, bodyTop + 4.6, 0.4, bodyBot - bodyTop - 4.6);
@@ -860,13 +845,25 @@ function drawBooster(f) {
   // cold-gas thruster puffs near the top
   for (const p of fx.puffs) {
     const k = p.life / p.max;
-    const px = p.side * (2.0 + k * 6 * p.v), py = bodyTop + 6 + p.oy;
-    const r = 0.5 + k * 1.7 * p.v;
+    const px = p.side * (2.0 + k * 9 * p.v), py = bodyTop + 6 + p.oy;
+    const r = 0.9 + k * 3.0 * p.v;
     const pg = ctx.createRadialGradient(px, py, 0, px, py, r);
-    pg.addColorStop(0, `rgba(245, 250, 255, ${(1 - k) * 0.85 * Math.min(1, p.v)})`);
+    pg.addColorStop(0, `rgba(250, 253, 255, ${Math.min(1, (1 - k) * 1.3 * Math.min(1.2, p.v))})`);
     pg.addColorStop(1, 'rgba(245, 250, 255, 0)');
     ctx.fillStyle = pg;
     ctx.fillRect(px - r, py - r, r * 2, r * 2);
+  }
+  // a short bright flash right at the thruster
+  if (fx.puffs.length) {
+    const q = fx.puffs[fx.puffs.length - 1];
+    if (q.life < 0.1) {
+      const fxp = q.side * 2.0, fy = bodyTop + 6 + q.oy;
+      const fg = ctx.createRadialGradient(fxp, fy, 0, fxp, fy, 1.6);
+      fg.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      fg.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = fg;
+      ctx.fillRect(fxp - 1.6, fy - 1.6, 3.2, 3.2);
+    }
   }
   ctx.restore();
   ctx.restore();
