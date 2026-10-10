@@ -1,12 +1,12 @@
 # Hoverslam
 
-**Land a rocket booster on a barge. Fly it yourself on three levels, where every run is a different scenario, or tune the autopilot and see why a landing failed.**
+**Land a rocket booster on a floating landing platform. Fly it yourself on three levels, where every run is a different scenario, or tune the autopilot and see why a landing failed.**
 
 [**Play it: hoverslam.vercel.app**](https://hoverslam.vercel.app) · No install, no account, works on a phone and a laptop.
 
 ![The booster mid-burn on Easy](docs/game-burn.png)
 
-A booster is falling toward a barge at sea at about 140 m/s. Land it upright, slowly, on the pad. The real engine can't throttle below 40%, so a nearly empty booster can't hover: the burn has to end right at the deck. That manoeuvre is called a hoverslam.
+A booster is falling toward a floating landing platform at sea at about 140 m/s. Land it upright, slowly, on the pad. The real engine can't throttle below 40%, so a nearly empty booster can't hover: the burn has to end right at the deck. That manoeuvre is called a hoverslam.
 
 ## Two modes
 
@@ -31,9 +31,9 @@ On a phone you get touch buttons in two thumb clusters (lean on the left, thrott
 | Medium | Real crosswind, 14 m pad, no cue, 30% minimum throttle (it can hover until the tank is nearly empty), landing assist only in the last few metres, drift hold on. Lands at up to 3.2 m/s down, 1.6 m/s sideways, 6.5° tilt |
 | Hard | Strong gusts, 11 m pad, the real 40% minimum throttle (it can never hover), no assist, no drift hold. You time one burn that ends at the deck. Lands at up to 3 m/s down, 1.5 m/s sideways, 6° tilt |
 
-Each level has its own look: Easy is a sunset, Medium is dusk with a moon, and Hard is a night storm with rain, lightning and a barge lit only by its own lights.
+Each level has its own look: Easy is a sunset, Medium is dusk with a moon, and Hard is a night storm with rain, lightning and a landing platform lit only by its own lights.
 
-![Hard: a night storm, with lightning and the barge lit by its own lights](docs/hard-storm.png)
+![Hard: a night storm, with lightning and the platform lit by its own lights](docs/hard-storm.png)
 
 ### A new scenario every time
 

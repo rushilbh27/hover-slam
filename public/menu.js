@@ -48,7 +48,7 @@ const num = (n) => Math.round(n * 10) / 10;
 // Side view of a whole descent with the three stages marked on the path.
 export function descentDiagram() {
   return `
-<svg class="diagram" viewBox="0 0 560 330" role="img" aria-label="A booster falls, lights its engine, brakes down toward the barge and touches down on the green landing zone.">
+<svg class="diagram" viewBox="0 0 560 330" role="img" aria-label="A booster falls, lights its engine, brakes down toward the landing platform and touches down on the green landing zone.">
   <defs>
     <linearGradient id="d-sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#0b1020"/><stop offset=".55" stop-color="#2a2150"/><stop offset=".85" stop-color="#a14a52"/><stop offset="1" stop-color="#f0894f"/>
@@ -68,7 +68,7 @@ export function descentDiagram() {
   <g class="d-rocket" transform="translate(196 138) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/><path d="M-3 4 L3 4 L0 20 Z" class="d-flame"/></g>
   <g class="d-rocket" transform="translate(406 252)"><rect x="-4" y="-26" width="8" height="26" rx="1.5"/><path d="M-4 -4 L-12 4 M4 -4 L12 4" class="d-leg"/></g>
   <text x="30" y="318" class="d-axis">about 2,000 m up</text>
-  <text x="430" y="318" class="d-axis" text-anchor="end">the barge</text>
+  <text x="430" y="318" class="d-axis" text-anchor="end">the landing platform</text>
 </svg>`;
 }
 
