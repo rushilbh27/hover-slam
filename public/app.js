@@ -58,18 +58,21 @@ const THEMES = {
     stars: 0.8, sun: true, moon: false, glow: '255, 196, 120', sea: ['#2a2140', '#16203a', '#070d1b'], cloud: '255, 176, 150', cloudMul: 1,
     swell: 1, glitter: '255, 190, 130', glx: 0.74, rain: false, bolts: false, whitecaps: false, ambient: 1, lights: 0.5,
     hull: ['#3c4658', '#151b27'], deck: ['#505b6c', '#6a7587'], rim: '255, 170, 110',
+    birds: 7, ships: 3, haze: '255, 172, 112', shipCol: '#1a1630', shipLit: 0.15,
   },
   dusk: {
     sky: [[0, '#03050f'], [0.4, '#0a0f2e'], [0.72, '#221a49'], [0.9, '#55306a'], [0.97, '#9b476b'], [1, '#cf7468']],
     stars: 1.7, sun: false, moon: true, glow: '205, 110, 140', sea: ['#2a1d45', '#111838', '#050a17'], cloud: '200, 140, 190', cloudMul: 1.4,
     swell: 1.8, glitter: '210, 220, 255', glx: 0.64, rain: false, bolts: false, whitecaps: false, ambient: 0.72, lights: 1,
     hull: ['#343d4f', '#10151f'], deck: ['#444e5f', '#5a6578'], rim: '200, 150, 200',
+    birds: 3, ships: 3, haze: '196, 108, 132', shipCol: '#100c24', shipLit: 0.7,
   },
   storm: {
     sky: [[0, '#02050a'], [0.5, '#08111a'], [0.8, '#122030'], [1, '#243546']],
     stars: 0, sun: false, moon: false, glow: '120, 150, 190', sea: ['#1c2937', '#0c1621', '#03080f'], cloud: '120, 145, 180', cloudMul: 3.4,
     swell: 3.2, glitter: '150, 180, 220', glx: 0.5, rain: true, bolts: true, whitecaps: true, ambient: 0.4, lights: 1.7,
     hull: ['#232b37', '#0a0e14'], deck: ['#2c3440', '#3a4452'], rim: '150, 180, 230',
+    birds: 0, ships: 2, haze: '58, 84, 110', shipCol: '#070d14', shipLit: 1,
   },
 };
 function theme() {
@@ -77,6 +80,17 @@ function theme() {
   return THEMES[{ easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level]] || THEMES.sunset;
 }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
+
+// Life on the horizon: a few gulls gliding over the water, and ships far out that cross, then melt into the haze.
+const birds = [];
+const ships = [];
+{
+  let seed = 31;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 9; i++) birds.push({ x0: (rnd() - 0.5) * 3000, y: 45 + rnd() * 300, v: (rnd() < 0.7 ? 1 : -1) * (5 + rnd() * 7), flap: 2.6 + rnd() * 2.2, ph: rnd() * 6.28, size: 0.8 + rnd() * 0.6, glide: rnd() * 6.28 });
+  const kinds = ['cargo', 'tanker', 'sail', 'cargo', 'tanker'];
+  for (let i = 0; i < 5; i++) ships.push({ kind: kinds[i], dir: i % 2 ? -1 : 1, dur: 110 + rnd() * 90, off: rnd(), size: 0.75 + rnd() * 0.6, lane: rnd() });
+}
 
 const stars = Array.from({ length: 160 }, () => ({ x: Math.random(), y: Math.random() * 0.62, r: Math.random() * 1.2 + 0.2, p: Math.random() * 6.28 }));
 const clouds = [];
@@ -456,10 +470,6 @@ function updateFx(dt) {
   for (const p of fx.smoke) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 0.9; p.vy += dt * 1.5; p.life += dt; p.r += dt * 4; }
   fx.smoke = fx.smoke.filter((p) => p.life < p.max).slice(-260);
 
-  // landed: steam venting
-  if (s.done && s.outcome && (s.outcome.landed || fx.standing) && performance.now() - fx.landedAt < 6000 && Math.random() < 0.6) {
-    fx.steam.push({ x: s.x + (Math.random() - 0.5) * 3, y: B.legHeight + 30 + Math.random() * 8, vx: (Math.random() - 0.3) * 4 + w * 0.3, vy: 2 + Math.random() * 3, life: 0, max: 2 + Math.random() * 2, r: 1.5 + Math.random() * 2 });
-  }
   for (const p of fx.steam) { p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt; p.r += dt * 3; }
   fx.steam = fx.steam.filter((p) => p.life < p.max);
 
@@ -510,6 +520,7 @@ function render(dt) {
   drawClouds(th);
   drawBolt();
   drawSea(th);
+  drawHorizonLife(th);
   drawBarge(f, th);
   if (app.mode === 'game' && app.running && !s.done) drawPrediction(f);
   drawSmoke(fx.smoke, 'deck');
@@ -689,10 +700,98 @@ function drawSea(th) {
   }
 }
 
-const BOX = ['#8a4b3a', '#3f5f7a', '#a8843a', '#4f6350'];
-const STACKS = [{ x: -30.4, boxes: [0, 1, 2] }, { x: 24.4, boxes: [3, 0] }];
 
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+
+function drawGull(x, y, size, flapPhase, a, col) {
+  const w = size * 7, flap = Math.sin(flapPhase);
+  ctx.strokeStyle = col.replace('A', a.toFixed(2));
+  ctx.lineWidth = Math.max(1, size * 0.9);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x - w, y - flap * w * 0.55);
+  ctx.quadraticCurveTo(x - w * 0.45, y - flap * w * 0.55 - w * 0.34, x, y);
+  ctx.quadraticCurveTo(x + w * 0.45, y - flap * w * 0.55 - w * 0.34, x + w, y - flap * w * 0.55);
+  ctx.stroke();
+}
+
+function drawShip(sh, x, hy, a, th, t) {
+  const u = clamp(H * 0.0075, 2.6, 7) * sh.size;
+  const y = hy + 1 + Math.sin(t * 0.7 + sh.off * 9) * 0.35;
+  const d = sh.dir;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = th.shipCol;
+  const lit = th.shipLit;
+  if (sh.kind === 'cargo') {
+    ctx.beginPath(); ctx.moveTo(x - u * 3.4, y - u * 0.7); ctx.lineTo(x + u * 3.4, y - u * 0.7); ctx.lineTo(x + u * 2.9 * d, y); ctx.lineTo(x - u * 3 * d, y); ctx.closePath(); ctx.fill();
+    ctx.fillRect(x - u * 3 * d - u * 0.7, y - u * 2.4, u * 1.4, u * 1.7); // bridge, aft
+    for (let i = 0; i < 4; i++) ctx.fillRect(x - u * 1.6 * d + i * u * 0.95 * d - u * 0.4, y - u * 1.5 - (i % 2) * u * 0.4, u * 0.8, u * 0.85); // container stacks
+    if (lit > 0.3) { ctx.fillStyle = `rgba(255, 214, 140, ${0.8 * lit})`; ctx.fillRect(x - u * 3 * d - u * 0.4, y - u * 2, u * 0.8, Math.max(1, u * 0.22)); }
+  } else if (sh.kind === 'tanker') {
+    ctx.beginPath(); ctx.moveTo(x - u * 4.2, y - u * 0.55); ctx.lineTo(x + u * 4.2, y - u * 0.55); ctx.lineTo(x + u * 3.8 * d, y); ctx.lineTo(x - u * 4 * d, y); ctx.closePath(); ctx.fill();
+    ctx.fillRect(x - u * 3.6 * d - u * 0.6, y - u * 2.1, u * 1.2, u * 1.6);
+    ctx.fillRect(x + u * 3.2 * d - u * 0.15, y - u * 1.1, u * 0.3, u * 0.6);
+    if (lit > 0.3) { ctx.fillStyle = `rgba(255, 214, 140, ${0.8 * lit})`; ctx.fillRect(x - u * 3.6 * d - u * 0.3, y - u * 1.8, u * 0.6, Math.max(1, u * 0.2)); }
+  } else { // a small sailing boat
+    ctx.beginPath(); ctx.moveTo(x - u * 1.1, y - u * 0.35); ctx.lineTo(x + u * 1.1, y - u * 0.35); ctx.lineTo(x + u * 0.7, y); ctx.lineTo(x - u * 0.8, y); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x, y - u * 0.35); ctx.lineTo(x, y - u * 2.3); ctx.lineTo(x + u * 0.9 * d, y - u * 0.5); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - u * 0.15 * d, y - u * 0.4); ctx.lineTo(x - u * 0.15 * d, y - u * 1.7); ctx.lineTo(x - u * 0.9 * d, y - u * 0.45); ctx.closePath(); ctx.fill();
+  }
+  // a thin wake trailing behind it
+  ctx.fillStyle = `rgba(${th.haze}, 0.35)`;
+  ctx.fillRect(x - d * u * 4.4 - (d > 0 ? u * 3 : 0), y + 0.2, u * 3, 1);
+  ctx.restore();
+}
+
+function drawHorizonLife(th) {
+  const hy = sy(0);
+  if (hy < 20 || hy > H + 4) return;
+  const t = performance.now() / 1000;
+  // ships: each crosses the horizon slowly, fading in and out of the haze
+  if (th.ships) {
+    for (let i = 0; i < Math.min(ships.length, th.ships); i++) {
+      const sh = ships[i];
+      const ph = ((t / sh.dur + sh.off) % 1 + 1) % 1;
+      const a = smooth(0, 0.14, ph) * (1 - smooth(0.86, 1, ph)) * 0.92;
+      if (a < 0.02) continue;
+      const frac = sh.dir > 0 ? -0.05 + ph * 1.1 : 1.05 - ph * 1.1;
+      const x = W * frac - cam.x * 0.012 * cam.s;
+      drawShip(sh, x, hy - sh.lane * 0, a, th, t);
+    }
+  }
+  // haze: the far water and anything on it melts into the sky
+  const hz = ctx.createLinearGradient(0, hy - 26, 0, hy + 8);
+  hz.addColorStop(0, `rgba(${th.haze}, 0)`);
+  hz.addColorStop(0.72, `rgba(${th.haze}, 0.26)`);
+  hz.addColorStop(1, `rgba(${th.haze}, 0)`);
+  ctx.fillStyle = hz;
+  ctx.fillRect(0, hy - 26, W, 34);
+  // gulls
+  if (th.birds) {
+    const col = th.moon || th.stars > 1 ? 'rgba(8, 6, 20, A)' : 'rgba(22, 14, 32, A)';
+    for (let i = 0; i < Math.min(birds.length, th.birds); i++) {
+      const b = birds[i];
+      const wx = ((b.x0 + b.v * t + 1600) % 3200 + 3200) % 3200 - 1600;
+      const x = W / 2 + (wx - cam.x * 0.82) * cam.s;
+      const y = sy(b.y + Math.sin(t * 0.5 + b.glide) * 6);
+      if (x < -20 || x > W + 20 || y < -10 || y > hy - 6) continue;
+      const near = clamp(cam.s, 0.35, 1.8);
+      const edge = 1 - smooth(1200, 1600, Math.abs(wx));
+      const flapPh = t * b.flap + b.ph;
+      // gulls glide more than they flap
+      const flapAmt = Math.sin(t * 0.35 + b.glide) > 0.2 ? flapPh : 0.5 + Math.sin(t * 0.8 + b.ph) * 0.18;
+      drawGull(x, y, b.size * (0.55 + near * 0.6), flapAmt, 0.7 * edge, col);
+    }
+  }
+}
+
+const BOX = ['#8a4b3a', '#3f5f7a', '#a8843a', '#4f6350'];
+const STACKS = [{ x: -30.4, boxes: [0, 1, 2] }];
+
+let deckhouse = null;
 function drawBarge(f, th) {
+  deckhouse = null;
   const s = cam.s;
   const t = performance.now() / 1000;
   const halfDeck = 32;
@@ -703,14 +802,33 @@ function drawBarge(f, th) {
   const hull = Math.max(4, 5 * s);
   const top = back - 3.8 * s - Math.max(2, 0.8 * s); // top of the end walls and beacon posts
 
-  // hull, with plating seams
+  // hull: raked ends, a pale belt along the top, plating seams
+  const rake = Math.max(2, 2.2 * s);
   const hg = ctx.createLinearGradient(0, front, 0, front + hull);
   hg.addColorStop(0, th.hull[0]); hg.addColorStop(1, th.hull[1]);
   ctx.fillStyle = hg;
-  ctx.fillRect(x0, front, x1 - x0, hull);
+  ctx.beginPath();
+  ctx.moveTo(x0 - 1.2 * s, front); ctx.lineTo(x1 + 1.2 * s, front);
+  ctx.lineTo(x1 + 1.2 * s - rake, front + hull); ctx.lineTo(x0 - 1.2 * s + rake, front + hull);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.fillRect(x0 - 1.2 * s, front, x1 - x0 + 2.4 * s, Math.max(1, hull * 0.16));
   if (s > 0.9) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-    for (let m = -30; m <= 30; m += 6) ctx.fillRect(sx(m), front, 1, hull);
+    for (let m = -30; m <= 30; m += 6) ctx.fillRect(sx(m), front + hull * 0.16, 1, hull * 0.84);
+    ctx.fillStyle = 'rgba(235, 240, 250, 0.2)'; // hull number and draft marks
+    for (let m = -29; m <= -23; m += 2) ctx.fillRect(sx(m), front + hull * 0.5, Math.max(1, 0.18 * s), Math.max(2, 0.7 * s));
+  }
+  // the thruster pods that hold the ship on station, standing out past each end
+  for (const side of [-1, 1]) {
+    const px = side < 0 ? x0 - 3.2 * s : x1 + 0.9 * s;
+    const pw = 2.3 * s, ph = hull * 0.85, py = front - hull * 0.1;
+    ctx.fillStyle = th.hull[0];
+    ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(px, py, pw, Math.max(1, 0.15 * s));
+    ctx.fillStyle = 'rgba(232, 180, 60, 0.75)'; // hazard stripe
+    ctx.fillRect(px, py + ph * 0.45, pw, Math.max(1, 0.35 * s));
   }
   // deck top
   const dg = ctx.createLinearGradient(0, back, 0, front);
@@ -719,6 +837,10 @@ function drawBarge(f, th) {
   ctx.fillRect(x0, back, x1 - x0, d);
   ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
   ctx.fillRect(x0, front - 1, x1 - x0, 1);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.16)'; // deck plating
+  for (let m = -30; m <= 30; m += 4) ctx.fillRect(sx(m), back, 1, d);
+  ctx.fillStyle = 'rgba(232, 180, 60, 0.5)'; // yellow edge line
+  ctx.fillRect(x0, front - Math.max(2, 0.4 * s), x1 - x0, Math.max(1, 0.2 * s));
   // stacked containers along the back of the deck, clear of the landing zone
   for (const st of STACKS) {
     const bw = 6 * s, bh = 2.6 * s;
@@ -734,6 +856,20 @@ function drawBarge(f, th) {
       if (s > 1.2) { for (let k = 1; k < 6; k++) ctx.fillRect(bx + k * (bw / 6), by + 0.2 * s, 1, bh - 0.4 * s); }
     });
   }
+  // a low deckhouse at the right end, with a lit window row and a mast
+  {
+    const hx = sx(21.6), hw = 7.6 * s, hh = 3.4 * s, hb = back + d * 0.3;
+    ctx.fillStyle = '#6f7b8c';
+    ctx.fillRect(hx, hb - hh, hw, hh);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.fillRect(hx, hb - hh, hw, Math.max(1, 0.22 * s));
+    ctx.fillStyle = '#4f5a6a';
+    ctx.fillRect(hx + hw * 0.62, hb - hh - 1.1 * s, hw * 0.34, 1.1 * s); // bridge block
+    ctx.strokeStyle = '#58637a'; ctx.lineWidth = Math.max(1, 0.18 * s); // mast
+    ctx.beginPath(); ctx.moveTo(hx + hw * 0.8, hb - hh - 1.1 * s); ctx.lineTo(hx + hw * 0.8, hb - hh - 3.4 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx + hw * 0.8 - 0.8 * s, hb - hh - 2.6 * s); ctx.lineTo(hx + hw * 0.8 + 0.8 * s, hb - hh - 2.6 * s); ctx.stroke();
+    deckhouse = { x: hx, w: hw, y: hb - hh, h: hh, mastY: hb - hh - 3.4 * s, mastX: hx + hw * 0.8, bridgeY: hb - hh - 1.1 * s };
+  }
   // end walls
   ctx.fillStyle = '#262d3a';
   ctx.fillRect(x0, top + Math.max(2, 0.8 * s), 1.6 * s, front - top - Math.max(2, 0.8 * s));
@@ -743,8 +879,34 @@ function drawBarge(f, th) {
   const dim = (1 - th.ambient) * 0.85;
   if (dim > 0.02) {
     ctx.fillStyle = `rgba(2, 6, 14, ${dim})`;
-    ctx.fillRect(x0 - 2, top, x1 - x0 + 4, front + hull - top + 2);
+    const wallTop = top + Math.max(2, 0.8 * s);
+    ctx.fillRect(x0 - 1.2 * s, back, x1 - x0 + 2.4 * s, front + hull - back); // deck and hull
+    ctx.fillRect(x0 - 3.2 * s, front - hull * 0.1, 2.3 * s, hull * 0.85); // thruster pods
+    ctx.fillRect(x1 + 0.9 * s, front - hull * 0.1, 2.3 * s, hull * 0.85);
+    ctx.fillRect(x0, wallTop, 1.6 * s, back - wallTop); // end walls
+    ctx.fillRect(x1 - 1.6 * s, wallTop, 1.6 * s, back - wallTop);
+    for (const st of STACKS) ctx.fillRect(sx(st.x), back + d * 0.28 - st.boxes.length * 2.6 * s, 6 * s, st.boxes.length * 2.6 * s);
+    if (deckhouse) { ctx.fillRect(deckhouse.x, deckhouse.y, deckhouse.w, deckhouse.h); ctx.fillRect(deckhouse.x + deckhouse.w * 0.62, deckhouse.bridgeY, deckhouse.w * 0.34, deckhouse.y - deckhouse.bridgeY); }
   }
+  // a rail along the front edge, and the deckhouse windows (lit after the dimming)
+  if (s > 0.7) {
+    ctx.strokeStyle = 'rgba(190, 200, 215, 0.55)'; ctx.lineWidth = 1;
+    const rh = Math.max(3, 1.0 * s), ry0 = front - 1;
+    ctx.beginPath(); ctx.moveTo(x0, ry0 - rh); ctx.lineTo(x1, ry0 - rh); ctx.stroke();
+    ctx.beginPath();
+    for (let m = -31; m <= 31; m += 3) { const rx2 = sx(m); ctx.moveTo(rx2, ry0); ctx.lineTo(rx2, ry0 - rh); }
+    ctx.stroke();
+  }
+  if (deckhouse) {
+    const dh = deckhouse;
+    ctx.fillStyle = `rgba(255, 220, 150, ${0.35 + 0.5 * th.lights * 0.5})`;
+    for (let i = 0; i < 4; i++) ctx.fillRect(dh.x + dh.w * (0.08 + i * 0.15), dh.y + dh.h * 0.3, dh.w * 0.09, dh.h * 0.26);
+    ctx.fillRect(dh.x + dh.w * 0.66, dh.bridgeY + 0.3 * s, dh.w * 0.26, Math.max(1, 0.4 * s));
+    const mb = Math.sin(t * 1.9) > 0.2;
+    ctx.fillStyle = mb ? 'rgba(255, 90, 80, 0.95)' : 'rgba(255, 90, 80, 0.35)';
+    ctx.fillRect(dh.mastX - 1, dh.mastY - 1, 2.4, 2.4);
+  }
+  // sunset rim light on the end wall facing the sun
   // sunset rim light on the end wall facing the sun
   ctx.fillStyle = `rgba(${th.rim}, ${0.22 * th.ambient})`;
   ctx.fillRect(x1 - 1.6 * s, top + Math.max(2, 0.8 * s), 0.5 * s, front - top - Math.max(2, 0.8 * s));
