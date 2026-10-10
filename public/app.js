@@ -86,9 +86,10 @@ const SCENE_POOL = { easy: SHARED, medium: [...SHARED, 'plane', 'moonpath'], har
 const SCENE_COUNT = { easy: 3, medium: 3, hard: 2 };
 function pickScene() {
   if (app.mode !== 'game' || app.attract) return ['birds'];
-  const pool = (SCENE_POOL[app.level] || []).slice();
+  const pool = (SCENE_POOL[app.level] || []).filter((k) => k !== 'birds');
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return pool.slice(0, SCENE_COUNT[app.level] || 2);
+  const picked = pool.slice(0, SCENE_COUNT[app.level] || 2);
+  return app.level === 'hard' ? picked : ['birds', ...picked]; // gulls are always there on Easy and Medium
 }
 const has = (k) => fx.scene.includes(k);
 const scud = Array.from({ length: 9 }, (_, i) => ({ x: i / 9, y: 0.5 + ((i * 37) % 11) / 30, w: 0.09 + ((i * 13) % 7) / 60, v: 0.7 + ((i * 29) % 10) / 14 }));
