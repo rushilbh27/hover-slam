@@ -5,7 +5,7 @@ import { SETTINGS, NUDGE, debrief } from '../public/explain.js';
 import { humanControl } from '../public/controls.js';
 import { RANGES, FAULT_RANGES, validateScenario, activeFaults, faultLabels, scenarioFlight, nextScenario, bagProgress } from '../public/scenario.js';
 import { BANK } from '../public/bank.js';
-import { winnable } from './lib/bots.mjs';
+import { winnable, playKeys } from './lib/bots.mjs';
 import { proposeScenarios, SCHEMA } from './lib/claude.mjs';
 import { candidate } from './lib/procedural.mjs';
 import http from 'node:http';
@@ -259,37 +259,24 @@ test('Medium can hover until the tank is nearly empty (the engine floor is below
   assert.ok(floorThrust < weight(3000), 'and at the 3000 kg a normal landing ends with');
 });
 
-// A pilot who does what the screen says: light the engine, then keep the falling speed at the "aim for" number.
-function hudPilot(level, seed, igniteAt) {
-  const lv = LEVELS[level];
-  const f = makeFlight(seed, lv.opts);
-  const s = f.state;
-  const inp = { left: false, right: false, up: false, down: false, engine: false, throttle: 0.8 };
-  const st = { want: 0, vHold: 0 };
-  let react = 0;
-  while (!s.done) {
-    if ((react += DT) >= 0.15) {
-      react = 0;
-      const h = s.y - BOOSTER.legHeight;
-      if (!inp.engine && h <= igniteAt) inp.engine = true;
-      const aim = Math.sqrt(1 + 6 * Math.max(0, h));
-      inp.up = -s.vy > aim + 0.5;
-      inp.down = -s.vy < aim - 3;
-      const toward = Math.sign(-s.x);
-      const away = s.vx * toward;
-      const want = clamp(Math.abs(s.x) * 0.08, 0, 8);
-      inp.left = inp.right = false;
-      if (h > 25 && Math.abs(s.x) > 3 && away < want - 0.5) (toward > 0 ? (inp.right = true) : (inp.left = true));
-    }
-    step(f, humanControl(f, DT, st, inp, lv), DT);
-  }
-  return s.outcome;
-}
+const plain = (seed) => ({ seed, opts: {}, faults: null }); // a level exactly as it is, with no scenario changes
 
-test('Medium: following the aim-for speed after an early light lands most of the time (the bug that made Medium crash)', () => {
+test('Medium: a key pilot who lights early and follows the aim-for speed lands most of the time (the bug that made Medium crash)', () => {
   let n = 0;
-  for (const seed of WINDS) if (hudPilot('medium', seed, 1600).landed) n++;
+  for (const seed of WINDS) if (playKeys('medium', plain(seed), { igniteAt: 1600, aimDecel: LEVELS.medium.aimDecel }).landed) n++;
   assert.ok(n >= 16, `only ${n} of 20 landed`);
+});
+
+test('Hard can be won with the keys: a good pilot who lights early lands some winds, but far from all', () => {
+  let n = 0;
+  for (const seed of WINDS) if (playKeys('hard', plain(seed), { igniteAt: 1800, aimDecel: LEVELS.hard.aimDecel }).landed) n++;
+  assert.ok(n >= 3 && n <= 14, `${n} of 20`);
+});
+
+test('the aim-for speed matches each level: gentle on Easy, firmer where the engine cannot hover', () => {
+  assert.equal(LEVELS.easy.aimDecel, 3);
+  assert.equal(LEVELS.medium.aimDecel, 5);
+  assert.equal(LEVELS.hard.aimDecel, 5);
 });
 
 test('the speed hold never asks for a climb, and letting go of the keys holds the speed you have', () => {

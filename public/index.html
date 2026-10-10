@@ -11,20 +11,33 @@
   <meta property="og:image" content="https://hoverslam.vercel.app/og.png">
   <meta property="og:url" content="https://hoverslam.vercel.app/">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="theme-color" content="#0b1224">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23eef2f7' d='M12 1l3 5v12h-6V6z'/%3E%3Cpath fill='%23ffb347' d='M10 19h4l-2 4z'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e1218">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23eef2f7' d='M12 1l3 5v12h-6V6z'/%3E%3Cpath fill='%23ff6a28' d='M10 19h4l-2 4z'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="start-screen" class="start hidden" role="dialog" aria-label="Hoverslam menu">
+    <section class="view" data-view="welcome">
+      <div class="welcome">
+        <h1 class="wordmark">Hoverslam</h1>
+        <p class="pitch">A booster is falling at 140 metres a second. Its engine can't hover, so you get one burn to set it down on a barge at sea.</p>
+        <div class="menu-actions"><button id="st-play" class="primary big">Play</button><button id="st-how" class="big">How to play</button></div>
+        <button id="st-tune" class="textlink">Or tune the autopilot and watch it fly</button>
+      </div>
+      <p class="fine">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</p>
+    </section>
+    <section class="view hidden" data-view="how" id="view-how"></section>
+    <section class="view hidden" data-view="levels" id="view-levels"></section>
+  </div>
+
   <main class="app">
     <section class="stage-wrap">
       <canvas id="stage" aria-label="Booster landing view"></canvas>
 
       <div class="hud top-left">
-        <div class="brand">Hoverslam</div>
         <div class="tele">
           <div><label>Altitude</label><b id="t-alt">0</b><i>m</i></div>
           <div><label>Falling</label><b id="t-vy">0</b><i id="t-vy-target">m/s</i></div>
@@ -47,7 +60,6 @@
         <div class="level-tag" id="t-level">Medium</div>
       </div>
 
-      <div id="alert" class="alert hidden" role="status" aria-live="assertive"></div>
 
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
@@ -69,7 +81,7 @@
         <div class="i-sub" id="i-sub"></div>
         <div class="i-rule" id="i-rule"></div>
         <button id="start" class="primary big">Start descent</button>
-        <div class="i-hint" id="i-hint">Space starts the descent. <kbd>N</kbd> shows another scenario.</div>
+        <div class="i-hint" id="i-hint">Space starts the descent. <kbd class="cap">N</kbd> shows another scenario.</div>
       </div>
 
       <div class="touch" id="touch">
@@ -79,6 +91,7 @@
     </section>
 
     <aside class="panel">
+      <div class="panel-head"><span class="wm">Hoverslam</span><button id="menu-btn" class="small">Menu</button></div>
       <div class="tabs" role="tablist">
         <button class="tab active" data-tab="game" role="tab">Fly it</button>
         <button class="tab" data-tab="sim" role="tab">Tune the autopilot</button>
@@ -88,11 +101,12 @@
         <div class="levels" id="levels" role="radiogroup" aria-label="Level"></div>
         <p class="muted" id="level-blurb"></p>
         <ul class="keys">
-          <li><kbd>Space</kbd> Engine on or off</li>
-          <li><kbd>←</kbd><kbd>→</kbd> Lean the booster</li>
-          <li><kbd>↑</kbd> Slow down <kbd>↓</kbd> Speed up. Let go to hold your speed.</li>
-          <li><kbd>R</kbd> Retry this scenario</li>
-          <li><kbd>N</kbd> A new scenario</li>
+          <li><span class="caps"><kbd class="cap wide">Space</kbd></span>Engine on or off</li>
+          <li><span class="caps"><kbd class="cap">←</kbd><kbd class="cap">→</kbd></span>Lean the booster</li>
+          <li><span class="caps"><kbd class="cap">↑</kbd></span>Slow down</li>
+          <li><span class="caps"><kbd class="cap">↓</kbd></span>Speed up. Let go of both to hold your speed</li>
+          <li><span class="caps"><kbd class="cap">R</kbd></span>Retry this scenario</li>
+          <li><span class="caps"><kbd class="cap">N</kbd></span>A new scenario</li>
         </ul>
         <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
         <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>

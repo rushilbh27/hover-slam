@@ -34,7 +34,7 @@ export function validateScenario(sc, level = sc && sc.level) {
   const name = String(sc.name || '').trim();
   const briefing = String(sc.briefing || '').trim();
   if (!name || name.length > 40) errors.push('name must be 1 to 40 characters');
-  if (!briefing || briefing.length > 240) errors.push('briefing must be 1 to 240 characters');
+  if (!briefing || briefing.length > 320) errors.push('briefing must be 1 to 320 characters');
   if (!Number.isInteger(sc.seed) || sc.seed < 1 || sc.seed > 999999) errors.push('seed must be a whole number from 1 to 999999');
   const o = sc.opts || {};
   const opts = {};

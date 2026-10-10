@@ -51,17 +51,45 @@ export function autopilotBest(level, sc) {
 }
 export const autopilotLands = (level, sc) => Boolean(autopilotBest(level, sc));
 
+// A scenario must be landable with the keys the player really has, at some reasonable moment to light the engine.
+const keysCanLand = (level, sc, heights) => heights.some((igniteAt) => playKeys(level, sc, { igniteAt }).landed);
+
 // Who must be able to win a scenario:
 // Easy by a player who only lights the engine and steers.
-// Medium by a careful player, or by the flight computer with 1500 kg of fuel to spare (leaks eat the
-// careful player's margin, so a leak scenario is judged on whether the fuel is really there).
-// Hard by at least the flight computer: it is possible, and it takes real skill.
+// Medium by a key pilot who picks a good moment to light (leaks and thrust limits change which one).
+// Hard by a key pilot too, and by the flight computer, so it is possible and it takes real skill.
 export function winnable(level, sc) {
   if (level === 'easy') return { ok: playHuman(level, sc, 'lazy').landed, by: 'a player who only steers' };
-  if (level === 'medium') {
-    if (playHuman(level, sc, 'careful').landed) return { ok: true, by: 'a careful player' };
-    const b = autopilotBest(level, sc);
-    return { ok: Boolean(b && b.fuelLeft >= 1500), by: 'a careful player, or the flight computer with fuel to spare' };
+  if (level === 'medium') return { ok: keysCanLand(level, sc, [1400, 1600, 1800]), by: 'a key pilot lighting at 1400, 1600 or 1800 m' };
+  return { ok: keysCanLand(level, sc, [1400, 1600, 1800, 2000]) && autopilotLands(level, sc), by: 'a key pilot and the flight computer' };
+}
+
+// A pilot who uses only the keys the player has, steering by the rule a good player would: lean toward the pad
+// when it is clearly off, stand up straight otherwise, and hold the falling speed on the "aim for" number.
+// igniteAt: height the engine is lit at. aimDecel: the braking the aim-for speed assumes.
+export function playKeys(level, sc, { igniteAt = 1700, aimDecel = 5, threshold = 1.5 } = {}) {
+  const lv = LEVELS[level];
+  const f = scenarioFlight(level, sc);
+  const s = f.state;
+  const inp = { left: false, right: false, up: false, down: false, engine: false, throttle: 0.8 };
+  const st = { want: 0, vHold: 0 };
+  let t = 0;
+  while (!s.done) {
+    if ((t += DT) >= 0.1) {
+      t = 0;
+      const h = s.y - BOOSTER.legHeight;
+      if (!inp.engine && h <= igniteAt) inp.engine = true;
+      const aim = Math.sqrt(1.44 + 2 * aimDecel * Math.max(0, h));
+      inp.up = -s.vy > aim + 0.5;
+      inp.down = -s.vy < aim - 3;
+      const want = (0.12 * -s.x - 1.0 * s.vx) * clamp(h / 60, 0.15, 1); // degrees of lean wanted
+      inp.left = inp.right = false;
+      if (h > 6) {
+        if (want > threshold) inp.right = true;
+        else if (want < -threshold) inp.left = true;
+      }
+    }
+    step(f, humanControl(f, DT, st, inp, lv), DT);
   }
-  return { ok: autopilotLands(level, sc), by: 'the flight computer' };
+  return s.outcome;
 }

@@ -1,8 +1,9 @@
-import { BOOSTER, G, DEG, clamp, SEEDS, DT, LEVELS, DEFAULT_GAINS, GAIN_RANGES, makeFlight, step, autopilot, windAt, mass, scoreFlight, evaluate, simulate } from './physics.js';
+import { BOOSTER, G, DEG, clamp, SEEDS, REFERENCE_GAINS, DT, LEVELS, DEFAULT_GAINS, GAIN_RANGES, makeFlight, step, autopilot, windAt, mass, scoreFlight, evaluate, simulate } from './physics.js';
 import { SETTINGS, SETTING, debrief, NUDGE } from './explain.js';
 import { humanControl } from './controls.js';
 import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
+import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -19,6 +20,9 @@ const app = {
   speed: 1,
   gains: { ...DEFAULT_GAINS, ...store.get('hs.gains', {}) },
   flight: null,
+  attract: false, // the start screen is open and an autopilot landing plays behind it
+  view: 'welcome',
+  attractIdx: 0,
   scenario: null, // the scenario being played in the game (a variation of the level)
   running: false,
   input: { left: false, right: false, up: false, down: false, engine: false, throttle: 0.8 },
@@ -69,7 +73,7 @@ const THEMES = {
   },
 };
 function theme() {
-  if (app.mode !== 'game') return THEMES.sunset;
+  if (app.mode !== 'game' || app.attract) return THEMES.sunset;
   return THEMES[{ easy: 'sunset', medium: 'dusk', hard: 'storm' }[app.level]] || THEMES.sunset;
 }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
@@ -86,7 +90,8 @@ const clouds = [];
 function levelCfg() { return LEVELS[app.level]; }
 
 function newFlight() {
-  if (app.mode === 'game') {
+  if (app.attract) app.flight = makeFlight(SEEDS[app.attractIdx % SEEDS.length], undefined);
+  else if (app.mode === 'game') {
     if (!app.scenario) pickScenario();
     app.flight = scenarioFlight(app.level, app.scenario);
   } else app.flight = makeFlight(app.seed, undefined);
@@ -102,7 +107,6 @@ function newFlight() {
   $('outcome').classList.add('hidden');
   $('caption').classList.add('hidden');
   $('cue').classList.add('hidden');
-  $('alert').classList.add('hidden');
   renderFaultChips();
 }
 
@@ -157,12 +161,19 @@ function showIntro(fresh = false) {
 const human = (f, dt, st, inp = app.input) => humanControl(f, dt, st, inp, levelCfg(), $('raw').checked);
 
 function control(f) {
+  if (app.attract) return autopilot(f, REFERENCE_GAINS);
   return app.mode === 'sim' ? autopilot(f, app.gains) : human(f, DT, app.steer);
 }
 
 const keys = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down' };
 window.addEventListener('keydown', (e) => {
   if (e.target.matches('input, select, textarea')) return;
+  if (app.attract) {
+    // on the start screen only Space or Enter (with nothing focused) moves on from the welcome
+    if ((e.code === 'Space' || e.code === 'Enter') && e.target === document.body && app.view === 'welcome') { e.preventDefault(); setView('levels'); }
+    else if (e.code === 'Escape' && app.view !== 'welcome') setView('welcome');
+    return;
+  }
   if (e.code === 'Space') {
     e.preventDefault();
     if (!app.running && !$('intro').classList.contains('hidden')) return start();
@@ -228,6 +239,12 @@ function onEnd() {
   const s = f.state;
   const c = o.checks || {};
   const soft = c.vertical && c.horizontal && c.upright && c.steady;
+  if (app.attract) {
+    // behind the start screen: let the landing play out, then fly the next wind
+    if (o.landed) { fx.landedAt = performance.now(); fx.ring = { r: 0, a: 1 }; touchdown(s, 'Landed'); }
+    app.cardTimer = setTimeout(() => { if (app.attract) { app.attractIdx++; newFlight(); app.running = true; } }, 4200);
+    return;
+  }
   if (o.landed) {
     fx.landedAt = performance.now();
     fx.ring = { r: 0, a: 1 };
@@ -278,6 +295,7 @@ function touchdown(s, word, tone) {
   fx.slow = 0.25;
   fx.punch = 1;
   fx.shake = 0.3;
+  if (app.attract) return; // no captions behind the menu
   const cap = $('caption');
   cap.textContent = word;
   cap.classList.toggle('warn', tone === 'warn');
@@ -470,7 +488,7 @@ function updateCam(dt) {
   const ty = ((ground - 0.5) * H) / ts;
   const span = (W * 0.36) / ts;
   // narrow portrait screens: slide the view so the booster flies on the right, clear of the readouts
-  const shift = touchUI && W < 500 ? (0.17 * W) / ts : 0;
+  const shift = touchUI && W < 500 ? (0.17 * W) / ts : app.attract && W > 800 ? (0.2 * W) / ts : 0; // on the start screen the action sits right of the title
   const tx = clamp(s.x * 0.5, s.x - span, s.x + span) - shift;
   if (cam.snap) { cam.s = ts; cam.x = tx; cam.y = ty; cam.snap = false; return; }
   const k = Math.min(1, dt * 3.5);
@@ -1138,7 +1156,7 @@ function drawPadArrow(f) {
   if (left) { ctx.moveTo(x - 12, y); ctx.lineTo(x + 2, y - 9); ctx.lineTo(x + 2, y + 9); }
   else { ctx.moveTo(x + 12, y); ctx.lineTo(x - 2, y - 9); ctx.lineTo(x - 2, y + 9); }
   ctx.fill();
-  ctx.font = '600 13px "Barlow Condensed", system-ui, sans-serif';
+  ctx.font = '700 15px "Big Shoulders Display", "Arial Narrow", sans-serif';
   ctx.textAlign = left ? 'left' : 'right';
   ctx.fillText(`Pad ${Math.round(Math.abs(f.state.x))} m`, left ? x + 8 : x - 8, y + 24);
 }
@@ -1189,7 +1207,7 @@ function hud() {
   $('t-tilt').textContent = (s.theta / DEG).toFixed(1);
   $('t-gim').textContent = (s.gimbal / DEG).toFixed(1);
   const low = h < 120;
-  const aim = Math.sqrt(1 + 2 * 3 * h);
+  const aim = Math.sqrt(1.44 + 2 * (app.mode === 'game' ? levelCfg().aimDecel : 3) * h);
   const guided = app.mode === 'game' && levelCfg().target && !s.done;
   $('t-vy').className = low ? (Math.abs(s.vy) <= Math.max(L.vy, aim + 1) ? 'ok' : 'warn') : guided ? (-s.vy > aim + 4 ? 'warn' : 'ok') : '';
   $('t-vx').className = low ? (Math.abs(s.vx) <= L.vx ? 'ok' : 'warn') : '';
@@ -1210,11 +1228,7 @@ function hud() {
   $('t-fuel').textContent = `${Math.round(s.fuel)} kg`;
   const F = f.faults;
   $('bar-fuel').classList.toggle('leaking', Boolean(F && F.leak > 0 && s.t >= F.leakStart && s.fuel > 0 && !s.done));
-  const alert = $('alert');
-  if (s.cut && !s.done) { alert.textContent = 'Engine cut'; alert.classList.remove('hidden'); } else alert.classList.add('hidden');
   $('faults').style.visibility = app.running || app.ended ? 'visible' : 'hidden'; // the briefing card shows them before the start
-  const cutChip = $('faults').querySelector('[data-k="dropouts"]');
-  if (cutChip) cutChip.classList.toggle('live', s.cut);
   const fe = $('f-engine');
   fe.textContent = lit ? 'Engine on' : 'Engine off';
   fe.className = 'flag' + (lit ? ' on' : '');
@@ -1395,12 +1409,102 @@ function renderWindOptions() {
 $('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); if (app.mode === 'sim') start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
 
+// ---------- start screen: welcome, how to play, choose a level ----------
+const startEl = $('start-screen');
+
+function renderHow() {
+  $('view-how').innerHTML = `
+    <div class="vhead"><div><h2>How to play</h2><p class="lede">The engine can't hover, so there is one burn. Light it, hold your speed on the aim-for number, steer onto the pad.</p></div>
+    <div class="nav"><button id="how-back" class="ghost">Back</button><button id="how-go" class="primary big">Choose a level</button></div></div>
+    <div class="how">
+      <div class="how-figs">
+        <figure>${descentDiagram()}<figcaption>A whole descent, side on.</figcaption></figure>
+        <figure>${speedDiagram()}<figcaption>Falling speed against height. Light the engine early, brake onto the dotted aim-for line, then follow it down.</figcaption></figure>
+      </div>
+      <div class="plate">
+        <ol class="steps">
+          <li><span><b>Fall</b>The engine is off. Easy shows a cue when to light it. On Medium and Hard, light it around 1,600 m so there is time to steer. Steering only works while the engine burns.</span></li>
+          <li><span><b>Burn</b>Press Space. Keep your falling speed on the aim-for number beside it: up slows you down, down speeds you up, and letting go holds your speed. Lean with left and right.</span></li>
+          <li><span><b>Touch down</b>Upright, over the green, and slow: under 3 m/s down, 1.5 m/s sideways and 6 degrees of tilt. Easy forgives more.</span></li>
+        </ol>
+        <ul class="keys">${KEYS.map((k) => `<li><span class="caps">${keycaps(k.caps)}</span>${k.text}</li>`).join('')}</ul>
+        <p class="limits">Every run is a different <b>scenario</b>: a high or low drop, a fuel leak, weak thrust, a flaky thruster. The briefing before each descent says what to expect.</p>
+      </div>
+    </div>
+    `;
+  $('how-back').addEventListener('click', () => setView('welcome'));
+  $('how-go').addEventListener('click', () => setView('levels'));
+}
+
+function renderLevelCards() {
+  const cleared = store.get('hs.cleared', {});
+  const best = store.get('hs.best', {});
+  $('view-levels').innerHTML = `
+    <h2>Choose a level</h2>
+    <p class="lede">Each level has 30 scenarios, played in a shuffled order so nothing repeats until you have seen them all.</p>
+    <div class="cards">${Object.entries(LEVELS).map(([k, lv]) => {
+      const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
+      const copy = LEVEL_COPY[k];
+      return `<button class="lvl-card" data-level="${k}">${levelThumb(k)}<span class="body"><span class="nm">${lv.label}</span><span class="tg">${copy.tagline}</span><span class="dt">${copy.detail}</span><span class="pr">${n ? `<b>${n}</b> of ${(BANK[k] || []).length} cleared${best[k] ? `, best ${best[k]}` : ''}` : `${(BANK[k] || []).length} scenarios, none flown yet`}</span></span></button>`;
+    }).join('')}</div>
+    <div class="nav"><button id="lv-back" class="ghost">Back</button><button id="lv-how" class="textlink">How to play</button></div>`;
+  for (const c of document.querySelectorAll('.lvl-card')) c.addEventListener('click', () => chooseLevel(c.dataset.level));
+  $('lv-back').addEventListener('click', () => setView('welcome'));
+  $('lv-how').addEventListener('click', () => setView('how'));
+}
+
+function setView(v) {
+  app.view = v;
+  startEl.dataset.view = v;
+  if (v === 'how') renderHow();
+  if (v === 'levels') renderLevelCards();
+  for (const el of startEl.querySelectorAll('.view')) el.classList.toggle('hidden', el.dataset.view !== v);
+  startEl.scrollTop = 0;
+  const first = startEl.querySelector(`[data-view="${v}"] .primary, [data-view="${v}"] .lvl-card`);
+  if (first) first.focus({ preventScroll: true });
+}
+
+function showStart(view) {
+  clearTimeout(app.cardTimer);
+  app.attract = true;
+  app.running = false;
+  document.body.classList.add('in-menu');
+  startEl.classList.remove('hidden');
+  newFlight();
+  app.running = true;
+  setView(view);
+  requestAnimationFrame(() => { resize(); cam.snap = true; });
+}
+
+function leaveStart() {
+  clearTimeout(app.cardTimer);
+  app.attract = false;
+  app.running = false;
+  document.body.classList.remove('in-menu');
+  startEl.classList.add('hidden');
+  store.set('hs.seen', true);
+  requestAnimationFrame(resize);
+}
+
+function chooseLevel(k) {
+  app.level = k;
+  store.set('hs.level', k);
+  leaveStart();
+  setMode('game');
+}
+
+$('st-play').addEventListener('click', () => setView('levels'));
+$('st-how').addEventListener('click', () => setView('how'));
+$('st-tune').addEventListener('click', () => { leaveStart(); setMode('sim'); });
+$('menu-btn').addEventListener('click', () => showStart('levels'));
+
 // ---------- boot ----------
 resize();
 renderLevels();
 renderSliders();
 setMode('game');
+showStart(store.get('hs.seen', false) ? 'levels' : 'welcome'); // first visit: the full welcome; after that, straight to the levels
 requestAnimationFrame((t) => { last = t; frame(t); });
 
 // handle for tests and tinkering in the console
-window.hoverslam = { app, fx, cam, BANK, showIntro };
+window.hoverslam = { app, fx, cam, BANK, showIntro, showStart, setView, chooseLevel };

@@ -34,10 +34,10 @@ function briefing(level, sc, flight, labels) {
   if (!labels.length) return level === 'easy' ? `${start} ${wind} Plenty of fuel.` : `${start} ${wind} No faults: just you and the gusts.`;
   const f = sc.faults;
   const bits = [];
-  if (f.leak) bits.push(`A fuel line is leaking at ${Math.round(f.leak)} kg/s, so light late and land fast.`);
+  if (f.leak) bits.push(`A fuel line is leaking at ${Math.round(f.leak)} kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down.`);
   if (f.thrustCap) bits.push(`The engine only gives ${Math.round(f.thrustCap * 100)}% thrust, so light it earlier.`);
-  if (f.dropouts) bits.push(`The engine cuts out ${f.dropouts === 1 ? 'once' : f.dropouts + ' times'} during the burn: keep your height margin.`);
-  if (f.weakSide) bits.push(`${f.weakSide === 'left' ? 'Left' : 'Right'} steering is weak${f.flicker ? ' and flickers' : ''}: plan your lean the other way.`);
+  if (f.dropouts) bits.push(`The engine cuts out ${f.dropouts === 1 ? 'once' : f.dropouts + ' times'} early in the burn, for under a second. Keep some height in hand.`);
+  if (f.weakSide) bits.push(`${f.weakSide === 'left' ? 'Left' : 'Right'} steering is weak${f.flicker ? ' and flickers' : ''}, so leaning ${f.weakSide} is slow. Start early if the pad is on that side.`);
   return `${bits.join(' ')} ${start}`;
 }
 
@@ -54,7 +54,7 @@ export function candidate(level, i, taken = new Set()) {
     kinds = x < 0.15 ? [] : x < 0.6 ? ['leak'] : ['thrustCap'];
   } else if (level === 'hard') {
     const pool = ['weakSide', 'weakSide', 'thrustCap', 'dropouts', 'leak'];
-    const n = r() < 0.45 ? 1 : 2;
+    const n = r() < 0.7 ? 1 : 2;
     while (kinds.length < n) {
       const k = pick(r, pool);
       if (!kinds.includes(k)) kinds.push(k);
@@ -62,11 +62,12 @@ export function candidate(level, i, taken = new Set()) {
   }
   const hard = level === 'hard';
   for (const k of kinds) {
-    if (k === 'leak') faults.leak = hard ? between([30, 90], r) : between([30, 75], r);
-    if (k === 'thrustCap') faults.thrustCap = hard ? between([0.68, 0.88], r) : between([0.78, 0.92], r);
-    if (k === 'dropouts') faults.dropouts = r() < 0.65 ? 1 : 2;
-    if (k === 'weakSide') { faults.weakSide = r() < 0.6 ? 'left' : 'right'; faults.weakFactor = between([0.25, 0.6], r); faults.flicker = r() < 0.5; }
+    if (k === 'leak') faults.leak = hard ? between([25, 60], r) : between([30, 75], r);
+    if (k === 'thrustCap') faults.thrustCap = hard ? between([0.8, 0.92], r) : between([0.78, 0.92], r);
+    if (k === 'dropouts') faults.dropouts = r() < 0.8 ? 1 : 2;
+    if (k === 'weakSide') { faults.weakSide = r() < 0.6 ? 'left' : 'right'; faults.weakFactor = between([0.4, 0.7], r); faults.flicker = r() < 0.35; }
   }
+  if (hard && kinds.length) { opts.windScale = between([1.1, 1.45], r); opts.padHalf = between([10.5, 12], r); } // faults are the extra difficulty, so the weather and pad ease a little
   const seed = 100 + Math.floor(r() * 899000);
   const sc = { level, seed, opts, faults: kinds.length ? faults : null, source: 'rules' };
   const flight = makeFlightFor(level, sc);

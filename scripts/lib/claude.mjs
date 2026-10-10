@@ -19,7 +19,7 @@ export const SCHEMA = {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'A short evocative title, 2 to 4 words, sentence case.' },
-          briefing: { type: 'string', description: 'One or two plain sentences telling the pilot what is different this time and how to plan for it. Under 220 characters.' },
+          briefing: { type: 'string', description: 'One or two plain sentences telling the pilot what is different this time and how to plan for it. Under 300 characters.' },
           seed: { type: 'integer', description: 'A random whole number from 1000 to 999999. It fixes the exact start position and wind gusts.' },
           opts: {
             type: 'object',
