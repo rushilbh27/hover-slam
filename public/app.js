@@ -47,7 +47,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5 });
+const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
 const fx = freshFx();
 const rain = [];
 
@@ -81,12 +81,14 @@ function theme() {
 }
 const cam = { x: 0, y: 1000, s: 0.3, snap: true };
 // Extra background life, shuffled so each flight shows a different pair and the sky never feels like a loop.
-const SCENE_POOL = { medium: ['shoot', 'plane', 'moonpath', 'lighthouse'], hard: ['sheet', 'scud', 'swell'] };
+const SHARED = ['birds', 'lighthouse', 'shoot', 'kite', 'balloon', 'buoy', 'dolphins']; // Easy and Medium rotate through the same set
+const SCENE_POOL = { easy: SHARED, medium: [...SHARED, 'plane', 'moonpath'], hard: ['sheet', 'scud', 'swell'] };
+const SCENE_COUNT = { easy: 3, medium: 3, hard: 2 };
 function pickScene() {
-  if (app.mode !== 'game' || app.attract) return [];
+  if (app.mode !== 'game' || app.attract) return ['birds'];
   const pool = (SCENE_POOL[app.level] || []).slice();
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return pool.slice(0, 2);
+  return pool.slice(0, SCENE_COUNT[app.level] || 2);
 }
 const has = (k) => fx.scene.includes(k);
 const scud = Array.from({ length: 9 }, (_, i) => ({ x: i / 9, y: 0.5 + ((i * 37) % 11) / 30, w: 0.09 + ((i * 13) % 7) / 60, v: 0.7 + ((i * 29) % 10) / 14 }));
@@ -455,6 +457,10 @@ function updateFx(dt) {
     if (fx.sheet) { fx.sheet.t += dt; if (fx.sheet.t > 0.9) fx.sheet = null; }
     else { fx.nextSheet -= dt; if (fx.nextSheet <= 0) { fx.sheet = { t: 0, x: 0.1 + Math.random() * 0.8, y: 0.15 + Math.random() * 0.35 }; fx.nextSheet = 2.5 + Math.random() * 4.5; } }
   } else fx.sheet = null;
+  if (has('dolphins') && !s.done) {
+    if (fx.dol) { fx.dol.t += dt; if (fx.dol.t > 0.9 + fx.dol.n * 0.45) fx.dol = null; }
+    else { fx.nextDol -= dt; if (fx.nextDol <= 0) { fx.dol = { t: 0, x: 0.1 + Math.random() * 0.75, d: Math.random() < 0.5 ? 1 : -1, n: 2 + Math.floor(Math.random() * 2) }; fx.nextDol = 14 + Math.random() * 10; } }
+  } else fx.dol = null;
 
   // plume particles, stored relative to the nozzle in metres
   if (s.engineOn && !s.done && !s.cut) {
@@ -757,6 +763,60 @@ function drawExtras(th) {
       ctx.fillStyle = g; ctx.fillRect(x + dx - r, y - r, r * 2, r * 2);
     }
   }
+
+  if (has('kite')) {
+    const dur = 140, ph = ((t / dur + 0.31) % 1 + 1) % 1;
+    const x = W * (-0.04 + ph * 1.08), y = hy * (0.42 + 0.05 * Math.sin(t * 0.35)), sw = Math.sin(t * 1.3) * 0.25;
+    const lit = clamp(th.ambient, 0.5, 1);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(sw);
+    ctx.fillStyle = `rgba(255, ${Math.round(150 * lit)}, ${Math.round(70 * lit)}, 0.95)`;
+    ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 0); ctx.lineTo(0, 7); ctx.lineTo(-5, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255, 244, 220, 0.8)'; ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 0); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = `rgba(255, 220, 190, 0.7)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, 7);
+    for (let k = 1; k <= 7; k++) ctx.lineTo(Math.sin(t * 2.2 - k * 0.9) * 3.2, 7 + k * 3.4);
+    ctx.stroke(); ctx.restore();
+  }
+  if (has('balloon')) {
+    const dur = 110, ph = ((t / dur + 0.12) % 1 + 1) % 1;
+    const sunX = W * th.glx - cam.x * 0.02;
+    const x = sunX + 70 + Math.sin(ph * 5) * 14 + ph * 40, y = hy - 6 - ph * hy * 0.5, r = clamp(H * 0.011, 5, 11);
+    const fade = smooth(0, 0.08, ph) * (1 - smooth(0.9, 1, ph));
+    ctx.globalAlpha = fade;
+    const cols = ['#e2553d', '#f4d28a'];
+    for (let k = 0; k < 4; k++) { ctx.fillStyle = cols[k % 2]; ctx.beginPath(); ctx.ellipse(x + (k - 1.5) * r * 0.45, y, r * 0.5, r * 1.05, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = 'rgba(40, 24, 24, 0.9)'; ctx.fillRect(x - r * 0.25, y + r * 1.5, r * 0.5, r * 0.45);
+    ctx.strokeStyle = 'rgba(40, 24, 24, 0.6)'; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(x - r * 0.7, y + r * 0.9); ctx.lineTo(x - r * 0.25, y + r * 1.5); ctx.moveTo(x + r * 0.7, y + r * 0.9); ctx.lineTo(x + r * 0.25, y + r * 1.5); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  if (has('dolphins') && fx.dol) {
+    const dl = fx.dol, d = dl.d;
+    for (let k = 0; k < dl.n; k++) {
+      const p = (dl.t - k * 0.45) / 0.9;
+      if (p < 0 || p > 1) continue;
+      const bx = W * dl.x + d * (k * 26 + p * 46), ground = hy + 5 + k * 2;
+      const arc = Math.sin(Math.PI * p), by = ground - arc * 15;
+      const ang = Math.atan2(-Math.cos(Math.PI * p) * 15 * Math.PI / 0.9 * 0.02, d * 46 / 0.9 * 0.02);
+      ctx.save(); ctx.translate(bx, by); ctx.rotate(d > 0 ? -ang * 0.8 : ang * 0.8 + Math.PI * 0 ); if (d < 0) ctx.scale(-1, 1);
+      ctx.fillStyle = th.moon ? '#141a2e' : '#1d1830';
+      ctx.beginPath(); ctx.ellipse(0, 0, 6.5, 2.1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(5, -0.5); ctx.lineTo(9, -2.5); ctx.lineTo(8.2, 0.4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-1, -1.6); ctx.lineTo(-2.4, -4); ctx.lineTo(1, -1.7); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      if (p < 0.12 || p > 0.88) { ctx.fillStyle = 'rgba(235, 242, 255, 0.5)'; ctx.fillRect(bx - 5, ground, 10, 1.4); }
+    }
+  }
+  if (has('buoy')) {
+    const sc = cam.s, d = clamp(6 * sc, 5, 30), bx = sx(-47), by = sy(0) + fx.bob * 1.4 + d * 0.5 + 3;
+    const w = Math.max(4, 1.1 * sc), h = Math.max(7, 2.2 * sc);
+    ctx.fillStyle = 'rgba(180, 200, 235, 0.25)'; ctx.fillRect(bx - w * 1.4, by + 1, w * 2.8, 1.2);
+    ctx.fillStyle = '#d6432e'; ctx.fillRect(bx - w / 2, by - h * 0.5, w, h * 0.5);
+    ctx.fillStyle = '#e9edf2'; ctx.fillRect(bx - w / 2, by - h * 0.9, w, h * 0.4);
+    ctx.fillStyle = '#2a303c'; ctx.fillRect(bx - 0.6, by - h * 1.25, 1.2, h * 0.35);
+    const on = Math.sin(t * 3.1) > 0, r = Math.max(5, 1.6 * sc) * (on ? 1.5 : 0.8);
+    const g = ctx.createRadialGradient(bx, by - h * 1.3, 0, bx, by - h * 1.3, r);
+    g.addColorStop(0, on ? 'rgba(255, 240, 160, 0.95)' : 'rgba(255, 240, 160, 0.3)'); g.addColorStop(1, 'rgba(255, 240, 160, 0)');
+    ctx.fillStyle = g; ctx.fillRect(bx - r, by - h * 1.3 - r, r * 2, r * 2);
+  }
   if (has('moonpath') && th.moon) {
     const mx = W * 0.64 - cam.x * 0.02;
     ctx.fillStyle = 'rgba(214, 226, 255, 1)';
@@ -843,7 +903,7 @@ function drawHorizonLife(th) {
   ctx.fillStyle = hz;
   ctx.fillRect(0, hy - 26, W, 34);
   // gulls
-  if (th.birds) {
+  if (has('birds') && th.birds) {
     const col = th.moon || th.stars > 1 ? 'rgba(8, 6, 20, A)' : 'rgba(22, 14, 32, A)';
     for (let i = 0; i < Math.min(birds.length, th.birds); i++) {
       const b = birds[i];
