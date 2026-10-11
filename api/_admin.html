@@ -56,13 +56,6 @@ const $app = document.getElementById('app');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '-');
 const dur = (s) => (s ? (s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : s + 's') : '-');
-let key = '';
-try { const q = new URLSearchParams(location.search).get('key'); if (q) { localStorage.setItem('hs.dev', q); history.replaceState(null, '', location.pathname); } key = localStorage.getItem('hs.dev') || ''; } catch {}
-
-function gate(msg) {
-  $app.innerHTML = `<form class="dgate" id="g"><h1>Hoverslam numbers</h1><input id="k" type="password" placeholder="Admin key" autocomplete="current-password" aria-label="Admin key"><button class="primary" type="submit">Open</button><div class="derr">${esc(msg || '')}</div></form>`;
-  document.getElementById('g').addEventListener('submit', (e) => { e.preventDefault(); key = document.getElementById('k').value.trim(); try { localStorage.setItem('hs.dev', key); } catch {} load(); });
-}
 
 function tile(label, value, note) { return `<div class="dtile"><i>${label}</i><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`; }
 function bars(rows, total) { const max = Math.max(1, ...rows.map((r) => r.n)); return rows.length ? `<div class="hbars">${rows.map((r) => `<div class="hbar"><span title="${esc(r.label)}">${esc(r.label)}</span><div><i style="width:${(r.n / max) * 100}%"></i></div><b>${r.n}</b></div>`).join('')}</div>` : '<p class="dempty">Nothing yet.</p>'; }
@@ -73,7 +66,7 @@ function render(d) {
   const devTotal = d.devices.reduce((a, b) => a + b.n, 0);
   const sim = (d.modes.find((m) => m.mode === 'sim') || {}).n || 0;
   $app.innerHTML = `
-  <header><h1>Hoverslam numbers</h1><small>Updated ${new Date(d.generated).toLocaleTimeString()} · refreshes every 30 s · <a href="#" id="out" class="textlink">Sign out</a></small></header>
+  <header><h1>Hoverslam numbers</h1><small>Updated ${new Date(d.generated).toLocaleTimeString()} · refreshes every 30 s</small></header>
   <div class="dtiles">
     ${tile('Players', t.players, 'ever, by browser')}
     ${tile('Last 24 h', t.day, 'players')}
@@ -109,20 +102,19 @@ function render(d) {
   <h2>Feedback · ${f.count} ${f.count === 1 ? 'response' : 'responses'}</h2>
   ${f.count ? bars(f.stars.map((n, i) => ({ label: (i + 1) + (i ? ' stars' : ' star'), n })).reverse()) : ''}
   <ul class="dfb" style="padding:0;margin-top:18px">${f.latest.length ? f.latest.map((r) => `<li><div class="meta"><span class="stars">${r.rating ? '★'.repeat(r.rating) + '<u>' + '★'.repeat(5 - r.rating) + '</u>' : 'no rating'}</span><span>${esc(r.level || '')}</span><span>${esc(r.outcome || '')}${r.score != null ? ' · score ' + r.score : ''}</span><span>${new Date(r.created_at).toLocaleString()}</span></div>${r.comment ? `<p>${esc(r.comment)}</p>` : ''}</li>`).join('') : '<li class="dempty">No feedback yet.</li>'}</ul>`;
-  document.getElementById('out').addEventListener('click', (e) => { e.preventDefault(); try { localStorage.removeItem('hs.dev'); } catch {} key = ''; clearInterval(timer); gate(); });
 }
 
 let timer = 0;
+const msg = (t) => { $app.innerHTML = `<div class="dgate"><h1>Hoverslam numbers</h1><div class="derr">${esc(t)}</div></div>`; };
 async function load() {
-  if (!key) return gate();
   if (!$app.querySelector('.dtiles')) $app.innerHTML = '<div class="dgate"><h1>Hoverslam numbers</h1><div class="dempty">Loading...</div></div>';
   try {
-    const res = await fetch('/api/stats', { headers: { 'x-admin-key': key }, cache: 'no-store' });
-    if (res.status === 401) { try { localStorage.removeItem('hs.dev'); } catch {} key = ''; return gate('That key is wrong.'); }
-    if (!res.ok) { const j = await res.json().catch(() => ({})); return $app.innerHTML = `<div class="dgate"><h1>Hoverslam numbers</h1><div class="derr">${esc(j.error || 'Could not load')}</div><button id="r">Try again</button></div>`, document.getElementById('r').addEventListener('click', load); }
+    const res = await fetch('/api/stats', { cache: 'no-store', credentials: 'same-origin' });
+    if (res.status === 401) return msg('Login expired. Reload this page.');
+    if (!res.ok) { const j = await res.json().catch(() => ({})); return msg(j.error || 'Could not load'); }
     render(await res.json());
     clearInterval(timer); timer = setInterval(load, 30000);
-  } catch { $app.innerHTML = '<div class="dgate"><h1>Hoverslam numbers</h1><div class="derr">No connection.</div></div>'; }
+  } catch { msg('No connection.'); }
 }
 load();
 </script>

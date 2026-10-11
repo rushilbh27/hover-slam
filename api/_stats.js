@@ -83,10 +83,25 @@ export function sameToken(a, b) {
 
 const n = (v) => Number(v) || 0;
 
-export async function handleStats({ method, token, env = process.env, fetchImpl = fetch }) {
+// "Authorization: Basic base64(user:password)" checked against ADMIN_USER (default "admin") and ADMIN_PASSWORD.
+export function basicOk(header, env = process.env) {
+  if (!env.ADMIN_PASSWORD) return false;
+  const m = /^Basic\s+(.+)$/i.exec(String(header || ''));
+  if (!m) return false;
+  let pair = '';
+  try { pair = Buffer.from(m[1], 'base64').toString('utf8'); } catch { return false; }
+  const i = pair.indexOf(':');
+  if (i < 0) return false;
+  const userOk = sameToken(pair.slice(0, i), env.ADMIN_USER || 'admin');
+  const passOk = sameToken(pair.slice(i + 1), env.ADMIN_PASSWORD);
+  return userOk && passOk;
+}
+export const CHALLENGE = { 'WWW-Authenticate': 'Basic realm="Hoverslam numbers", charset="UTF-8"' };
+
+export async function handleStats({ method, authorization, env = process.env, fetchImpl = fetch }) {
   if (method !== 'GET') return { status: 405, json: { error: 'GET only' }, headers: { Allow: 'GET' } };
-  if (!env.ADMIN_TOKEN) return { status: 503, json: { error: 'ADMIN_TOKEN is not set' } };
-  if (!sameToken(token, env.ADMIN_TOKEN)) return { status: 401, json: { error: 'Wrong key' } };
+  if (!env.ADMIN_PASSWORD) return { status: 503, json: { error: 'ADMIN_PASSWORD is not set' } };
+  if (!basicOk(authorization, env)) return { status: 401, json: { error: 'Login needed' }, headers: CHALLENGE };
   if (!env.DATABASE_URL) return { status: 503, json: { error: 'Storage is not set up' } };
   const q = async (query) => (await sql(env.DATABASE_URL, query, [], fetchImpl)).rows || [];
   try {

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleFeedback } from './api/_feedback.js';
-import { handleEvent, handleStats } from './api/_stats.js';
+import { handleEvent, handleStats, basicOk, CHALLENGE } from './api/_stats.js';
 
 // DATABASE_URL (the Neon connection string) may live in .env.local, which is git-ignored. Without it, feedback is politely refused.
 try {
@@ -34,11 +34,17 @@ http.createServer((req, res) => {
     return;
   }
   if (url.pathname === '/api/stats') {
-    handleStats({ method: req.method, token: String(req.headers['x-admin-key'] || url.searchParams.get('key') || '') }).then((out) => {
+    handleStats({ method: req.method, authorization: req.headers.authorization }).then((out) => {
       res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(out.headers || {}) });
       res.end(JSON.stringify(out.json));
     });
     return;
+  }
+  if (url.pathname === '/admin') {
+    if (!process.env.ADMIN_PASSWORD) { res.writeHead(503); return res.end('ADMIN_PASSWORD is not set'); }
+    if (!basicOk(req.headers.authorization)) { res.writeHead(401, { 'content-type': 'text/plain', ...CHALLENGE }); return res.end('Login needed'); }
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+    return res.end(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'api', '_admin.html')));
   }
   if (url.pathname === '/api/event') {
     let raw = '';

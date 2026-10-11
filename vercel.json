@@ -1,0 +1,4 @@
+{
+  "rewrites": [{ "source": "/admin", "destination": "/api/admin" }],
+  "functions": { "api/admin.js": { "includeFiles": "api/_admin.html" } }
+}

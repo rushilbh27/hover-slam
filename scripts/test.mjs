@@ -738,7 +738,7 @@ test('"light the engine" is shown at the start of a descent on every level, and 
 });
 
 test('usage events are cleaned, and the numbers page is locked behind the admin key', async () => {
-  const { cleanEvent, sameToken, handleEvent, handleStats, resetStatsForTests } = await import('../api/_stats.js');
+  const { cleanEvent, sameToken, basicOk, handleEvent, handleStats, resetStatsForTests } = await import('../api/_stats.js');
   resetStatsForTests();
   assert.equal(cleanEvent({ kind: 'nope', client_id: 'abcdefgh1' }), null, 'unknown kinds are dropped');
   assert.equal(cleanEvent({ kind: 'visit', client_id: 'short' }), null, 'a real id is needed');
@@ -747,14 +747,21 @@ test('usage events are cleaned, and the numbers page is locked behind the admin 
   assert.equal(sameToken('abc', 'abc'), true); assert.equal(sameToken('abc', 'abd'), false); assert.equal(sameToken('', ''), false);
   assert.equal((await handleEvent({ method: 'GET', body: {} })).status, 405);
   assert.equal((await handleEvent({ method: 'POST', body: { kind: 'visit', client_id: 'abcdefgh1' }, env: {} })).status, 503, 'no database: refused politely');
-  assert.equal((await handleStats({ method: 'GET', token: 'x', env: {} })).status, 503, 'no admin key set: closed');
-  assert.equal((await handleStats({ method: 'GET', token: 'wrong', env: { ADMIN_TOKEN: 'right-key', DATABASE_URL: 'postgres://u:p@h/db' } })).status, 401);
+  const basic = (u, p) => 'Basic ' + Buffer.from(`${u}:${p}`).toString('base64');
+  const env = { ADMIN_USER: 'boss', ADMIN_PASSWORD: 'right-pass', DATABASE_URL: 'postgres://u:p@h/db' };
+  assert.equal(basicOk(basic('boss', 'right-pass'), env), true);
+  assert.equal(basicOk(basic('boss', 'wrong'), env), false); assert.equal(basicOk(basic('other', 'right-pass'), env), false);
+  assert.equal(basicOk(undefined, env), false); assert.equal(basicOk(basic('admin', ''), { ADMIN_PASSWORD: '' }), false, 'no password set: closed');
+  assert.equal((await handleStats({ method: 'GET', authorization: basic('boss', 'right-pass'), env: { ADMIN_PASSWORD: '' } })).status, 503);
+  const no = await handleStats({ method: 'GET', authorization: basic('boss', 'wrong'), env });
+  assert.equal(no.status, 401); assert.match(no.headers['WWW-Authenticate'], /Basic/, 'the browser is asked for a login');
 });
 
 test('counting never runs from localhost or with Do Not Track, and the game still builds with it', () => {
   const t = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'track.js'), 'utf8');
   assert.match(t, /doNotTrack/); assert.match(t, /localhost/);
-  assert.match(fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'dev.html'), 'utf8'), /noindex/, 'the numbers page is not indexed');
+  assert.match(fs.readFileSync(path.join(import.meta.dirname, '..', 'api', '_admin.html'), 'utf8'), /noindex/, 'the numbers page is not indexed');
+  assert.ok(!fs.existsSync(path.join(import.meta.dirname, '..', 'public', 'dev.html')), 'and it is not served to everyone');
 });
 
 test('every element id the game looks up exists in the page', () => {
