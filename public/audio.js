@@ -301,6 +301,7 @@ function createAudio() {
       unlock();
       if (which === 'sound') { muted = !muted; save('hs.muted', muted); } else { musicOn = !musicOn; save('hs.music', musicOn); }
       apply(); paint();
+      window.dispatchEvent(new CustomEvent('hs:action', { detail: which === 'sound' ? (muted ? 'sound_off' : 'sound_on') : (musicOn ? 'music_on' : 'music_off') }));
       if (which === 'sound' && !muted) click(false);
     };
     paint();

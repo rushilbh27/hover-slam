@@ -58,6 +58,7 @@ const pct = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '-');
 const dur = (s) => (s ? (s >= 60 ? Math.floor(s / 60) + 'm ' + (s % 60) + 's' : s + 's') : '-');
 
 function tile(label, value, note) { return `<div class="dtile"><i>${label}</i><b>${value}</b>${note ? `<small>${note}</small>` : ''}</div>`; }
+function hbars(rows, none) { return rows.length ? bars(rows) : `<p class="dempty">${none || 'Nothing yet.'}</p>`; }
 function bars(rows, total) { const max = Math.max(1, ...rows.map((r) => r.n)); return rows.length ? `<div class="hbars">${rows.map((r) => `<div class="hbar"><span title="${esc(r.label)}">${esc(r.label)}</span><div><i style="width:${(r.n / max) * 100}%"></i></div><b>${r.n}</b></div>`).join('')}</div>` : '<p class="dempty">Nothing yet.</p>'; }
 
 function render(d) {
@@ -96,6 +97,19 @@ function render(d) {
       ${bars(d.outcomes.map((o) => ({ label: o.outcome, n: o.n })))}
       <h2>Devices</h2>
       ${bars(d.devices.map((o) => ({ label: o.device + (devTotal ? ' · ' + pct(o.n, devTotal) : ''), n: o.n })))}
+    </div>
+  </div>
+
+  <div class="dtwo">
+    <div>
+      <h2>What they do</h2>
+      ${hbars(d.features.map((o) => ({ label: o.label.replace(/_/g, ' '), n: o.n })))}
+    </div>
+    <div>
+      <h2>Where from</h2>
+      ${hbars(d.countries.map((o) => ({ label: o.country, n: o.n })))}
+      <h2>Came from</h2>
+      ${hbars(d.refs.map((o) => ({ label: o.ref, n: o.n })), 'Direct visits only so far.')}
     </div>
   </div>
 
