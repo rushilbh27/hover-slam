@@ -148,14 +148,25 @@ function createAudio() {
     if (rough) tone({ type: 'sawtooth', f0: 92, f1: 58, dur: 0.7, gain: 0.12, t: t + 0.05, lp: 300 });
     ending(true);
   }
-  function splash() {
+  function splash(big) {
     if (!ac || muted) return;
     const t = ac.currentTime;
+    if (big) { // a hard hit: a deep thud under the wash, and a longer rush of water
+      tone({ f0: 72, f1: 26, dur: 1.4, gain: 0.7, attack: 0.004, t });
+      burst({ kind: 'lowpass', f0: 1000, f1: 120, dur: 2.6, gain: 0.7, attack: 0.01, t });
+    }
     burst({ kind: 'lowpass', f0: 2600, f1: 260, dur: 1.5, gain: 0.9, attack: 0.03, t });
     burst({ kind: 'bandpass', f0: 900, f1: 400, q: 1, dur: 0.9, gain: 0.35, t: t + 0.1 });
     tone({ f0: 330, f1: 90, dur: 0.45, gain: 0.4, t });
     for (let i = 0; i < 7; i++) { const f = rand(420, 900); tone({ f0: f, f1: f * 1.6, dur: 0.08, gain: 0.07, t: t + 0.25 + i * rand(0.1, 0.18) }); }
     ending(false);
+  }
+  // the propellant going up a moment after a crash on the deck
+  function thump() {
+    if (!ac || muted) return;
+    const t = ac.currentTime, k = reduced() ? 0.6 : 1;
+    tone({ f0: 64, f1: 24, dur: 1.3, gain: 0.55 * k, attack: 0.004, t });
+    burst({ kind: 'lowpass', f0: 1000, f1: 100, dur: 1.6, gain: 0.5 * k, attack: 0.004, t });
   }
   function crash(speed) {
     if (!ac || muted) return;
@@ -303,6 +314,6 @@ function createAudio() {
     }, true);
   }
 
-  return { init, tick, reset, legs, touchdown, splash, crash, get ctx() { return ac; }, get master() { return master; } };
+  return { init, tick, reset, legs, touchdown, splash, crash, thump, get ctx() { return ac; }, get master() { return master; } };
 }
 export const audio = createAudio();

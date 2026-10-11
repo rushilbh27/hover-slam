@@ -51,3 +51,32 @@ export function drawPath(ctx, points, { dashed = false, color = dashed ? LOOK.li
   ctx.stroke();
   ctx.restore();
 }
+
+// The two lines of a magnifier's cone: from the point of interest P out to where each just touches the circle (centre C, radius r).
+// Returns null when P is inside the circle, where there is no cone to draw.
+export function tangents(p, c, r) {
+  const dx = c[0] - p[0], dy = c[1] - p[1], d = Math.hypot(dx, dy);
+  if (d <= r * 1.02) return null;
+  const a = Math.asin(r / d), base = Math.atan2(dy, dx), len = Math.sqrt(d * d - r * r);
+  return [-1, 1].map((k) => [p[0] + len * Math.cos(base + k * a), p[1] + len * Math.sin(base + k * a)]);
+}
+
+// Where a magnifier sits: out to one side of the point of interest, up from it, on the side with more room, kept inside the picture
+// and clear of a rectangle (the approach window) if one is given as { x, y, w, h }. below is the height of the readout lines under
+// the circle, which need the same room.
+export function magnifierSpot({ px, py, r, W, H, avoid = null, gapX = 250, rise = 120, margin = 14, below = 0 }) {
+  const fits = (x) => x - r >= margin && x + r <= W - margin;
+  const clampX = (x) => Math.min(Math.max(x, r + margin), W - r - margin);
+  const top = r + 90, bottom = H - r - below - margin;
+  const overlaps = (x, cy) => !!avoid && x + r > avoid.x && x - r < avoid.x + avoid.w && cy + r + below > avoid.y && cy - r < avoid.y + avoid.h;
+  const sides = [px - gapX, px + gapX].filter(fits);
+  if (!sides.length) sides.push(clampX(px - gapX));
+  let first = null;
+  for (const x of sides) {
+    let y = Math.min(Math.max(py - rise, top), Math.max(top, bottom));
+    for (let i = 0; i < 40 && overlaps(x, y) && y > top; i++) y -= 8; // pushed up until it is clear of the rectangle
+    first = first || { x, y };
+    if (!overlaps(x, y)) return { x, y };
+  }
+  return first;
+}

@@ -83,7 +83,7 @@
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
 
-      <canvas id="minimap" width="360" height="220" aria-label="Approach overview" data-tip="Approach view" data-tip-detail="Your path so far, and where the pad is." data-tip-pos="right"></canvas>
+      <canvas id="minimap" width="440" height="300" aria-label="Approach view" data-tip="Approach view" data-tip-detail="The whole descent side on. Solid blue is where you have been, dashed white is where you are heading." data-tip-pos="right"></canvas>
 
       <div id="outcome" class="outcome hidden" role="dialog" aria-live="polite">
         <div class="o-scn" id="o-scn"></div>
@@ -140,7 +140,7 @@
   </main>
   <div class="settings" id="settings" role="dialog" aria-label="Settings" inert>
     <div class="set-row"><span class="set-label">Level</span><div class="levels" id="levels" role="radiogroup" aria-label="Level"></div></div>
-    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts on your first Easy descent</small></span></label>
+    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts on your first descent</small></span></label>
     <label class="switch"><input type="checkbox" id="raw"><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Expert controls<small>Arrows swivel the engine, up and down move the throttle lever</small></span></label>
     <div class="set-actions">
       <button id="to-lab" class="ghost small" data-tip="Autopilot lab" data-tip-detail="Tune the flight computer and watch it fly."></button>

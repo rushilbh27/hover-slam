@@ -688,6 +688,55 @@ test('the canvas helpers draw a callout, a crosshair and a path', async () => {
   assert.equal(calls.find((c) => c[0] === 'fillText')[1], 'BOOSTER', 'labels are set in capitals');
 });
 
+test('the magnifier: tangent lines touch the circle, and it sits where it fits and clear of the approach window', async () => {
+  const { tangents, magnifierSpot } = await import('../public/ui.js');
+  const c = [300, 200], r = 60, p = [600, 500];
+  const pair = tangents(p, c, r);
+  assert.equal(pair.length, 2);
+  for (const [x, y] of pair) {
+    assert.ok(Math.abs(Math.hypot(x - c[0], y - c[1]) - r) < 1e-6, 'ends on the circle');
+    const [px, py] = [x - p[0], y - p[1]], [cx, cy] = [x - c[0], y - c[1]];
+    assert.ok(Math.abs(px * cx + py * cy) < 1e-6, 'meets the radius at a right angle');
+  }
+  assert.equal(tangents([310, 205], c, r), null, 'no tangents from inside');
+  const W = 1200, H = 700, R = 66;
+  for (const px of [30, 200, 600, 1000, 1180]) {
+    const m = magnifierSpot({ px, py: 640, r: R, W, H, below: 70 });
+    assert.ok(m.x - R >= 14 && m.x + R <= W - 14 && m.y - R >= 0 && m.y + R + 70 <= H, `inside the screen for a pad at ${px}`);
+  }
+  const avoid = { x: 22, y: 520, w: 220, h: 150 };
+  const m = magnifierSpot({ px: 330, py: 640, r: R, W, H, avoid, below: 70 });
+  const hit = m.x + R > avoid.x && m.x - R < avoid.x + avoid.w && m.y + R + 70 > avoid.y && m.y - R < avoid.y + avoid.h;
+  assert.ok(!hit, 'clear of the approach window');
+});
+
+test('a crash on the barge and a crash in the sea are different effects', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const body = (name) => { const i = app.indexOf(`function ${name}(`); return app.slice(i, app.indexOf('\n}\n', i)); };
+  assert.match(body('crash'), /DECK_HALF/, 'where it hit decides which one');
+  assert.match(body('deckCrash'), /fx\.fire\.push/, 'the deck has a fireball');
+  assert.match(body('deckCrash'), /fx\.scorch/, 'and leaves a scorch mark');
+  assert.ok(!/fx\.fire\.push|fx\.scorch/.test(body('waterImpact')), 'the sea has no fire');
+  assert.match(body('waterImpact'), /fx\.column/, 'the sea has a column of water');
+  assert.match(body('waterImpact'), /fx\.foam/, 'and foam');
+});
+
+test('the rating stars keep the same elements under the pointer, so a click is never lost', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const i = app.indexOf('function ratePaint(');
+  const paint = app.slice(i, app.indexOf('\n}\n', i));
+  assert.ok(!/innerHTML/.test(paint), 'painting a star must not rebuild it');
+  assert.match(app, /s-out[^`]*s-fill/, 'both icons are in the button, CSS shows one');
+});
+
+test('"light the engine" is shown at the start of a descent on every level, and not again once the engine has been lit', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /if \(s\.engineOn\) app\.engineLit = true;/, 'lighting it ends the cue for good');
+  assert.match(app, /else if \(!app\.engineLit\) msg = 'Light the engine';/, 'shown until then, on any level');
+  assert.match(app, /app\.engineLit = false;/, 'and it comes back with the next descent');
+  assert.ok(!/levelCfg\(\)\.cue/.test(app), 'no level-specific timing cue any more');
+});
+
 test('every element id the game looks up exists in the page', () => {
   const dir = path.join(import.meta.dirname, '..', 'public');
   const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
@@ -786,9 +835,10 @@ test('the feedback endpoint: checks what arrives, saves it with parameters, and 
   resetForTests();
 });
 
-test('the tutorial is Easy only and for the first game only', () => {
+test('the tutorial is for the first game only, whatever the level', () => {
   const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
-  assert.match(app, /COACH\.on = app\.mode === 'game' && app\.level === 'easy'/, 'Easy only');
+  assert.match(app, /COACH\.on = app\.mode === 'game' && !app\.attract/, 'a game, not the menu or the lab');
+  assert.ok(!/COACH\.on = [^;]*app\.level/.test(app), 'any level');
   assert.match(app, /store\.get\('hs\.coachDone', 0\) < 1/, 'first game only');
   assert.match(app, /if \(COACH\.on\) store\.set\('hs\.coachDone', 1\)/, 'the first game uses it up, however it ended');
 });
