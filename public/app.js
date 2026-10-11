@@ -4,6 +4,7 @@ import { humanControl } from './controls.js';
 import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
 import { audio } from './audio.js';
+import { icon } from './icons.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -210,6 +211,8 @@ window.addEventListener('keydown', (e) => {
     else if (e.code === 'Escape' && app.view !== 'welcome') setView('welcome');
     return;
   }
+  if (e.code === 'Escape' && app.mode === 'game') { e.preventDefault(); setDrawer(!app.menuOpen); return; }
+  if (app.menuOpen) return; // the game is paused: the keys belong to the drawer
   if (e.code === 'Space') {
     e.preventDefault();
     if (!app.running && !$('intro').classList.contains('hidden')) return start();
@@ -241,7 +244,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const f = app.flight;
-  if (f && app.running && !app.hold && !f.state.done) {
+  if (f && app.running && !app.hold && !app.menuOpen && !f.state.done) {
     const inp = app.input;
     if (app.mode === 'game' && $('raw').checked) inp.throttle = clamp(inp.throttle + ((inp.up ? 1 : 0) - (inp.down ? 1 : 0)) * 1.2 * dt, f.minThrottle, 1);
     // slow motion for the last metres
@@ -261,9 +264,10 @@ function frame(now) {
   } else if (f && f.state.done) {
     fx.slow = lerp(fx.slow, 1, Math.min(1, dt * 0.9)); // ease out of the touchdown slow motion
   }
-  updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow);
+  if (!app.menuOpen) updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow); // the picture holds still while the drawer is open
   render(dt);
   hud();
+  placeFocus();
   if (app.flight) audio.tick(dt, audioState());
   requestAnimationFrame(frame);
 }
@@ -272,8 +276,8 @@ function frame(now) {
 function audioState() {
   const f = app.flight, s = f.state;
   return {
-    menu: app.attract, running: app.running, done: s.done,
-    lit: s.engineOn && !s.cut && !s.done && s.fuel > 0, throttle: s.throttle,
+    menu: app.attract, running: app.running && !app.menuOpen, done: s.done,
+    lit: s.engineOn && !s.cut && !s.done && s.fuel > 0 && !app.menuOpen, throttle: s.throttle,
     fall: -s.vy, alt: Math.max(0, s.y - BOOSTER.legHeight), wind: Math.abs(windAt(f.wind, s.t, s.y)),
     theme: themeKey(), scene: fx.scene,
   };
@@ -405,9 +409,9 @@ $('o-next').addEventListener('click', () => {
   if (app.mode === 'game') return showIntro(true);
   app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start();
 });
-$('reroll').addEventListener('click', () => showIntro(true));
+$('reroll').addEventListener('click', () => { setDrawer(false); showIntro(true); });
 $('start').addEventListener('click', () => start());
-$('restart').addEventListener('click', () => (app.mode === 'game' ? start() : showIntro()));
+$('restart').addEventListener('click', () => { setDrawer(false); if (app.mode === 'game') start(); else showIntro(); });
 
 // ---------- effects ----------
 
@@ -1510,6 +1514,27 @@ function drawMinimap(f) {
 
 // ---------- HUD ----------
 let hudT = 0;
+// an arrow icon in a slot, rewritten only when it changes
+function setDir(el, name) {
+  if (el.dataset.name === name) return;
+  el.dataset.name = name;
+  el.innerHTML = name ? icon(name, 13) : '';
+}
+
+// keeps the instruments beside the booster, every frame, and inside the picture
+function placeFocus() {
+  const f = app.flight;
+  if (!f || !$('focus').classList.contains('on')) return;
+  const s = f.state;
+  const hw = clamp(cam.s * 2.4, 8, 70), small = W < 520;
+  // keep the gauge on the left and the numbers on the right of the booster, and both inside the picture
+  const lo = (small ? 78 : 96) + hw + 22, hi = W - (hw + 34 + (small ? 158 : 206)) - 10;
+  const x = hi < lo ? (lo + hi) / 2 : clamp(sx(s.x), lo, hi), y = clamp(sy(s.y + 21), small ? 200 : 130, H - 150);
+  const fc = $('focus');
+  fc.style.setProperty('--hw', `${hw.toFixed(1)}px`);
+  fc.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+}
+
 function hud() {
   const f = app.flight;
   if (!f) return;
@@ -1533,8 +1558,41 @@ function hud() {
   $('t-vx').className = low ? (Math.abs(s.vx) <= L.vx ? 'ok' : 'warn') : '';
   $('t-dx').className = low ? (Math.abs(s.x) <= f.pad.halfWidth ? 'ok' : 'warn') : '';
   $('t-tilt').className = low ? (Math.abs(s.theta) <= L.tilt ? 'ok' : 'warn') : '';
-  // target speed helper on Easy and Medium
-  $('t-vy-target').textContent = guided ? `m/s, aim for ${aim.toFixed(0)}` : 'm/s';
+  // the instruments that ride with the booster: a gauge that wants the dot on the centre tick, and the numbers that decide a landing
+  const fall = -s.vy;
+  const flying = app.running && !s.done && !app.attract;
+  const dev = clamp((fall - aim) / (aim * 0.3 + 4), -1, 1); // below the tick: falling faster than the plan, so brake
+  $('dev').style.display = guided ? '' : 'none';
+  $('dev').style.setProperty('--dy', `${(dev * 52).toFixed(1)}px`);
+  $('dev').dataset.s = Math.abs(dev) < 0.25 ? '' : Math.abs(dev) < 0.6 ? 'amber' : 'red';
+  $('t-vy-target').innerHTML = guided ? (low ? `aim ${aim.toFixed(0)}<br>limit ${L.vy}` : `aim ${aim.toFixed(0)}`) : ''; // numbers only, so markup is safe
+  const focus = $('focus');
+  focus.classList.toggle('on', flying);
+  focus.classList.toggle('final', low);
+  $('lim-dx').textContent = `/ ±${+f.pad.halfWidth.toFixed(0)}`;
+  $('lim-vx').textContent = `/ ${L.vx}`;
+  $('lim-tilt').textContent = `/ ${Math.round(L.tilt / DEG)}°`;
+  setDir($('pad-dir'), Math.abs(s.x) > 2 ? (s.x > 0 ? 'arrow-left' : 'arrow-right') : ''); // the pad is the other way from where you are
+  setDir($('vx-dir'), Math.abs(s.vx) > 0.3 ? (s.vx > 0 ? 'arrow-right' : 'arrow-left') : '');
+  const strip = $('strip'), range = clamp(80 + h * 0.35, 80, 420);
+  strip.classList.toggle('on', flying);
+  const dotPct = 50 + clamp(s.x / range, -1, 1) * 50;
+  $('strip-dot').style.left = `${dotPct}%`;
+  $('strip-pad').style.width = `${clamp((f.pad.halfWidth / range) * 100, 2, 100)}%`;
+  const vel = $('strip-vel'), vlen = clamp(Math.abs(s.vx) * 8, 0, 70);
+  vel.style.left = `${dotPct}%`; vel.style.width = `${vlen}px`; vel.style.transform = s.vx < 0 ? 'translateX(-100%)' : 'none';
+  const driftOut = low && (Math.abs(s.vx) > L.vx || Math.abs(s.theta) > L.tilt || Math.abs(s.x) > f.pad.halfWidth * 1.2);
+  strip.dataset.s = driftOut ? (Math.abs(s.vx) > L.vx * 1.8 || Math.abs(s.x) > f.pad.halfWidth * 2 ? 'red' : 'amber') : '';
+  // a cue at the edge of the eye: too fast near the deck, or drifting out of the landing limits
+  const tooFast = guided && flying && h < 400 && h > 6 && fall > aim * 1.35 + 6;
+  const edge = $('edge');
+  edge.classList.toggle('alarm', tooFast && !app.menuOpen);
+  edge.classList.toggle('warn', !tooFast && driftOut && flying && !app.menuOpen);
+  $('lamp-fuel').classList.toggle('hidden', !(flying && s.fuel / f.fuel0 < 0.12));
+  $('lamp-paused').classList.toggle('hidden', !(app.menuOpen && app.running && !s.done));
+  const eb = $('d-engine');
+  eb.classList.toggle('on', s.engineOn && !s.done);
+  eb.setAttribute('aria-pressed', String(Boolean(s.engineOn && !s.done)));
   const lit = s.engineOn && !s.done && !s.cut;
   const thr = lit ? s.throttle : 0;
   $('b-thr').style.width = `${thr * 100}%`;
@@ -1588,7 +1646,7 @@ function renderLevels() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(k === app.level));
     b.textContent = lv.label;
-    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); showIntro(true); });
+    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); setDrawer(false); showIntro(true); });
     box.appendChild(b);
   }
   const lv = levelCfg();
@@ -1707,6 +1765,7 @@ function setMode(mode) {
   renderWindOptions();
   $('wind-label').classList.toggle('hidden', mode === 'game');
   $('reroll').classList.toggle('hidden', mode !== 'game');
+  setDrawer(false); // in the autopilot lab the panel stays docked beside the scene
   showIntro(true);
 }
 for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setMode(t.dataset.tab));
@@ -1728,6 +1787,34 @@ function renderWindOptions() {
 }
 $('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); if (app.mode === 'sim') start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
+
+// ---------- the drawer and the dock ----------
+// Settings and help live in a drawer that pauses the flight while it is open. In the autopilot lab it stays docked beside the scene.
+function setDrawer(open) {
+  const d = $('drawer'), docked = app.mode === 'sim';
+  open = docked || open;
+  if (!open && d.contains(document.activeElement)) document.activeElement.blur(); // never leave Space on a hidden button
+  d.classList.toggle('open', open);
+  d.inert = !open;
+  app.menuOpen = open && !docked;
+  document.body.classList.toggle('drawer-open', app.menuOpen);
+  $('d-menu').setAttribute('aria-expanded', String(app.menuOpen));
+  if (app.menuOpen) {
+    Object.assign(app.input, { left: false, right: false, up: false, down: false });
+    $('drawer-close').focus({ preventScroll: true });
+  }
+}
+for (const [id, name] of [['d-engine', 'engine'], ['d-retry', 'retry'], ['d-new', 'shuffle'], ['d-menu', 'menu'], ['drawer-close', 'close']]) $(id).innerHTML = icon(name, 20);
+$('d-engine').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  if (!app.running && !$('intro').classList.contains('hidden')) return start();
+  if (app.mode === 'game' && app.running) app.input.engine = !app.input.engine;
+});
+$('d-retry').addEventListener('click', (e) => { e.currentTarget.blur(); start(); });
+$('d-new').addEventListener('click', (e) => { e.currentTarget.blur(); showIntro(true); });
+$('d-menu').addEventListener('click', (e) => { e.currentTarget.blur(); setDrawer(!app.menuOpen); });
+$('drawer-close').addEventListener('click', () => setDrawer(false));
+$('stage').addEventListener('pointerdown', () => { if (app.menuOpen) setDrawer(false); });
 
 // ---------- start screen: welcome, how to play, choose a level ----------
 const startEl = $('start-screen');
@@ -1786,6 +1873,8 @@ function setView(v) {
 
 function showStart(view) {
   clearTimeout(app.cardTimer);
+  app.menuOpen = false; // the drawer is hidden behind the start screen, so it must not keep the game paused
+  document.body.classList.remove('drawer-open');
   app.attract = true;
   app.running = false;
   document.body.classList.add('in-menu');

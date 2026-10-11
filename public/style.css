@@ -29,7 +29,8 @@
 html, body { margin: 0; height: 100%; background: var(--hull); color: var(--ink); font: 15px/1.5 var(--body); -webkit-font-smoothing: antialiased }
 body { touch-action: manipulation; }
 .hidden { display: none !important; }
-.app { display: grid; grid-template-columns: minmax(0, 1fr) 372px; height: 100%; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
+body[data-mode="sim"] .app { grid-template-columns: minmax(0, 1fr) 400px; } /* the autopilot lab keeps its panel docked beside the scene */
 .stage-wrap { position: relative; overflow: hidden; background: var(--hull); }
 #stage { width: 100%; height: 100%; display: block; }
 /* the scene gets a lens: a soft vignette and a little film grain */
@@ -84,38 +85,85 @@ kbd, .cap {
 .lamp.info { border-color: var(--blue); color: var(--blue-hi); }
 .lamp.off { border-color: #444; color: var(--muted); }
 
-/* ---------- readouts over the scene ---------- */
-.hud { position: absolute; pointer-events: none; text-shadow: 0 1px 8px rgba(3, 5, 9, 0.8); }
+/* ---------- instruments ----------
+   The numbers that decide a landing ride with the booster (.focus), so the eyes never leave it. The corners hold only what
+   can wait: time, wind, fuel and throttle. Anything that is not flight data lives in the drawer. */
+.hud { position: absolute; pointer-events: none; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
 .top-left { top: 18px; left: 22px; }
+.top-center { top: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: min(560px, 46%); }
 .top-right { top: 18px; right: 22px; text-align: right; }
-.tele { display: grid; grid-template-columns: repeat(3, 112px); gap: 10px 14px; }
-.tele div { display: flex; flex-direction: column; }
-.tele label, .bar label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em }
-.tele b { font: 700 32px/1.02 var(--display); letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
-.tele i { font-style: normal; font-size: 12px; color: var(--dim); }
-.tele b.warn { color: var(--alarm); }
-.tele b.ok { color: var(--blue-hi) }
-.bars { margin-top: 14px; display: grid; gap: 8px; width: 364px; }
-.bar { display: grid; grid-template-columns: 60px 1fr 78px; align-items: center; gap: 10px; }
-.bar span { position: relative; height: 6px; background: rgba(141, 153, 171, 0.2); border-radius: 1px; }
-.bar em { display: block; height: 100%; width: 0; background: #fff; transition: width 0.08s linear }
+.bars { display: grid; gap: 8px; width: 264px; }
+.bar { display: grid; grid-template-columns: 58px 1fr 68px; align-items: center; gap: 10px; }
+.bar label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; }
+.bar span { position: relative; height: 4px; background: rgba(255, 255, 255, 0.18); }
+.bar em { display: block; height: 100%; width: 0; background: #fff; transition: width 0.08s linear; }
 .bar.fuel em { background: var(--fuel); }
 .bar.fuel.leaking em { background: var(--alarm); animation: pulse 0.5s ease-in-out infinite alternate; }
 .bar b { font: 700 16px var(--display); font-variant-numeric: tabular-nums; text-align: right; }
-.hover-mark { position: absolute; top: -4px; width: 2px; height: 14px; margin-left: -1px; background: var(--ink); }
-.faults { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; max-width: 380px; }
-.fault { font-size: 11px; line-height: 1; text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 9px; border-radius: 2px; border: 1px solid var(--alarm); color: #ff8f88; background: rgba(0, 0, 0, 0.35) }
-.fault.warn { border-color: var(--amber); color: var(--amber); background: rgba(0, 0, 0, 0.35) }
-.flags { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
-.flag { font-size: 11px; line-height: 1; text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 9px; border: 1px solid #444; border-radius: 2px; color: var(--muted); background: rgba(0, 0, 0, 0.35) }
-.flag.on { color: var(--blue-hi); border-color: var(--blue) }
-.flag.good { color: #fff; border-color: rgba(255, 255, 255, 0.7) }
-.flag.auto { color: var(--blue-hi); border-color: rgba(110, 155, 255, 0.55) }
+.hover-mark { position: absolute; top: -5px; width: 2px; height: 14px; margin-left: -1px; background: var(--ink); }
+.faults { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.faults:empty { display: none; }
+.fault { font-size: 11px; line-height: 1; text-transform: uppercase; letter-spacing: 0.1em; padding: 6px 10px; border-radius: 2px; border: 1px solid var(--alarm); color: #ff8f88; background: rgba(0, 0, 0, 0.45); }
+.fault.warn { border-color: var(--amber); color: var(--amber); }
+.fault.paused { border-color: rgba(255, 255, 255, 0.7); color: #fff; }
+.flags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; max-width: 330px; }
+.flag { font-size: 11px; line-height: 1; text-transform: uppercase; letter-spacing: 0.1em; padding: 5px 9px; border: 1px solid #444; border-radius: 2px; color: var(--muted); background: rgba(0, 0, 0, 0.4); }
+.flag b { font-weight: 700; font-variant-numeric: tabular-nums; }
+.flag.on { color: var(--blue-hi); border-color: var(--blue); }
+.flag.good { color: #fff; border-color: rgba(255, 255, 255, 0.7); }
+.flag.auto { color: var(--blue-hi); border-color: rgba(110, 155, 255, 0.55); }
 .clock { font: 700 32px/1 var(--display); font-variant-numeric: tabular-nums; }
 .wind { color: var(--dim); margin-top: 6px; }
 .wind b { color: var(--ink); font-variant-numeric: tabular-nums; }
-#wind-arrow { display: inline-block; color: var(--blue-hi); transition: transform 0.3s }
+#wind-arrow { display: inline-block; color: var(--blue-hi); transition: transform 0.3s; }
 .level-tag { margin-top: 4px; color: var(--dim); font-size: 13px; }
+
+/* the cluster that follows the booster: a deviation gauge for falling speed on one side, the numbers that matter on the other */
+.focus { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-out; will-change: transform; }
+.focus.on { opacity: 1; }
+.dev { position: absolute; top: -66px; left: calc(-1 * (var(--hw, 14px) + 16px)); transform: translateX(-100%); width: 96px; text-align: right; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9); }
+.dev-val { font: 700 32px/1 var(--display); font-variant-numeric: tabular-nums; }
+.dev-val i, .focus-table i { font-style: normal; font-size: 11px; color: var(--dim); margin-left: 3px; }
+.dev-track { position: relative; display: block; width: 2px; height: 110px; margin: 10px 0 8px auto; background: rgba(255, 255, 255, 0.4); }
+.dev-track::before { content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 7px; background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 0 1px, transparent 1px 22px); }
+.dev-tick { position: absolute; right: -7px; top: 50%; width: 16px; height: 2px; margin-top: -1px; background: #fff; }
+.dev-dot { position: absolute; right: -5px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 2px #000; transform: translateY(var(--dy, 0px)); }
+.dev[data-s="amber"] .dev-dot { background: var(--amber); }
+.dev[data-s="red"] .dev-dot { background: var(--alarm); }
+.dev[data-s="red"] .dev-val { color: #ff8f88; }
+.dev-end { position: absolute; right: 14px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dev-end.top { top: -2px; }
+.dev-end.bottom { bottom: -2px; }
+.dev-aim { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.focus-table { position: absolute; top: -50px; left: calc(var(--hw, 14px) + 34px); width: 206px; margin: 0; background: rgba(10, 10, 10, 0.72); }
+.focus-table::before { content: ""; position: absolute; right: 100%; top: 24px; width: 34px; height: 1px; background: rgba(255, 255, 255, 0.55); }
+.focus-table dd { display: flex; justify-content: flex-end; align-items: baseline; gap: 2px; white-space: nowrap; }
+.focus-table dd b { font: 700 18px/1 var(--display); letter-spacing: 0.02em; }
+.focus-table .dir { align-self: center; margin-right: 6px; }
+.focus-table .dir svg { width: 13px; height: 13px; color: var(--blue-hi); }
+.focus b.ok { color: var(--blue-hi); }
+.focus b.warn { color: #ff8f88; }
+.lim { display: none; font-style: normal; font-size: 11px; color: var(--muted); margin-left: 4px; }
+.focus.final .lim { display: inline; }
+
+/* where the booster is against the pad, along the foot of the scene: the dot wants the middle tick */
+.strip { position: absolute; left: 50%; bottom: 86px; width: min(380px, 52%); height: 22px; transform: translateX(-50%); opacity: 0; transition: opacity 0.2s ease-out; pointer-events: none; }
+.strip.on { opacity: 1; }
+.strip::before { content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 1px; background: rgba(255, 255, 255, 0.4); }
+.strip-pad { position: absolute; left: 50%; top: 5px; width: 8%; height: 11px; transform: translateX(-50%); background: rgba(255, 255, 255, 0.14); border-left: 1px solid rgba(255, 255, 255, 0.55); border-right: 1px solid rgba(255, 255, 255, 0.55); }
+.strip-tick { position: absolute; left: 50%; top: 2px; width: 1px; height: 17px; background: #fff; }
+.strip-dot { position: absolute; left: 50%; top: 4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 2px #000; }
+.strip-vel { position: absolute; left: 50%; top: 9px; height: 2px; width: 0; background: var(--blue-hi); }
+.strip[data-s="amber"] .strip-dot { background: var(--amber); }
+.strip[data-s="red"] .strip-dot { background: var(--alarm); }
+.strip-l, .strip-r { position: absolute; top: 3px; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); }
+.strip-l { left: -14px; }
+.strip-r { right: -14px; }
+
+/* a quiet cue at the edge of the eye: amber when something is drifting out of limits, red when the fall is too fast near the deck */
+.edge { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.25s ease-out; box-shadow: inset 0 0 150px 24px var(--edge-c, transparent); }
+.edge.warn { --edge-c: rgba(242, 193, 78, 0.36); opacity: 1; }
+.edge.alarm { --edge-c: rgba(255, 81, 72, 0.4); opacity: 1; }
 
 .cue { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font: 700 36px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; pointer-events: none; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8); animation: pulse 0.6s ease-in-out infinite alternate }
 .caption { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font: 700 84px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; pointer-events: none; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75); opacity: 0 }
@@ -151,6 +199,12 @@ kbd, .cap {
 /* ---------- the control panel ---------- */
 .panel { background: var(--console); border-left: 1px solid var(--seam); padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px }
 .panel-head { display: flex; justify-content: space-between; align-items: center; }
+.panel-head-actions { display: flex; gap: 8px; align-items: center; }
+/* in a flight the panel is a drawer: closed it is out of sight and out of the tab order, open it pauses the game */
+body:not([data-mode="sim"]) .panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 100vw); z-index: 48; transform: translateX(100%); visibility: hidden; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.22s; }
+body:not([data-mode="sim"]) .panel.open { transform: none; visibility: visible; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s; }
+body[data-mode="sim"] #drawer-close { display: none; }
+body.drawer-open #stage { filter: brightness(0.55); }
 .wm { font: 700 26px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .row label, .check { color: var(--dim); display: inline-flex; align-items: center; gap: 8px; }
@@ -268,7 +322,7 @@ figcaption { color: var(--dim); font-size: 13px; margin-top: 6px; }
 .lvl-card .pr { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--seam); color: var(--dim); font-size: 13px; font-weight: 400 }
 .lvl-card .pr b { color: var(--blue-hi); font-weight: 700 }
 body.in-menu .app { grid-template-columns: minmax(0, 1fr); }
-body.in-menu .panel, body.in-menu .hud, body.in-menu #minimap, body.in-menu .touch, body.in-menu #intro, body.in-menu .outcome, body.in-menu .caption, body.in-menu .cue { display: none !important; }
+body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip, body.in-menu #edge, body.in-menu #minimap, body.in-menu .touch, body.in-menu #intro, body.in-menu .outcome, body.in-menu .caption, body.in-menu .cue { display: none !important; }
 
 /* ---------- phones and tablets: the game fills the screen, thumbs get two clusters ---------- */
 .touch { display: none; position: absolute; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); justify-content: space-between; align-items: flex-end; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
@@ -280,24 +334,32 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #minimap, body.in-menu .tou
   .how { grid-template-columns: minmax(0, 1fr); }
   .cards { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
 }
+@media (pointer: coarse) { #d-engine { display: none; } }
 @media (max-width: 900px), (pointer: coarse) and (max-height: 540px) {
-  .app { grid-template-columns: 1fr; height: auto; }
-  .stage-wrap { height: 70vh; height: 70dvh; min-height: 460px; }
+  .app, body[data-mode="sim"] .app { grid-template-columns: 1fr; height: auto; }
+  .stage-wrap { height: 100vh; height: 100dvh; min-height: 460px; }
+  body[data-mode="sim"] .stage-wrap { height: 70vh; height: 70dvh; }
+  body[data-mode="sim"] .panel { border-left: none; border-top: 1px solid var(--seam); padding: 16px; }
   .top-left { left: 14px; top: 10px; }
   .top-right { right: 14px; top: 10px; }
-  .tele { grid-template-columns: repeat(3, 76px); gap: 2px 8px; }
-  .tele label, .tele i { font-size: 11px; }
-  .tele b { font-size: 22px; }
-  .bars { width: 250px; margin-top: 6px; gap: 4px; }
-  .bar { grid-template-columns: 50px 1fr 62px; }
-  .bar label { font-size: 11px; }
-  .bar b { font-size: 14px; }
+  .top-center { top: 104px; max-width: 80%; }
+  .bars { width: 168px; gap: 5px; }
+  .bar { grid-template-columns: 44px 1fr 50px; gap: 8px; }
+  .bar label { font-size: 10px; }
+  .bar b { font-size: 13px; }
   .flags { display: none; }
   .clock { font-size: 22px; }
   .wind, .level-tag { font-size: 12px; margin-top: 2px; }
-  .cue { top: 30%; font-size: 28px; text-align: center; width: 90%; }
+  .cue { top: 34%; font-size: 26px; text-align: center; width: 90%; }
   #minimap { display: none; }
-  .panel { border-left: none; border-top: 1px solid var(--seam); padding: 16px; }
+  .dev { width: 78px; top: -54px; }
+  .dev-val { font-size: 24px; }
+  .dev-track { height: 88px; }
+  .focus-table { width: 158px; top: -40px; padding: 8px 10px; gap: 5px 0; }
+  .focus-table dt { padding-right: 14px; }
+  .focus-table dd b { font-size: 15px; }
+  .lim { display: none !important; }
+  .strip { bottom: 168px; width: 62%; }
   .o-title, .i-title { font-size: 40px; }
   .outcome, .intro { padding: 20px 22px; top: 44%; }
   .outcome { left: 50%; }
@@ -311,18 +373,17 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #minimap, body.in-menu .tou
   .keys li { grid-template-columns: 92px 1fr; }
 }
 @media (pointer: coarse) and (max-height: 540px) {
-  .stage-wrap { height: 100vh; height: 100dvh; min-height: 0; }
+  .stage-wrap, body[data-mode="sim"] .stage-wrap { height: 100vh; height: 100dvh; min-height: 0; }
   .touch button { width: 64px; height: 64px; font-size: 13px; }
   .touch button.engine { width: 82px; }
-  .tele { grid-template-columns: repeat(6, 64px); }
-  .tele b { font-size: 19px; }
-  .bars { width: 220px; }
+  .bars { width: 168px; }
   .outcome, .intro { top: 50%; padding: 14px 20px; }
   .i-sub, .o-sub { margin: 6px auto 10px; font-size: 13px; }
   .o-title, .i-title { font-size: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cue, .outcome, .slider.flash, .caption.pop, .bar.fuel.leaking em { animation: none; }
+  .edge, .focus, .strip, .dock, body:not([data-mode="sim"]) .panel { transition: none; }
   .caption.pop { opacity: 1; }
   .lvl-card, button { transition: none; }
 }
@@ -360,13 +421,26 @@ body.boot.go .fine { animation-delay: 1.3s; }
 body.in-menu .bugs.corner { display: block; }
 @media (max-width: 700px) { .bugs.corner { right: 14px; bottom: 12px; font-size: 12px; } }
 
-/* sound and music toggles: icon buttons. Top left of the start screen, in line with its text; beside the minimap in a flight */
-.sound { position: fixed; left: clamp(24px, 5vw, 64px); top: 22px; z-index: 55; display: flex; gap: 8px; }
-.sound button { width: 38px; height: 34px; padding: 0; display: grid; place-items: center; }
-.sound svg { width: 18px; height: 18px }
-.sound button[aria-pressed="false"] { color: var(--muted) }
-body:not(.in-menu) .sound { left: 218px; top: auto; bottom: 22px; }
-@media (max-width: 700px) {
-  .sound { left: auto; right: 12px; top: 12px; }
-  body:not(.in-menu) .sound { right: 12px; top: 78px; bottom: auto; flex-direction: column; align-items: flex-end; }
+/* the dock: the controls a player reaches for mid-flight. On the start screen only the two sound toggles remain, in line with its text. */
+.dock { position: fixed; z-index: 55; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: rgba(10, 10, 10, 0.84); border: 1px solid var(--seam); border-radius: 4px; transition: left 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.dock .icon-btn { border-color: transparent; background: transparent; }
+.dock .icon-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.dock .icon-btn.on { background: rgba(255, 255, 255, 0.16); }
+.dock .icon-btn[aria-pressed="false"], .dock .icon-btn.off { color: var(--muted); }
+.dock-sep { width: 1px; height: 22px; background: var(--seam); margin: 0 4px; }
+body.drawer-open .dock { left: calc((100% - min(400px, 100vw)) / 2); }
+body[data-mode="sim"] .game-only { display: none; }
+body[data-mode="sim"] .dock { left: calc((100% - 400px) / 2); }
+body.in-menu .dock { left: clamp(24px, 5vw, 64px); top: 22px; bottom: auto; transform: none; gap: 8px; padding: 0; background: none; border: 0; }
+body.in-menu .dock .icon-btn { border-color: rgba(255, 255, 255, 0.28); background: rgba(0, 0, 0, 0.35); }
+body.in-menu .game-only { display: none; }
+.sound { position: fixed; left: clamp(24px, 5vw, 64px); top: 22px; z-index: 55; display: flex; gap: 8px; } /* only where there is no dock, as in the style guide */
+.sound .icon-btn[aria-pressed="false"] { color: var(--muted); }
+
+/* on a phone the dock is a short row under the throttle and fuel bars, clear of the thumbs and the instruments, and only the settings button stays of the flight controls */
+@media (max-width: 900px), (pointer: coarse) and (max-height: 540px) {
+  .dock, body[data-mode="sim"] .dock, body.drawer-open .dock { left: 10px; right: auto; top: 54px; bottom: auto; transform: none; flex-direction: row; }
+  .dock .game-only:not(#d-menu) { display: none; }
+  .dock-sep { display: none; }
+  body.in-menu .dock { left: clamp(24px, 5vw, 64px); right: auto; top: 22px; flex-direction: row; }
 }

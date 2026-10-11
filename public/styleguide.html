@@ -90,6 +90,26 @@
     </div>
   </div>
 
+  <h2>Instruments that ride with the booster</h2>
+  <p class="lede">A deviation gauge for falling speed on one side, the numbers that decide a landing on the other, and the pad strip along the foot of the picture. The dot wants the middle tick.</p>
+  <div style="position: relative; height: 300px; background: linear-gradient(180deg, #0c1330, #3b2a5c 70%, #c4565a); border-radius: 4px; overflow: hidden;">
+    <div class="focus on final" style="transform: translate3d(330px, 150px, 0); --hw: 14px; --dy: 30px;">
+      <div class="dev" data-s="amber">
+        <div class="dev-val"><b>8.3</b><i>m/s</i></div>
+        <span class="dev-track"><span class="dev-end top">slow</span><i class="dev-tick"></i><i class="dev-dot"></i><span class="dev-end bottom">fast</span></span>
+        <div class="dev-aim">aim 21<br>limit 3.2</div>
+      </div>
+      <i style="position: absolute; left: -4px; top: -40px; width: 8px; height: 80px; background: #d6dbe3;"></i>
+      <dl class="data-table focus-table">
+        <dt>Altitude</dt><dd><b>45.7</b><i>m</i></dd>
+        <dt>To pad</dt><dd><span class="dir" id="sg-dir"></span><b>13.2</b><i>m</i><em class="lim">/ ±14</em></dd>
+        <dt>Sideways</dt><dd><b class="ok">1.4</b><i>m/s</i><em class="lim">/ 1.6</em></dd>
+        <dt>Tilt</dt><dd><b class="ok">4.1</b><i>°</i><em class="lim">/ 7°</em></dd>
+      </dl>
+    </div>
+    <div class="strip on" data-s="amber" style="bottom: 24px;"><span class="strip-pad" style="width: 10%;"></span><i class="strip-tick"></i><i class="strip-dot" style="left: 62%;"></i><i class="strip-vel" style="left: 62%; width: 24px; transform: translateX(-100%);"></i><span class="strip-l">L</span><span class="strip-r">R</span></div>
+  </div>
+
   <h2>Icons</h2>
   <div class="icons" id="icons"></div>
 
@@ -104,6 +124,7 @@
     const cs = getComputedStyle(document.documentElement);
     document.getElementById('swatches').innerHTML = sw.map(([v, n]) => `<div class="sw"><i style="background: var(${v})"></i><span><b>${n}</b>${cs.getPropertyValue(v).trim()}</span></div>`).join('');
 
+    document.getElementById('sg-dir').innerHTML = icon('arrow-left', 13);
     document.getElementById('icons').innerHTML = Object.keys(ICONS).map((k) => `<div class="ic">${icon(k, 28)}<span>${k}</span></div>`).join('');
     document.getElementById('icon-buttons').innerHTML = ['engine', 'retry', 'shuffle', 'speed', 'sound-on', 'music', 'sliders', 'help', 'menu', 'close'].map((k) => `<button class="icon-btn" aria-label="${k}" title="${k}">${icon(k, 20)}</button>`).join('')
       + `<button class="icon-btn" aria-pressed="false" aria-label="sound off">${icon('sound-off', 20)}</button>`

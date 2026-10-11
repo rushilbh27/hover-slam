@@ -39,29 +39,44 @@
     <section class="stage-wrap">
       <canvas id="stage" aria-label="Booster landing view"></canvas>
 
-      <div class="hud top-left">
-        <div class="tele">
-          <div><label>Altitude</label><b id="t-alt">0</b><i>m</i></div>
-          <div><label>Falling</label><b id="t-vy">0</b><i id="t-vy-target">m/s</i></div>
-          <div><label>Sideways</label><b id="t-vx">0</b><i>m/s</i></div>
-          <div><label>Off pad</label><b id="t-dx">0</b><i>m</i></div>
-          <div><label>Tilt</label><b id="t-tilt">0</b><i>°</i></div>
-          <div><label>Engine angle</label><b id="t-gim">0</b><i>°</i></div>
+      <div id="edge" class="edge" aria-hidden="true"></div>
+
+      <!-- the flight instruments ride with the booster, so the eyes never leave it -->
+      <div id="focus" class="focus" aria-hidden="true">
+        <div class="dev" id="dev">
+          <div class="dev-val"><b id="t-vy">0</b><i>m/s</i></div>
+          <span class="dev-track"><span class="dev-end top">slow</span><i class="dev-tick"></i><i class="dev-dot" id="dev-dot"></i><span class="dev-end bottom">fast</span></span>
+          <div class="dev-aim" id="t-vy-target">aim 0</div>
         </div>
+        <dl class="data-table focus-table">
+          <dt>Altitude</dt><dd><b id="t-alt">0</b><i>m</i></dd>
+          <dt>To pad</dt><dd><span class="dir" id="pad-dir"></span><b id="t-dx">0</b><i>m</i><em class="lim" id="lim-dx"></em></dd>
+          <dt>Sideways</dt><dd><span class="dir" id="vx-dir"></span><b id="t-vx">0</b><i>m/s</i><em class="lim" id="lim-vx"></em></dd>
+          <dt>Tilt</dt><dd><b id="t-tilt">0</b><i>°</i><em class="lim" id="lim-tilt"></em></dd>
+        </dl>
+      </div>
+
+      <div id="strip" class="strip" aria-hidden="true">
+        <span class="strip-pad" id="strip-pad"></span><i class="strip-tick"></i>
+        <i class="strip-dot" id="strip-dot"></i><i class="strip-vel" id="strip-vel"></i>
+        <span class="strip-l">L</span><span class="strip-r">R</span>
+      </div>
+
+      <div class="hud top-left">
         <div class="bars">
           <div class="bar"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" title="Hover: above this it slows down, below it speeds up"></i></span><b id="t-thr">0%</b></div>
           <div class="bar fuel" id="bar-fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
         </div>
-        <div class="faults" id="faults"></div>
-        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span></div>
+        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span><span class="flag">Gimbal <b id="t-gim">0</b>°</span></div>
       </div>
+
+      <div class="hud top-center"><div class="faults" id="faults"></div><span class="fault lamp-fuel hidden" id="lamp-fuel">Fuel low</span><span class="fault paused hidden" id="lamp-paused">Paused</span></div>
 
       <div class="hud top-right">
         <div class="clock" id="t-clock">T+ 00:00</div>
         <div class="wind">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
         <div class="level-tag" id="t-level">Medium</div>
       </div>
-
 
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
@@ -92,8 +107,8 @@
       </div>
     </section>
 
-    <aside class="panel">
-      <div class="panel-head"><span class="wm">Hoverslam</span><button id="menu-btn" class="small">Menu</button></div>
+    <aside class="panel" id="drawer" aria-label="Settings and help" inert>
+      <div class="panel-head"><span class="wm">Hoverslam</span><span class="panel-head-actions"><button id="menu-btn" class="small ghost">Main menu</button><button id="drawer-close" class="icon-btn" aria-label="Close settings" title="Close (Esc)"></button></span></div>
       <div class="tabs" role="tablist">
         <button class="tab active" data-tab="game" role="tab">Fly it</button>
         <button class="tab" data-tab="sim" role="tab">Tune the autopilot</button>
@@ -109,6 +124,7 @@
           <li><span class="caps"><kbd class="cap">↓</kbd></span>Speed up. Let go of both to hold your speed</li>
           <li><span class="caps"><kbd class="cap">R</kbd></span>Retry this scenario</li>
           <li><span class="caps"><kbd class="cap">N</kbd></span>A new scenario</li>
+          <li><span class="caps"><kbd class="cap">Esc</kbd></span>Settings and help. The game pauses while it is open</li>
         </ul>
         <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
         <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>
@@ -139,6 +155,15 @@
       <footer class="foot">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</footer>
     </aside>
   </main>
+  <nav id="dock" class="dock" aria-label="Controls">
+    <button class="icon-btn game-only" id="d-engine" aria-label="Engine" title="Engine (Space)"></button>
+    <button class="icon-btn game-only" id="d-retry" aria-label="Retry" title="Retry (R)"></button>
+    <button class="icon-btn game-only" id="d-new" aria-label="New scenario" title="New scenario (N)"></button>
+    <span class="dock-sep game-only" aria-hidden="true"></span>
+    <button class="icon-btn" data-snd data-nosound></button>
+    <button class="icon-btn" data-mus data-nosound></button>
+    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="drawer" aria-expanded="false" title="Settings (Esc)"></button>
+  </nav>
   <script type="module" src="app.js"></script>
 </body>
 </html>

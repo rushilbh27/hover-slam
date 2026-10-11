@@ -267,11 +267,15 @@ function createAudio() {
 
   // ---------- the controls: sound and music toggles in the corner ----------
   function init() {
-    const box = document.createElement('div');
-    box.className = 'sound';
-    box.innerHTML = '<button type="button" class="icon-btn" data-nosound data-snd></button><button type="button" class="icon-btn" data-nosound data-mus></button>';
-    document.body.appendChild(box);
-    const snd = box.querySelector('[data-snd]'), mus = box.querySelector('[data-mus]');
+    // the two toggles live in the dock; a page without a dock (the style guide) gets its own pair
+    let snd = document.querySelector('[data-snd]'), mus = document.querySelector('[data-mus]');
+    if (!snd || !mus) {
+      const box = document.createElement('div');
+      box.className = 'sound';
+      box.innerHTML = '<button type="button" class="icon-btn" data-nosound data-snd></button><button type="button" class="icon-btn" data-nosound data-mus></button>';
+      document.body.appendChild(box);
+      snd = box.querySelector('[data-snd]'); mus = box.querySelector('[data-mus]');
+    }
     const paint = () => {
       snd.innerHTML = icon(muted ? 'sound-off' : 'sound-on', 20);
       snd.setAttribute('aria-pressed', String(!muted));

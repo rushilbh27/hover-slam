@@ -671,7 +671,7 @@ test('every icon is a set of drawn paths, and the helper returns an inline svg',
   assert.ok(Object.keys(ICONS).length >= 20);
   for (const [name, parts] of Object.entries(ICONS)) {
     assert.ok(Array.isArray(parts) && parts.length > 0 && parts.every((d) => /^M/.test(d)), name);
-    assert.match(icon(name), /^<svg class="icon"[^>]*viewBox="0 0 24 24"/);
+    assert.match(icon(name), /^<svg class="icon"[^>]*viewBox="0 0 256 256"/);
   }
   assert.equal(icon('no-such-icon'), '');
 });
@@ -686,6 +686,16 @@ test('the canvas helpers draw a callout, a crosshair and a path', async () => {
   const names = calls.map((c) => c[0]);
   for (const n of ['lineTo', 'fillText', 'arc', 'setLineDash', 'stroke']) assert.ok(names.includes(n), n);
   assert.equal(calls.find((c) => c[0] === 'fillText')[1], 'BOOSTER', 'labels are set in capitals');
+});
+
+test('every element id the game looks up exists in the page', () => {
+  const dir = path.join(import.meta.dirname, '..', 'public');
+  const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
+  const markup = read('index.html') + read('app.js') + read('menu.js'); // some ids are made by templates in the scripts
+  const ids = new Set([...read('app.js').matchAll(/\$\('([a-z0-9-]+)'\)/g)].map((m) => m[1]));
+  const missing = [...ids].filter((id) => !markup.includes(`id="${id}"`) && !markup.includes(`id=\\"${id}\\"`));
+  assert.deepEqual(missing, [], `ids with no element: ${missing.join(', ')}`);
+  for (const id of ['focus', 'dev', 'strip', 'edge', 'dock', 'drawer', 'd-engine', 'd-menu', 't-vy', 't-alt', 't-dx', 't-vx', 't-tilt']) assert.ok(ids.has(id) || read('index.html').includes(`id="${id}"`), id);
 });
 
 // ---------- the single-file build ----------
