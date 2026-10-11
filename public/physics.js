@@ -42,8 +42,10 @@ export function mulberry32(seed) {
 // Each seed fixes the entry conditions and the wind for one flight.
 // opts (game levels): windScale, fuel, padHalf, limits, minThrottle, speedScale, altScale, offsetScale, faults
 // faults (scenarios): { leak: kg/s of fuel lost in flight, thrustCap: 0..1 of full thrust,
-//   dropouts: number of short engine cut-outs, weakSide: 'left'|'right', weakFactor: 0..1 steering
-//   authority on that side, flicker: true if that side also cuts in and out }
+//   dropouts: number of engine cut-outs spread over the burn, weakSide: 'left'|'right', weakFactor: 0..1 steering
+//   authority on that side, flicker: true if that side also cuts in and out,
+//   lowCut: one more cut-out as it nears the deck, stutter: a few quick cuts in a row,
+//   mild: shorter cut-outs early in the burn (Medium), hidden: the briefing does not mention the cut-outs }
 export function makeFlight(seed = 1, opts = {}) {
   const r = mulberry32(seed * 7919 + 13);
   const side = r() < 0.5 ? -1 : 1;
@@ -73,6 +75,8 @@ export function makeFlight(seed = 1, opts = {}) {
     maxG: 0,
     burnT: 0, // seconds the engine has been running
     cut: false, // true while an engine cut-out fault is active
+    lowDone: false, // the low cut-out has fired
+    lowEnd: 0, // when it ends
     rcsEff: 0, // thruster command after faults
   };
   return { seed, wind, state, fuel0, pad: { x: PAD.x, halfWidth }, limits, minThrottle: opts.minThrottle ?? BOOSTER.minThrottle, faults: makeFaults(opts.faults, seed) };
@@ -83,13 +87,21 @@ export function makeFaults(f, seed) {
   if (!f) return null;
   const r = mulberry32(seed * 104729 + 7);
   const dropouts = [];
-  for (let i = 0; i < (f.dropouts || 0); i++) dropouts.push({ at: 1.5 + r() * 5.5, dur: 0.45 + r() * 0.5 }); // inside the first seven seconds of the burn, so even a late burn meets it
+  // cut-outs are spread over the whole burn, one per slot so they never pile up, and the engine gives no warning
+  const n = f.dropouts || 0;
+  const from = f.mild ? 2 : 1.5, to = f.mild ? 12 : 18;
+  for (let i = 0; i < n; i++) dropouts.push({ at: from + (i + r()) * ((to - from) / n), dur: f.mild ? 0.3 + r() * 0.2 : 0.4 + r() * 0.5 });
+  if (f.stutter) { // a few quick cuts in a row, like a fuel-feed fault
+    const at0 = 3 + r() * 11;
+    for (let k = 0; k < 4; k++) dropouts.push({ at: at0 + k * 0.55, dur: 0.18 + r() * 0.12 });
+  }
   dropouts.sort((a, b) => a.at - b.at);
   return {
     leak: f.leak || 0,
     leakStart: f.leakStart ?? 2, // seconds into the flight when the leak opens
     thrustCap: f.thrustCap ?? 1,
     dropouts, // seconds after the engine is lit
+    lowCut: f.lowCut ? { alt: 70 + r() * 110, dur: 0.4 + r() * 0.3 } : null, // fires once, at this height above the deck
     weakSide: f.weakSide || null,
     weakFactor: f.weakFactor ?? 1,
     flicker: Boolean(f.flicker),
@@ -126,7 +138,8 @@ export function step(flight, control, dt) {
   // faults
   const F = flight.faults;
   if (s.engineOn) s.burnT += dt;
-  s.cut = Boolean(F && s.engineOn && F.dropouts.some((d) => s.burnT >= d.at && s.burnT < d.at + d.dur));
+  if (F && F.lowCut && !s.lowDone && s.engineOn && s.y - B.legHeight <= F.lowCut.alt) { s.lowDone = true; s.lowEnd = s.t + F.lowCut.dur; }
+  s.cut = Boolean(F && s.engineOn && (F.dropouts.some((d) => s.burnT >= d.at && s.burnT < d.at + d.dur) || s.t < s.lowEnd));
   if (F && F.leak > 0 && s.t >= F.leakStart && s.fuel > 0) s.fuel = Math.max(0, s.fuel - F.leak * dt);
   let gCmd = clamp(control.gimbal || 0, -B.gimbalMax, B.gimbalMax);
   let rcsCmd = clamp(control.rcs || 0, -1, 1);

@@ -321,10 +321,13 @@ test('fault: a thrust cap really limits thrust', () => {
   assert.ok(half.state.fuel > full.state.fuel, 'and burn less fuel');
 });
 
-test('fault: engine cut-outs happen inside the first seven seconds of a burn, and thrust stops while one is active', () => {
+test('fault: engine cut-outs are spread over the whole burn, and thrust stops while one is active', () => {
   const f = makeFlight(9, { ...LEVELS.hard.opts, faults: { dropouts: 2 } });
   assert.equal(f.faults.dropouts.length, 2);
-  for (const d of f.faults.dropouts) assert.ok(d.at >= 1.5 && d.at + d.dur <= 7.5, `cut-out at ${d.at.toFixed(1)}`);
+  for (const d of f.faults.dropouts) assert.ok(d.at >= 1.5 && d.at + d.dur <= 19.5, `cut-out at ${d.at.toFixed(1)}`);
+  const wide = makeFlight(9, { ...LEVELS.hard.opts, faults: { dropouts: 4 } }).faults.dropouts;
+  assert.ok(wide[3].at - wide[0].at > 6, 'four cut-outs are spread out, not bunched');
+  Object.assign(f.faults, { dropouts: [{ at: 1.5, dur: 1 }] }); // pin one cut-out so the check below is exact
   Object.assign(f.state, { y: 3800, vy: -150 });
   let cutSteps = 0;
   let fuelDuringCut = 0;
@@ -335,6 +338,32 @@ test('fault: engine cut-outs happen inside the first seven seconds of a burn, an
   }
   assert.ok(cutSteps > 0.5 * 120, 'expected at least half a second of cut-out');
   assert.equal(Math.round(fuelDuringCut), 0, 'no fuel burns while the engine is cut');
+});
+
+test('fault: a low cut-out fires once, near the deck, and only while the engine burns', () => {
+  const f = makeFlight(9, { ...LEVELS.hard.opts, faults: { lowCut: true } });
+  const lc = f.faults.lowCut;
+  assert.ok(lc.alt >= 70 && lc.alt <= 180 && lc.dur >= 0.4 && lc.dur <= 0.7, 'height and length are in range');
+  Object.assign(f.state, { y: 500, vy: -80 });
+  let cutAt = null, cuts = 0, was = false;
+  for (let i = 0; i < 40 * 120 && !f.state.done; i++) {
+    step(f, { engine: true, throttle: 0.4, gimbal: 0 }, DT);
+    if (f.state.cut && !was) { cuts++; cutAt = f.state.y; }
+    was = f.state.cut;
+  }
+  assert.equal(cuts, 1, 'exactly one low cut-out');
+  assert.ok(cutAt - 2.5 <= lc.alt + 5 && cutAt > 20, `it fired at ${cutAt.toFixed(0)} m`);
+  const idle = makeFlight(9, { ...LEVELS.hard.opts, faults: { lowCut: true } });
+  Object.assign(idle.state, { y: 100, vy: -5 });
+  step(idle, { engine: false, throttle: 0, gimbal: 0 }, DT);
+  assert.equal(idle.state.lowDone, false, 'with the engine off it does not use up the cut-out');
+});
+
+test('fault: a stutter is four quick cuts in a row', () => {
+  const d = makeFlight(9, { ...LEVELS.hard.opts, faults: { stutter: true } }).faults.dropouts;
+  assert.equal(d.length, 4);
+  for (const x of d) assert.ok(x.dur < 0.35, 'each one is short');
+  assert.ok(d[3].at - d[0].at < 2.5, 'and they come close together');
 });
 
 test('fault: weak left steering turns left less than right, and the other way round', () => {
@@ -414,6 +443,47 @@ test('the bank follows the level rules: Easy has no faults, Medium at most one, 
   for (const sc of BANK.easy) assert.equal(activeFaults(sc.faults).length, 0);
   for (const sc of BANK.medium) assert.ok(activeFaults(sc.faults).length <= 1);
   for (const sc of BANK.hard) assert.ok([1, 2].includes(activeFaults(sc.faults).length), `${sc.id}`);
+});
+
+test('a hidden cut-out gets no chip and no mention, but still counts as a fault', () => {
+  const f = { dropouts: 2, lowCut: true, hidden: true };
+  assert.equal(faultLabels(f).length, 0);
+  assert.deepEqual(activeFaults(f), ['dropouts']);
+  assert.match(faultLabels({ dropouts: 2, lowCut: true }).map((l) => l.text).join(), /3 while it burns/);
+});
+
+test('cut-out variety is range-checked: up to four on Hard, one mild one on Medium, no extras on Medium', () => {
+  const hardOpts = { altScale: 1.05, offsetScale: 1.1, speedScale: 1.05, windScale: 1.3, fuel: 8000, padHalf: 11 };
+  const hard = (faults) => validateScenario({ ...good(), opts: hardOpts, faults }, 'hard');
+  assert.equal(hard({ dropouts: 4, lowCut: true, stutter: true, hidden: true }).ok, true);
+  assert.equal(hard({ dropouts: 5 }).ok, false);
+  assert.equal(hard({ weakSide: 'left', weakFactor: 0.1 }).ok, true, 'steering can now be very weak');
+  const med = (faults) => validateScenario({ ...good(), faults }, 'medium');
+  assert.equal(med({ dropouts: 1, mild: true }).ok, true);
+  assert.equal(med({ dropouts: 2 }).ok, false);
+  assert.equal(med({ dropouts: 1, lowCut: true }).ok, false);
+  assert.equal(hard({ dropouts: 1, mild: true }).ok, false);
+});
+
+test('the harder bank: Hard has real cut-outs, big leaks, weak engines and steering; Medium has no cap above 75%', () => {
+  const hardFaults = BANK.hard.map((s) => s.faults);
+  const withCuts = hardFaults.filter((f) => (f.dropouts || 0) + (f.lowCut ? 1 : 0) + (f.stutter ? 1 : 0) > 0);
+  assert.ok(withCuts.length >= 12, `cut-outs in ${withCuts.length} Hard scenarios`);
+  assert.ok(withCuts.some((f) => f.lowCut), 'some cut-outs come low');
+  assert.ok(withCuts.some((f) => f.hidden), 'some are unannounced');
+  assert.ok(withCuts.some((f) => f.dropouts >= 2), 'some come more than once');
+  for (const f of hardFaults) {
+    if (f.thrustCap) assert.ok(f.thrustCap <= 0.74, `Hard thrust ${f.thrustCap}`);
+    if (f.leak) assert.ok(f.leak >= 75, `Hard leak ${f.leak}`);
+    if (f.weakSide) assert.ok(f.weakFactor <= 0.42, `Hard steering ${f.weakFactor}`);
+  }
+  for (const sc of BANK.medium) {
+    const f = sc.faults || {};
+    if (f.thrustCap) assert.ok(f.thrustCap <= 0.75, `Medium thrust ${f.thrustCap}`);
+    if (f.leak) assert.ok(f.leak >= 60, `Medium leak ${f.leak}`);
+    if (f.dropouts) assert.ok(f.mild && f.dropouts === 1, 'Medium cut-outs are single and mild');
+  }
+  assert.ok(BANK.medium.filter((s) => s.faults && s.faults.dropouts).length >= 3, 'Medium has a few mild cut-outs');
 });
 
 test('the bank has a real mix of faults: every kind appears at least 4 times where allowed', () => {

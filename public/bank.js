@@ -516,9 +516,9 @@ export const BANK = {
   {
    "id": "m-001",
    "level": "medium",
-   "name": "Short of breath",
-   "briefing": "The engine only gives 80% thrust, so light it earlier. Starts about 1800 m up and 130 m off the pad.",
-   "seed": 755308,
+   "name": "Skip",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 1700 m up and 150 m off the pad.",
+   "seed": 112092,
    "opts": {
     "altScale": 0.86,
     "offsetScale": 0.92,
@@ -528,7 +528,8 @@ export const BANK = {
     "padHalf": 13.99
    },
    "faults": {
-    "thrustCap": 0.8
+    "dropouts": 1,
+    "mild": true
    },
    "source": "rules"
   },
@@ -552,9 +553,9 @@ export const BANK = {
   {
    "id": "m-003",
    "level": "medium",
-   "name": "Weak thrust",
-   "briefing": "The engine only gives 80% thrust, so light it earlier. Starts about 2000 m up and 170 m off the pad.",
-   "seed": 780946,
+   "name": "Momentary lapse",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 2200 m up and 160 m off the pad.",
+   "seed": 156540,
    "opts": {
     "altScale": 1.04,
     "offsetScale": 0.97,
@@ -564,32 +565,16 @@ export const BANK = {
     "padHalf": 12.25
    },
    "faults": {
-    "thrustCap": 0.8
+    "dropouts": 1,
+    "mild": true
    },
    "source": "rules"
   },
   {
    "id": "m-004",
    "level": "medium",
-   "name": "Tight pad",
-   "briefing": "Starts about 2300 m up and 260 m off the pad. Strong wind. No faults: just you and the gusts.",
-   "seed": 275725,
-   "opts": {
-    "altScale": 1.13,
-    "offsetScale": 1.06,
-    "speedScale": 0.92,
-    "windScale": 0.88,
-    "fuel": 8515,
-    "padHalf": 12.18
-   },
-   "faults": null,
-   "source": "rules"
-  },
-  {
-   "id": "m-005",
-   "level": "medium",
    "name": "Slow leak",
-   "briefing": "A fuel line is leaking at 48 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2000 m up and 170 m off the pad.",
+   "briefing": "A fuel line is leaking at 76 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2000 m up and 170 m off the pad.",
    "seed": 373234,
    "opts": {
     "altScale": 1.06,
@@ -600,16 +585,16 @@ export const BANK = {
     "padHalf": 15.22
    },
    "faults": {
-    "leak": 48
+    "leak": 76
    },
    "source": "rules"
   },
   {
-   "id": "m-006",
+   "id": "m-005",
    "level": "medium",
-   "name": "Tired engine",
-   "briefing": "The engine only gives 81% thrust, so light it earlier. Starts about 1800 m up and 110 m off the pad.",
-   "seed": 504332,
+   "name": "Short stumble",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 2000 m up and 140 m off the pad.",
+   "seed": 206164,
    "opts": {
     "altScale": 0.93,
     "offsetScale": 0.75,
@@ -619,14 +604,15 @@ export const BANK = {
     "padHalf": 13.52
    },
    "faults": {
-    "thrustCap": 0.81
+    "dropouts": 1,
+    "mild": true
    },
    "source": "rules"
   },
   {
-   "id": "m-007",
+   "id": "m-006",
    "level": "medium",
-   "name": "Crosswind drop",
+   "name": "Gusty approach",
    "briefing": "Starts about 2300 m up and 110 m off the pad. Strong wind. No faults: just you and the gusts.",
    "seed": 706412,
    "opts": {
@@ -641,46 +627,10 @@ export const BANK = {
    "source": "rules"
   },
   {
-   "id": "m-008",
+   "id": "m-007",
    "level": "medium",
-   "name": "Leaking tank",
-   "briefing": "A fuel line is leaking at 59 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1700 m up and 250 m off the pad.",
-   "seed": 88801,
-   "opts": {
-    "altScale": 0.91,
-    "offsetScale": 1,
-    "speedScale": 1,
-    "windScale": 0.82,
-    "fuel": 9019,
-    "padHalf": 13.11
-   },
-   "faults": {
-    "leak": 59
-   },
-   "source": "rules"
-  },
-  {
-   "id": "m-009",
-   "level": "medium",
-   "name": "Salt wind",
-   "briefing": "Starts about 2400 m up and 100 m off the pad. Light wind. No faults: just you and the gusts.",
-   "seed": 159917,
-   "opts": {
-    "altScale": 1.14,
-    "offsetScale": 0.73,
-    "speedScale": 1.04,
-    "windScale": 0.77,
-    "fuel": 9260,
-    "padHalf": 15.58
-   },
-   "faults": null,
-   "source": "rules"
-  },
-  {
-   "id": "m-010",
-   "level": "medium",
-   "name": "Cracked seal",
-   "briefing": "A fuel line is leaking at 30 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2200 m up and 170 m off the pad.",
+   "name": "Dripping lines",
+   "briefing": "A fuel line is leaking at 60 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2200 m up and 170 m off the pad.",
    "seed": 892675,
    "opts": {
     "altScale": 1.1,
@@ -691,14 +641,14 @@ export const BANK = {
     "padHalf": 14.09
    },
    "faults": {
-    "leak": 30
+    "leak": 60
    },
    "source": "rules"
   },
   {
-   "id": "m-011",
+   "id": "m-008",
    "level": "medium",
-   "name": "Narrow margin",
+   "name": "Side-eye",
    "briefing": "Starts about 2300 m up and 250 m off the pad. Strong wind. No faults: just you and the gusts.",
    "seed": 414470,
    "opts": {
@@ -713,10 +663,10 @@ export const BANK = {
    "source": "rules"
   },
   {
-   "id": "m-012",
+   "id": "m-009",
    "level": "medium",
-   "name": "Fuel bleed",
-   "briefing": "A fuel line is leaking at 74 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1700 m up and 150 m off the pad.",
+   "name": "Leaking tank",
+   "briefing": "A fuel line is leaking at 99 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1700 m up and 150 m off the pad.",
    "seed": 766510,
    "opts": {
     "altScale": 0.86,
@@ -727,15 +677,15 @@ export const BANK = {
     "padHalf": 14.76
    },
    "faults": {
-    "leak": 74
+    "leak": 99
    },
    "source": "rules"
   },
   {
-   "id": "m-013",
+   "id": "m-010",
    "level": "medium",
-   "name": "Loose valve",
-   "briefing": "A fuel line is leaking at 47 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1700 m up and 120 m off the pad.",
+   "name": "Losing propellant",
+   "briefing": "A fuel line is leaking at 75 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1700 m up and 120 m off the pad.",
    "seed": 42001,
    "opts": {
     "altScale": 0.85,
@@ -746,15 +696,15 @@ export const BANK = {
     "padHalf": 12.64
    },
    "faults": {
-    "leak": 47
+    "leak": 75
    },
    "source": "rules"
   },
   {
-   "id": "m-014",
+   "id": "m-011",
    "level": "medium",
-   "name": "Dripping lines",
-   "briefing": "A fuel line is leaking at 68 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 140 m off the pad.",
+   "name": "Fuel bleed",
+   "briefing": "A fuel line is leaking at 94 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 140 m off the pad.",
    "seed": 689658,
    "opts": {
     "altScale": 0.99,
@@ -765,16 +715,16 @@ export const BANK = {
     "padHalf": 13.89
    },
    "faults": {
-    "leak": 68
+    "leak": 94
    },
    "source": "rules"
   },
   {
-   "id": "m-015",
+   "id": "m-012",
    "level": "medium",
-   "name": "Throttled back",
-   "briefing": "The engine only gives 83% thrust, so light it earlier. Starts about 1700 m up and 220 m off the pad.",
-   "seed": 62911,
+   "name": "Brief stall",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 1900 m up and 120 m off the pad.",
+   "seed": 294230,
    "opts": {
     "altScale": 0.89,
     "offsetScale": 0.89,
@@ -784,34 +734,16 @@ export const BANK = {
     "padHalf": 14.62
    },
    "faults": {
-    "thrustCap": 0.83
+    "dropouts": 1,
+    "mild": true
    },
    "source": "rules"
   },
   {
-   "id": "m-016",
+   "id": "m-013",
    "level": "medium",
    "name": "Pinhole",
-   "briefing": "A fuel line is leaking at 32 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1900 m up and 180 m off the pad.",
-   "seed": 859058,
-   "opts": {
-    "altScale": 1,
-    "offsetScale": 0.82,
-    "speedScale": 0.97,
-    "windScale": 1.18,
-    "fuel": 9027,
-    "padHalf": 12.87
-   },
-   "faults": {
-    "leak": 32
-   },
-   "source": "rules"
-  },
-  {
-   "id": "m-017",
-   "level": "medium",
-   "name": "Fuel on the wind",
-   "briefing": "A fuel line is leaking at 67 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 190 m off the pad.",
+   "briefing": "A fuel line is leaking at 93 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 190 m off the pad.",
    "seed": 716470,
    "opts": {
     "altScale": 0.97,
@@ -822,35 +754,16 @@ export const BANK = {
     "padHalf": 15.48
    },
    "faults": {
-    "leak": 67
+    "leak": 93
    },
    "source": "rules"
   },
   {
-   "id": "m-018",
+   "id": "m-014",
    "level": "medium",
-   "name": "Governed burn",
-   "briefing": "The engine only gives 84% thrust, so light it earlier. Starts about 2000 m up and 210 m off the pad.",
-   "seed": 486908,
-   "opts": {
-    "altScale": 0.94,
-    "offsetScale": 1.07,
-    "speedScale": 0.97,
-    "windScale": 0.9,
-    "fuel": 8376,
-    "padHalf": 15.78
-   },
-   "faults": {
-    "thrustCap": 0.84
-   },
-   "source": "rules"
-  },
-  {
-   "id": "m-019",
-   "level": "medium",
-   "name": "Seeping tank",
-   "briefing": "A fuel line is leaking at 32 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 160 m off the pad.",
-   "seed": 154765,
+   "name": "Tight pad",
+   "briefing": "Starts about 2200 m up and 130 m off the pad. Strong wind. No faults: just you and the gusts.",
+   "seed": 35619,
    "opts": {
     "altScale": 1.11,
     "offsetScale": 1.02,
@@ -859,16 +772,14 @@ export const BANK = {
     "fuel": 9174,
     "padHalf": 13.83
    },
-   "faults": {
-    "leak": 32
-   },
+   "faults": null,
    "source": "rules"
   },
   {
-   "id": "m-020",
+   "id": "m-015",
    "level": "medium",
-   "name": "Losing propellant",
-   "briefing": "A fuel line is leaking at 57 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2200 m up and 120 m off the pad.",
+   "name": "Cracked seal",
+   "briefing": "A fuel line is leaking at 84 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2200 m up and 120 m off the pad.",
    "seed": 640968,
    "opts": {
     "altScale": 1.11,
@@ -879,15 +790,15 @@ export const BANK = {
     "padHalf": 15.69
    },
    "faults": {
-    "leak": 57
+    "leak": 84
    },
    "source": "rules"
   },
   {
-   "id": "m-021",
+   "id": "m-016",
    "level": "medium",
-   "name": "Low on power",
-   "briefing": "The engine only gives 92% thrust, so light it earlier. Starts about 2000 m up and 130 m off the pad.",
+   "name": "Clipped engine",
+   "briefing": "The engine only gives 75% thrust, so light it earlier. Starts about 2000 m up and 130 m off the pad.",
    "seed": 121622,
    "opts": {
     "altScale": 0.98,
@@ -898,12 +809,32 @@ export const BANK = {
     "padHalf": 15.54
    },
    "faults": {
-    "thrustCap": 0.92
+    "thrustCap": 0.75
    },
    "source": "rules"
   },
   {
-   "id": "m-022",
+   "id": "m-017",
+   "level": "medium",
+   "name": "Blink",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 1900 m up and 170 m off the pad.",
+   "seed": 127144,
+   "opts": {
+    "altScale": 0.98,
+    "offsetScale": 1.03,
+    "speedScale": 0.98,
+    "windScale": 0.82,
+    "fuel": 8312,
+    "padHalf": 14.71
+   },
+   "faults": {
+    "dropouts": 1,
+    "mild": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "m-018",
    "level": "medium",
    "name": "Cold front",
    "briefing": "Starts about 1900 m up and 110 m off the pad. Strong wind. No faults: just you and the gusts.",
@@ -920,29 +851,27 @@ export const BANK = {
    "source": "rules"
   },
   {
-   "id": "m-023",
+   "id": "m-019",
    "level": "medium",
-   "name": "Leaking tank II",
-   "briefing": "A fuel line is leaking at 48 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2200 m up and 140 m off the pad.",
-   "seed": 77303,
+   "name": "Crosswind drop",
+   "briefing": "Starts about 1800 m up and 140 m off the pad. Strong wind. No faults: just you and the gusts.",
+   "seed": 695797,
    "opts": {
-    "altScale": 1.01,
-    "offsetScale": 0.85,
-    "speedScale": 1.04,
-    "windScale": 0.89,
-    "fuel": 8430,
-    "padHalf": 12.05
+    "altScale": 0.92,
+    "offsetScale": 0.78,
+    "speedScale": 1.03,
+    "windScale": 0.97,
+    "fuel": 8798,
+    "padHalf": 15.12
    },
-   "faults": {
-    "leak": 48
-   },
+   "faults": null,
    "source": "rules"
   },
   {
-   "id": "m-024",
+   "id": "m-020",
    "level": "medium",
-   "name": "Dripping lines II",
-   "briefing": "A fuel line is leaking at 34 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 150 m off the pad.",
+   "name": "Loose valve",
+   "briefing": "A fuel line is leaking at 64 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 150 m off the pad.",
    "seed": 663684,
    "opts": {
     "altScale": 1.05,
@@ -953,16 +882,16 @@ export const BANK = {
     "padHalf": 14.65
    },
    "faults": {
-    "leak": 34
+    "leak": 64
    },
    "source": "rules"
   },
   {
-   "id": "m-025",
+   "id": "m-021",
    "level": "medium",
-   "name": "Limp engine",
-   "briefing": "The engine only gives 88% thrust, so light it earlier. Starts about 1900 m up and 140 m off the pad.",
-   "seed": 481473,
+   "name": "Missed beat",
+   "briefing": "The engine cuts out once, without warning, but only briefly. Keep some height in hand. Starts about 1900 m up and 120 m off the pad.",
+   "seed": 627764,
    "opts": {
     "altScale": 0.95,
     "offsetScale": 0.88,
@@ -972,102 +901,179 @@ export const BANK = {
     "padHalf": 13.47
    },
    "faults": {
-    "thrustCap": 0.88
+    "dropouts": 1,
+    "mild": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "m-022",
+   "level": "medium",
+   "name": "Fuel on the wind",
+   "briefing": "A fuel line is leaking at 68 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1900 m up and 180 m off the pad.",
+   "seed": 306419,
+   "opts": {
+    "altScale": 0.95,
+    "offsetScale": 1,
+    "speedScale": 0.95,
+    "windScale": 0.74,
+    "fuel": 8529,
+    "padHalf": 15.99
+   },
+   "faults": {
+    "leak": 68
+   },
+   "source": "rules"
+  },
+  {
+   "id": "m-023",
+   "level": "medium",
+   "name": "Seeping tank",
+   "briefing": "A fuel line is leaking at 84 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 120 m off the pad.",
+   "seed": 292355,
+   "opts": {
+    "altScale": 0.97,
+    "offsetScale": 0.71,
+    "speedScale": 0.98,
+    "windScale": 1.05,
+    "fuel": 8886,
+    "padHalf": 15.65
+   },
+   "faults": {
+    "leak": 84
+   },
+   "source": "rules"
+  },
+  {
+   "id": "m-024",
+   "level": "medium",
+   "name": "Fuel bleed II",
+   "briefing": "A fuel line is leaking at 69 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1800 m up and 130 m off the pad.",
+   "seed": 360266,
+   "opts": {
+    "altScale": 0.88,
+    "offsetScale": 0.72,
+    "speedScale": 0.92,
+    "windScale": 0.83,
+    "fuel": 8741,
+    "padHalf": 12.47
+   },
+   "faults": {
+    "leak": 69
+   },
+   "source": "rules"
+  },
+  {
+   "id": "m-025",
+   "level": "medium",
+   "name": "Tired engine",
+   "briefing": "The engine only gives 70% thrust, so light it earlier. Starts about 1900 m up and 150 m off the pad.",
+   "seed": 106641,
+   "opts": {
+    "altScale": 0.99,
+    "offsetScale": 0.7,
+    "speedScale": 0.95,
+    "windScale": 0.85,
+    "fuel": 8483,
+    "padHalf": 14.19
+   },
+   "faults": {
+    "thrustCap": 0.7
    },
    "source": "rules"
   },
   {
    "id": "m-026",
    "level": "medium",
-   "name": "Clipped engine",
-   "briefing": "The engine only gives 92% thrust, so light it earlier. Starts about 2300 m up and 140 m off the pad.",
-   "seed": 889278,
+   "name": "Governed burn",
+   "briefing": "The engine only gives 69% thrust, so light it earlier. Starts about 1900 m up and 180 m off the pad.",
+   "seed": 424523,
    "opts": {
-    "altScale": 1.13,
-    "offsetScale": 0.73,
-    "speedScale": 0.98,
-    "windScale": 1.06,
-    "fuel": 8862,
-    "padHalf": 14.29
+    "altScale": 0.99,
+    "offsetScale": 0.91,
+    "speedScale": 0.97,
+    "windScale": 0.79,
+    "fuel": 8284,
+    "padHalf": 14.19
    },
    "faults": {
-    "thrustCap": 0.92
+    "thrustCap": 0.69
    },
    "source": "rules"
   },
   {
    "id": "m-027",
    "level": "medium",
-   "name": "Half-hearted burn",
-   "briefing": "The engine only gives 83% thrust, so light it earlier. Starts about 2200 m up and 150 m off the pad.",
-   "seed": 401504,
+   "name": "Short of breath",
+   "briefing": "The engine only gives 70% thrust, so light it earlier. Starts about 1900 m up and 150 m off the pad.",
+   "seed": 712210,
    "opts": {
-    "altScale": 1,
-    "offsetScale": 0.73,
-    "speedScale": 1.01,
-    "windScale": 0.71,
-    "fuel": 8929,
-    "padHalf": 14.34
+    "altScale": 0.9,
+    "offsetScale": 1.07,
+    "speedScale": 0.94,
+    "windScale": 0.72,
+    "fuel": 8423,
+    "padHalf": 15.3
    },
    "faults": {
-    "thrustCap": 0.83
+    "thrustCap": 0.7
    },
    "source": "rules"
   },
   {
    "id": "m-028",
    "level": "medium",
-   "name": "Gentle push",
-   "briefing": "The engine only gives 81% thrust, so light it earlier. Starts about 1800 m up and 160 m off the pad.",
-   "seed": 170823,
+   "name": "Half-hearted burn",
+   "briefing": "The engine only gives 73% thrust, so light it earlier. Starts about 1800 m up and 140 m off the pad.",
+   "seed": 548844,
    "opts": {
-    "altScale": 0.86,
-    "offsetScale": 0.88,
-    "speedScale": 1.03,
-    "windScale": 0.95,
-    "fuel": 9356,
-    "padHalf": 12.45
+    "altScale": 0.91,
+    "offsetScale": 0.81,
+    "speedScale": 0.99,
+    "windScale": 0.93,
+    "fuel": 9215,
+    "padHalf": 14.78
    },
    "faults": {
-    "thrustCap": 0.81
+    "thrustCap": 0.73
    },
    "source": "rules"
   },
   {
    "id": "m-029",
    "level": "medium",
-   "name": "Limp engine II",
-   "briefing": "The engine only gives 92% thrust, so light it earlier. Starts about 2000 m up and 190 m off the pad.",
-   "seed": 767503,
+   "name": "Limp engine",
+   "briefing": "The engine only gives 73% thrust, so light it earlier. Starts about 1700 m up and 150 m off the pad.",
+   "seed": 894151,
    "opts": {
-    "altScale": 1.05,
-    "offsetScale": 0.92,
-    "speedScale": 0.99,
-    "windScale": 1.04,
-    "fuel": 9384,
-    "padHalf": 13.64
+    "altScale": 0.87,
+    "offsetScale": 0.9,
+    "speedScale": 1,
+    "windScale": 0.73,
+    "fuel": 8835,
+    "padHalf": 13.07
    },
    "faults": {
-    "thrustCap": 0.92
+    "thrustCap": 0.73
    },
    "source": "rules"
   },
   {
    "id": "m-030",
    "level": "medium",
-   "name": "Half-hearted burn II",
-   "briefing": "The engine only gives 87% thrust, so light it earlier. Starts about 1800 m up and 120 m off the pad.",
-   "seed": 569470,
+   "name": "Weak thrust",
+   "briefing": "The engine only gives 72% thrust, so light it earlier. Starts about 2200 m up and 100 m off the pad.",
+   "seed": 503709,
    "opts": {
-    "altScale": 0.87,
-    "offsetScale": 0.9,
-    "speedScale": 0.91,
-    "windScale": 1.16,
-    "fuel": 8447,
-    "padHalf": 14.31
+    "altScale": 1.03,
+    "offsetScale": 0.73,
+    "speedScale": 1.01,
+    "windScale": 1.07,
+    "fuel": 8815,
+    "padHalf": 15.27
    },
    "faults": {
-    "thrustCap": 0.87
+    "thrustCap": 0.72
    },
    "source": "rules"
   }
@@ -1076,97 +1082,38 @@ export const BANK = {
   {
    "id": "h-001",
    "level": "hard",
-   "name": "Misfire",
-   "briefing": "The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2000 m up and 150 m off the pad.",
-   "seed": 547412,
+   "name": "Bad omens",
+   "briefing": "The engine only gives 71% thrust, so light it earlier. Right steering is weak and flickers, so leaning right is slow. Start early if the pad is on that side. Starts about 2300 m up and 160 m off the pad.",
+   "seed": 261231,
    "opts": {
-    "altScale": 1.04,
-    "offsetScale": 0.91,
-    "speedScale": 1.06,
-    "windScale": 1.44,
-    "fuel": 8503,
-    "padHalf": 11.43
+    "altScale": 1.1,
+    "offsetScale": 1.05,
+    "speedScale": 1.07,
+    "windScale": 1.26,
+    "fuel": 8148,
+    "padHalf": 11.55
    },
    "faults": {
-    "dropouts": 1
+    "thrustCap": 0.71,
+    "weakSide": "right",
+    "weakFactor": 0.35,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-002",
    "level": "hard",
-   "name": "Lame thruster",
-   "briefing": "Left steering is weak, so leaning left is slow. Start early if the pad is on that side. Starts about 2300 m up and 250 m off the pad.",
-   "seed": 831671,
+   "name": "Skipped beat",
+   "briefing": "The engine cuts out 2 times, without warning. Keep some height in hand. Starts about 2300 m up and 120 m off the pad.",
+   "seed": 196584,
    "opts": {
-    "altScale": 1.09,
-    "offsetScale": 1.07,
-    "speedScale": 1.01,
-    "windScale": 1.26,
-    "fuel": 8047,
-    "padHalf": 11.15
-   },
-   "faults": {
-    "weakSide": "left",
-    "weakFactor": 0.65,
-    "flicker": false
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-003",
-   "level": "hard",
-   "name": "Fuel in the wind",
-   "briefing": "A fuel line is leaking at 37 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 190 m off the pad.",
-   "seed": 452749,
-   "opts": {
-    "altScale": 1,
-    "offsetScale": 1.15,
-    "speedScale": 1.02,
-    "windScale": 1.36,
-    "fuel": 8414,
-    "padHalf": 11.25
-   },
-   "faults": {
-    "leak": 37
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-004",
-   "level": "hard",
-   "name": "Perfect storm",
-   "briefing": "The engine only gives 84% thrust, so light it earlier. Left steering is weak, so leaning left is slow. Start early if the pad is on that side. Starts about 2500 m up and 180 m off the pad.",
-   "seed": 557077,
-   "opts": {
-    "altScale": 1.16,
-    "offsetScale": 1.27,
-    "speedScale": 1.08,
-    "windScale": 1.38,
-    "fuel": 8146,
-    "padHalf": 11.27
-   },
-   "faults": {
-    "thrustCap": 0.84,
-    "weakSide": "left",
-    "weakFactor": 0.46,
-    "flicker": false
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-005",
-   "level": "hard",
-   "name": "Flame-out scare",
-   "briefing": "The engine cuts out 2 times early in the burn, for under a second. Keep some height in hand. Starts about 2600 m up and 140 m off the pad.",
-   "seed": 509095,
-   "opts": {
-    "altScale": 1.18,
-    "offsetScale": 1.06,
-    "speedScale": 1.08,
-    "windScale": 1.43,
-    "fuel": 8520,
-    "padHalf": 10.96
+    "altScale": 1.04,
+    "offsetScale": 0.91,
+    "speedScale": 1.06,
+    "windScale": 1.28,
+    "fuel": 8503,
+    "padHalf": 11.23
    },
    "faults": {
     "dropouts": 2
@@ -1174,75 +1121,101 @@ export const BANK = {
    "source": "rules"
   },
   {
-   "id": "h-006",
+   "id": "h-003",
    "level": "hard",
-   "name": "Starved engine",
-   "briefing": "The engine only gives 83% thrust, so light it earlier. Starts about 2200 m up and 180 m off the pad.",
-   "seed": 507272,
+   "name": "Throttle jam",
+   "briefing": "The engine only gives 63% thrust, so light it earlier. Starts about 2100 m up and 250 m off the pad.",
+   "seed": 406861,
    "opts": {
-    "altScale": 1.17,
-    "offsetScale": 1.1,
-    "speedScale": 1.05,
-    "windScale": 1.27,
-    "fuel": 7984,
-    "padHalf": 11.5
+    "altScale": 1.09,
+    "offsetScale": 1.07,
+    "speedScale": 1.01,
+    "windScale": 1.39,
+    "fuel": 8047,
+    "padHalf": 11.82
    },
    "faults": {
-    "thrustCap": 0.83
+    "thrustCap": 0.63
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-004",
+   "level": "hard",
+   "name": "Perfect storm",
+   "briefing": "The engine only gives 70% thrust, so light it earlier. Left steering is weak and flickers, so leaning left is slow. Start early if the pad is on that side. Starts about 2000 m up and 220 m off the pad.",
+   "seed": 484973,
+   "opts": {
+    "altScale": 0.98,
+    "offsetScale": 1.11,
+    "speedScale": 1.08,
+    "windScale": 1.32,
+    "fuel": 8235,
+    "padHalf": 11.04
+   },
+   "faults": {
+    "thrustCap": 0.7,
+    "weakSide": "left",
+    "weakFactor": 0.3,
+    "flicker": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-005",
+   "level": "hard",
+   "name": "Rough night",
+   "briefing": "A fuel line is leaking at 98 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine only gives 70% thrust, so light it earlier. Starts about 2100 m up and 140 m off the pad.",
+   "seed": 29039,
+   "opts": {
+    "altScale": 1,
+    "offsetScale": 1.15,
+    "speedScale": 1.02,
+    "windScale": 1.28,
+    "fuel": 8414,
+    "padHalf": 11.63
+   },
+   "faults": {
+    "leak": 98,
+    "thrustCap": 0.7
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-006",
+   "level": "hard",
+   "name": "Murphy's landing",
+   "briefing": "The engine only gives 72% thrust, so light it earlier. Left steering is weak and flickers, so leaning left is slow. Start early if the pad is on that side. Starts about 2500 m up and 180 m off the pad.",
+   "seed": 537915,
+   "opts": {
+    "altScale": 1.16,
+    "offsetScale": 1.27,
+    "speedScale": 1.08,
+    "windScale": 1.28,
+    "fuel": 8146,
+    "padHalf": 11.43
+   },
+   "faults": {
+    "thrustCap": 0.72,
+    "weakSide": "left",
+    "weakFactor": 0.33,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-007",
    "level": "hard",
-   "name": "Capped burn",
-   "briefing": "The engine only gives 80% thrust, so light it earlier. Starts about 2300 m up and 160 m off the pad.",
-   "seed": 838613,
+   "name": "Misfire",
+   "briefing": "The engine cuts out once, without warning. Keep some height in hand. Starts about 2500 m up and 250 m off the pad.",
+   "seed": 392491,
    "opts": {
-    "altScale": 1.18,
-    "offsetScale": 1.26,
-    "speedScale": 1.03,
-    "windScale": 1.36,
-    "fuel": 8168,
-    "padHalf": 11.34
-   },
-   "faults": {
-    "thrustCap": 0.8
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-008",
-   "level": "hard",
-   "name": "Runaway leak",
-   "briefing": "A fuel line is leaking at 42 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2000 m up and 180 m off the pad.",
-   "seed": 242933,
-   "opts": {
-    "altScale": 1.06,
-    "offsetScale": 0.95,
-    "speedScale": 1.06,
-    "windScale": 1.21,
-    "fuel": 8535,
-    "padHalf": 10.8
-   },
-   "faults": {
-    "leak": 42
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-009",
-   "level": "hard",
-   "name": "Skipped beat",
-   "briefing": "The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2300 m up and 170 m off the pad.",
-   "seed": 889834,
-   "opts": {
-    "altScale": 1.15,
-    "offsetScale": 1.06,
-    "speedScale": 1.09,
-    "windScale": 1.45,
-    "fuel": 8370,
-    "padHalf": 11.32
+    "altScale": 1.17,
+    "offsetScale": 1.1,
+    "speedScale": 1.05,
+    "windScale": 1.16,
+    "fuel": 7984,
+    "padHalf": 11.46
    },
    "faults": {
     "dropouts": 1
@@ -1250,10 +1223,10 @@ export const BANK = {
    "source": "rules"
   },
   {
-   "id": "h-010",
+   "id": "h-008",
    "level": "hard",
    "name": "Open valve",
-   "briefing": "A fuel line is leaking at 35 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 140 m off the pad.",
+   "briefing": "A fuel line is leaking at 98 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 140 m off the pad.",
    "seed": 310799,
    "opts": {
     "altScale": 1.1,
@@ -1264,27 +1237,70 @@ export const BANK = {
     "padHalf": 11.96
    },
    "faults": {
-    "leak": 35
+    "leak": 98
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-009",
+   "level": "hard",
+   "name": "Cursed flight",
+   "briefing": "The engine only gives 72% thrust, so light it earlier. Starts about 2000 m up and 140 m off the pad.",
+   "seed": 299617,
+   "opts": {
+    "altScale": 0.95,
+    "offsetScale": 0.91,
+    "speedScale": 1.05,
+    "windScale": 1.16,
+    "fuel": 8079,
+    "padHalf": 11.84
+   },
+   "faults": {
+    "thrustCap": 0.72,
+    "dropouts": 2,
+    "hidden": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-010",
+   "level": "hard",
+   "name": "Nothing works",
+   "briefing": "A fuel line is leaking at 83 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Left steering is weak and flickers, so leaning left is slow. Start early if the pad is on that side. Starts about 2100 m up and 190 m off the pad.",
+   "seed": 468004,
+   "opts": {
+    "altScale": 0.99,
+    "offsetScale": 1.08,
+    "speedScale": 1.04,
+    "windScale": 1.28,
+    "fuel": 8089,
+    "padHalf": 10.71
+   },
+   "faults": {
+    "leak": 83,
+    "weakSide": "left",
+    "weakFactor": 0.34,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-011",
    "level": "hard",
-   "name": "Stubborn thruster",
-   "briefing": "Left steering is weak, so leaning left is slow. Start early if the pad is on that side. Starts about 2000 m up and 110 m off the pad.",
-   "seed": 27006,
+   "name": "Sticky gimbal",
+   "briefing": "Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 2000 m up and 190 m off the pad.",
+   "seed": 603334,
    "opts": {
-    "altScale": 0.95,
-    "offsetScale": 0.91,
-    "speedScale": 1.05,
-    "windScale": 1.24,
-    "fuel": 8079,
-    "padHalf": 11.28
+    "altScale": 1,
+    "offsetScale": 0.93,
+    "speedScale": 1.08,
+    "windScale": 1.15,
+    "fuel": 7852,
+    "padHalf": 10.92
    },
    "faults": {
-    "weakSide": "left",
-    "weakFactor": 0.62,
+    "weakSide": "right",
+    "weakFactor": 0.37,
     "flicker": false
    },
    "source": "rules"
@@ -1292,155 +1308,167 @@ export const BANK = {
   {
    "id": "h-012",
    "level": "hard",
-   "name": "Rough night",
-   "briefing": "The engine only gives 82% thrust, so light it earlier. The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2300 m up and 220 m off the pad.",
-   "seed": 891489,
+   "name": "Double trouble",
+   "briefing": "The engine only gives 68% thrust, so light it earlier. Left steering is weak and flickers, so leaning left is slow. Start early if the pad is on that side. Starts about 2200 m up and 250 m off the pad.",
+   "seed": 255587,
    "opts": {
-    "altScale": 1.16,
-    "offsetScale": 0.99,
-    "speedScale": 1.06,
-    "windScale": 1.35,
-    "fuel": 8498,
-    "padHalf": 10.68
+    "altScale": 1.08,
+    "offsetScale": 1.27,
+    "speedScale": 1.04,
+    "windScale": 1.29,
+    "fuel": 8446,
+    "padHalf": 10.93
    },
    "faults": {
-    "thrustCap": 0.82,
-    "dropouts": 1
+    "thrustCap": 0.68,
+    "weakSide": "left",
+    "weakFactor": 0.29,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-013",
    "level": "hard",
-   "name": "Breached tank",
-   "briefing": "A fuel line is leaking at 46 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 1900 m up and 140 m off the pad.",
-   "seed": 618445,
+   "name": "Two strikes",
+   "briefing": "The engine only gives 68% thrust, so light it earlier. Left steering is weak, so leaning left is slow. Start early if the pad is on that side. Starts about 2300 m up and 150 m off the pad.",
+   "seed": 95078,
    "opts": {
-    "altScale": 0.99,
-    "offsetScale": 0.99,
-    "speedScale": 1.05,
-    "windScale": 1.39,
-    "fuel": 8493,
-    "padHalf": 10.82
+    "altScale": 1.04,
+    "offsetScale": 1.08,
+    "speedScale": 1.04,
+    "windScale": 1.37,
+    "fuel": 8139,
+    "padHalf": 11.37
    },
    "faults": {
-    "leak": 46
+    "thrustCap": 0.68,
+    "weakSide": "left",
+    "weakFactor": 0.32,
+    "flicker": false
    },
    "source": "rules"
   },
   {
    "id": "h-014",
    "level": "hard",
-   "name": "Race the leak",
-   "briefing": "A fuel line is leaking at 52 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2100 m up and 150 m off the pad.",
-   "seed": 131977,
+   "name": "Coughing engine",
+   "briefing": "The engine cuts out 2 times, without warning. Keep some height in hand. Starts about 2200 m up and 140 m off the pad.",
+   "seed": 640817,
    "opts": {
-    "altScale": 1.03,
-    "offsetScale": 1.08,
-    "speedScale": 1.09,
-    "windScale": 1.33,
-    "fuel": 8228,
-    "padHalf": 11.77
+    "altScale": 1.12,
+    "offsetScale": 0.95,
+    "speedScale": 1.03,
+    "windScale": 1.14,
+    "fuel": 8537,
+    "padHalf": 10.6
    },
    "faults": {
-    "leak": 52
+    "dropouts": 2
    },
    "source": "rules"
   },
   {
    "id": "h-015",
    "level": "hard",
-   "name": "Underpowered",
-   "briefing": "The engine only gives 84% thrust, so light it earlier. Starts about 2400 m up and 130 m off the pad.",
-   "seed": 501602,
+   "name": "Bad day at sea",
+   "briefing": "A fuel line is leaking at 92 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine cuts out 2 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2200 m up and 270 m off the pad.",
+   "seed": 612038,
    "opts": {
-    "altScale": 1.12,
-    "offsetScale": 0.95,
+    "altScale": 1.03,
+    "offsetScale": 1.18,
     "speedScale": 1.03,
-    "windScale": 1.3,
-    "fuel": 8537,
-    "padHalf": 10.97
+    "windScale": 1.19,
+    "fuel": 8465,
+    "padHalf": 11.73
    },
    "faults": {
-    "thrustCap": 0.84
+    "leak": 92,
+    "dropouts": 1,
+    "lowCut": true
    },
    "source": "rules"
   },
   {
    "id": "h-016",
    "level": "hard",
-   "name": "Nothing works",
-   "briefing": "A fuel line is leaking at 45 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine only gives 81% thrust, so light it earlier. Starts about 2200 m up and 160 m off the pad.",
-   "seed": 386253,
+   "name": "Everything at once",
+   "briefing": "A fuel line is leaking at 81 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine only gives 72% thrust, so light it earlier. Starts about 2100 m up and 210 m off the pad.",
+   "seed": 438291,
    "opts": {
-    "altScale": 1.03,
-    "offsetScale": 1.18,
+    "altScale": 0.99,
+    "offsetScale": 1.11,
     "speedScale": 1.03,
-    "windScale": 1.21,
-    "fuel": 8465,
-    "padHalf": 11.63
+    "windScale": 1.12,
+    "fuel": 7864,
+    "padHalf": 10.97
    },
    "faults": {
-    "leak": 45,
-    "thrustCap": 0.81
+    "leak": 81,
+    "thrustCap": 0.72
    },
    "source": "rules"
   },
   {
    "id": "h-017",
    "level": "hard",
-   "name": "Cursed flight",
-   "briefing": "The engine only gives 92% thrust, so light it earlier. The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2100 m up and 150 m off the pad.",
-   "seed": 475612,
+   "name": "Perfect storm II",
+   "briefing": "A fuel line is leaking at 98 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine cuts out 2 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2100 m up and 250 m off the pad.",
+   "seed": 304700,
    "opts": {
     "altScale": 0.98,
     "offsetScale": 1.06,
     "speedScale": 1.08,
-    "windScale": 1.22,
+    "windScale": 1.42,
     "fuel": 7993,
-    "padHalf": 11.53
+    "padHalf": 10.75
    },
    "faults": {
-    "thrustCap": 0.92,
-    "dropouts": 1
+    "leak": 98,
+    "dropouts": 1,
+    "lowCut": true
    },
    "source": "rules"
   },
   {
    "id": "h-018",
    "level": "hard",
-   "name": "Bleeding tank",
-   "briefing": "A fuel line is leaking at 58 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2300 m up and 210 m off the pad.",
-   "seed": 203121,
+   "name": "Flame-out scare",
+   "briefing": "The engine cuts out 2 times, without warning. Keep some height in hand. Starts about 2000 m up and 180 m off the pad.",
+   "seed": 39425,
    "opts": {
-    "altScale": 1.18,
-    "offsetScale": 1.07,
+    "altScale": 1.01,
+    "offsetScale": 1.06,
     "speedScale": 1.06,
-    "windScale": 1.36,
-    "fuel": 7745,
-    "padHalf": 10.56
+    "windScale": 1.44,
+    "fuel": 8411,
+    "padHalf": 11.6
    },
    "faults": {
-    "leak": 58
+    "dropouts": 1,
+    "stutter": true
    },
    "source": "rules"
   },
   {
    "id": "h-019",
    "level": "hard",
-   "name": "Dead air",
-   "briefing": "The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2100 m up and 110 m off the pad.",
-   "seed": 368961,
+   "name": "Bad omens II",
+   "briefing": "A fuel line is leaking at 76 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine cuts out 3 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2500 m up and 210 m off the pad.",
+   "seed": 45721,
    "opts": {
-    "altScale": 1.09,
-    "offsetScale": 0.93,
-    "speedScale": 1.02,
-    "windScale": 1.43,
-    "fuel": 8056,
-    "padHalf": 10.62
+    "altScale": 1.18,
+    "offsetScale": 1.07,
+    "speedScale": 1.06,
+    "windScale": 1.18,
+    "fuel": 7745,
+    "padHalf": 11.78
    },
    "faults": {
-    "dropouts": 1
+    "leak": 76,
+    "dropouts": 1,
+    "lowCut": true,
+    "stutter": true
    },
    "source": "rules"
   },
@@ -1448,7 +1476,7 @@ export const BANK = {
    "id": "h-020",
    "level": "hard",
    "name": "One good side",
-   "briefing": "Left steering is weak, so leaning left is slow. Start early if the pad is on that side. Starts about 2100 m up and 180 m off the pad.",
+   "briefing": "Left steering is weak and flickers, so leaning left is slow. Start early if the pad is on that side. Starts about 2100 m up and 180 m off the pad.",
    "seed": 879253,
    "opts": {
     "altScale": 0.95,
@@ -1460,211 +1488,215 @@ export const BANK = {
    },
    "faults": {
     "weakSide": "left",
-    "weakFactor": 0.63,
-    "flicker": false
+    "weakFactor": 0.39,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-021",
    "level": "hard",
-   "name": "Everything at once",
-   "briefing": "A fuel line is leaking at 41 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 2400 m up and 130 m off the pad.",
-   "seed": 760692,
+   "name": "Stubborn thruster",
+   "briefing": "Right steering is weak and flickers, so leaning right is slow. Start early if the pad is on that side. Starts about 1900 m up and 210 m off the pad.",
+   "seed": 480857,
    "opts": {
-    "altScale": 1.09,
-    "offsetScale": 0.96,
-    "speedScale": 1.09,
-    "windScale": 1.42,
-    "fuel": 8104,
-    "padHalf": 11.16
+    "altScale": 0.95,
+    "offsetScale": 1.25,
+    "speedScale": 1.1,
+    "windScale": 1.26,
+    "fuel": 7674,
+    "padHalf": 10.96
    },
    "faults": {
-    "leak": 41,
     "weakSide": "right",
-    "weakFactor": 0.62,
-    "flicker": false
+    "weakFactor": 0.32,
+    "flicker": true
    },
    "source": "rules"
   },
   {
    "id": "h-022",
    "level": "hard",
-   "name": "Sluggish side",
-   "briefing": "Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 1800 m up and 160 m off the pad.",
-   "seed": 404330,
+   "name": "Perfect storm III",
+   "briefing": "A fuel line is leaking at 78 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. Starts about 2400 m up and 210 m off the pad.",
+   "seed": 171139,
    "opts": {
-    "altScale": 0.95,
-    "offsetScale": 1.09,
+    "altScale": 1.09,
+    "offsetScale": 0.98,
     "speedScale": 1.04,
-    "windScale": 1.26,
-    "fuel": 8276,
-    "padHalf": 11.41
+    "windScale": 1.32,
+    "fuel": 8578,
+    "padHalf": 11.69
    },
    "faults": {
-    "weakSide": "right",
-    "weakFactor": 0.65,
-    "flicker": false
+    "leak": 78,
+    "dropouts": 2,
+    "hidden": true
    },
    "source": "rules"
   },
   {
    "id": "h-023",
    "level": "hard",
-   "name": "Bad day at sea",
-   "briefing": "The engine only gives 91% thrust, so light it earlier. The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2300 m up and 160 m off the pad.",
-   "seed": 271876,
+   "name": "Nothing works II",
+   "briefing": "A fuel line is leaking at 76 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine only gives 68% thrust, so light it earlier. Starts about 2500 m up and 180 m off the pad.",
+   "seed": 571206,
    "opts": {
-    "altScale": 1.09,
-    "offsetScale": 0.98,
-    "speedScale": 1.04,
-    "windScale": 1.24,
-    "fuel": 8578,
-    "padHalf": 11.64
+    "altScale": 1.15,
+    "offsetScale": 0.95,
+    "speedScale": 1.07,
+    "windScale": 1.12,
+    "fuel": 8190,
+    "padHalf": 11.86
    },
    "faults": {
-    "thrustCap": 0.91,
-    "dropouts": 1
+    "leak": 76,
+    "thrustCap": 0.68
    },
    "source": "rules"
   },
   {
    "id": "h-024",
    "level": "hard",
-   "name": "Drifting hand",
-   "briefing": "Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 2400 m up and 190 m off the pad.",
-   "seed": 370909,
+   "name": "Nothing works III",
+   "briefing": "A fuel line is leaking at 104 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine cuts out 2 times, without warning. Keep some height in hand. Starts about 2100 m up and 240 m off the pad.",
+   "seed": 707899,
    "opts": {
-    "altScale": 1.13,
-    "offsetScale": 1.17,
-    "speedScale": 1.09,
-    "windScale": 1.19,
-    "fuel": 8505,
-    "padHalf": 10.76
+    "altScale": 1,
+    "offsetScale": 1.01,
+    "speedScale": 1.03,
+    "windScale": 1.33,
+    "fuel": 8030,
+    "padHalf": 11.09
    },
    "faults": {
-    "weakSide": "right",
-    "weakFactor": 0.42,
-    "flicker": false
+    "leak": 104,
+    "dropouts": 1,
+    "stutter": true
    },
    "source": "rules"
   },
   {
    "id": "h-025",
    "level": "hard",
-   "name": "Engine hiccups",
-   "briefing": "The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2100 m up and 300 m off the pad.",
-   "seed": 566713,
-   "opts": {
-    "altScale": 1,
-    "offsetScale": 1.24,
-    "speedScale": 1.03,
-    "windScale": 1.34,
-    "fuel": 8285,
-    "padHalf": 10.85
-   },
-   "faults": {
-    "dropouts": 1
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-026",
-   "level": "hard",
-   "name": "Wonky nozzle",
-   "briefing": "Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 2500 m up and 190 m off the pad.",
-   "seed": 683370,
-   "opts": {
-    "altScale": 1.16,
-    "offsetScale": 1.02,
-    "speedScale": 1.1,
-    "windScale": 1.11,
-    "fuel": 7747,
-    "padHalf": 11.08
-   },
-   "faults": {
-    "weakSide": "right",
-    "weakFactor": 0.43,
-    "flicker": false
-   },
-   "source": "rules"
-  },
-  {
-   "id": "h-027",
-   "level": "hard",
-   "name": "Short on thrust",
-   "briefing": "The engine only gives 88% thrust, so light it earlier. Starts about 2500 m up and 160 m off the pad.",
-   "seed": 821835,
+   "name": "Dead air",
+   "briefing": "The engine cuts out 4 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2300 m up and 190 m off the pad.",
+   "seed": 353464,
    "opts": {
     "altScale": 1.16,
     "offsetScale": 0.91,
     "speedScale": 1,
     "windScale": 1.16,
     "fuel": 8207,
-    "padHalf": 10.75
+    "padHalf": 11.4
    },
    "faults": {
-    "thrustCap": 0.88
+    "dropouts": 2,
+    "lowCut": true,
+    "stutter": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-026",
+   "level": "hard",
+   "name": "Cursed flight II",
+   "briefing": "A fuel line is leaking at 89 kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down. The engine cuts out 3 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2300 m up and 210 m off the pad.",
+   "seed": 263089,
+   "opts": {
+    "altScale": 1.2,
+    "offsetScale": 1.22,
+    "speedScale": 1.1,
+    "windScale": 1.28,
+    "fuel": 8365,
+    "padHalf": 11.09
+   },
+   "faults": {
+    "leak": 89,
+    "dropouts": 1,
+    "lowCut": true,
+    "stutter": true
+   },
+   "source": "rules"
+  },
+  {
+   "id": "h-027",
+   "level": "hard",
+   "name": "Stuttering engine",
+   "briefing": "The engine cuts out 3 times, without warning. Keep some height in hand. Starts about 2000 m up and 200 m off the pad.",
+   "seed": 161990,
+   "opts": {
+    "altScale": 0.98,
+    "offsetScale": 0.92,
+    "speedScale": 1.09,
+    "windScale": 1.19,
+    "fuel": 8276,
+    "padHalf": 11.84
+   },
+   "faults": {
+    "dropouts": 2,
+    "stutter": true
    },
    "source": "rules"
   },
   {
    "id": "h-028",
    "level": "hard",
-   "name": "Double trouble",
-   "briefing": "The engine only gives 87% thrust, so light it earlier. The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 1900 m up and 150 m off the pad.",
-   "seed": 501938,
+   "name": "Engine hiccups",
+   "briefing": "The engine cuts out 2 times, without warning. Keep some height in hand. Starts about 2300 m up and 150 m off the pad.",
+   "seed": 384865,
    "opts": {
-    "altScale": 0.99,
-    "offsetScale": 1.16,
-    "speedScale": 1.08,
-    "windScale": 1.28,
-    "fuel": 8244,
-    "padHalf": 11.19
+    "altScale": 1.05,
+    "offsetScale": 1.07,
+    "speedScale": 1.03,
+    "windScale": 1.16,
+    "fuel": 7941,
+    "padHalf": 11.37
    },
    "faults": {
-    "thrustCap": 0.87,
-    "dropouts": 1
+    "dropouts": 2
    },
    "source": "rules"
   },
   {
    "id": "h-029",
    "level": "hard",
-   "name": "Lopsided steering",
-   "briefing": "Right steering is weak, so leaning right is slow. Start early if the pad is on that side. Starts about 2300 m up and 170 m off the pad.",
-   "seed": 605655,
+   "name": "Rough night II",
+   "briefing": "The engine only gives 70% thrust, so light it earlier. The engine cuts out 2 times, without warning, and one can come close to the deck. Keep some height in hand. Starts about 2400 m up and 210 m off the pad.",
+   "seed": 464162,
    "opts": {
-    "altScale": 1.06,
-    "offsetScale": 0.97,
-    "speedScale": 1.07,
+    "altScale": 1.13,
+    "offsetScale": 0.91,
+    "speedScale": 1,
     "windScale": 1.27,
-    "fuel": 8496,
-    "padHalf": 10.95
+    "fuel": 8199,
+    "padHalf": 11.09
    },
    "faults": {
-    "weakSide": "right",
-    "weakFactor": 0.65,
-    "flicker": false
+    "thrustCap": 0.7,
+    "dropouts": 1,
+    "lowCut": true
    },
    "source": "rules"
   },
   {
    "id": "h-030",
    "level": "hard",
-   "name": "Stuttering engine",
-   "briefing": "The engine cuts out once early in the burn, for under a second. Keep some height in hand. Starts about 2200 m up and 140 m off the pad.",
-   "seed": 37998,
+   "name": "Cut-out burn",
+   "briefing": "Pre-flight check: nothing flagged. Starts about 2400 m up and 140 m off the pad. Violent gusts.",
+   "seed": 191718,
    "opts": {
-    "altScale": 1.02,
-    "offsetScale": 1.05,
-    "speedScale": 1.02,
-    "windScale": 1.16,
-    "fuel": 7738,
-    "padHalf": 10.97
+    "altScale": 1.12,
+    "offsetScale": 0.94,
+    "speedScale": 1.07,
+    "windScale": 1.4,
+    "fuel": 7736,
+    "padHalf": 11.56
    },
    "faults": {
-    "dropouts": 1
+    "dropouts": 2,
+    "lowCut": true,
+    "hidden": true
    },
    "source": "rules"
   }

@@ -5,10 +5,10 @@ import { LEVELS, makeFlight } from './physics.js';
 // What each level may vary. Anything outside these ranges is rejected.
 export const RANGES = {
   easy: { altScale: [0.5, 1.0], offsetScale: [0.2, 0.8], speedScale: [0.7, 0.95], windScale: [0.1, 0.5], fuel: [9000, 12000], padHalf: [18, 24], faults: [], maxFaults: 0 },
-  medium: { altScale: [0.85, 1.15], offsetScale: [0.7, 1.1], speedScale: [0.9, 1.05], windScale: [0.7, 1.2], fuel: [8200, 9400], padHalf: [12, 16], faults: ['leak', 'thrustCap'], maxFaults: 1 },
-  hard: { altScale: [0.95, 1.2], offsetScale: [0.9, 1.3], speedScale: [1.0, 1.1], windScale: [1.1, 1.7], fuel: [7600, 8600], padHalf: [9, 12], faults: ['leak', 'thrustCap', 'dropouts', 'weakSide'], maxFaults: 2 },
+  medium: { altScale: [0.85, 1.15], offsetScale: [0.7, 1.1], speedScale: [0.9, 1.05], windScale: [0.7, 1.2], fuel: [8200, 9400], padHalf: [12, 16], faults: ['leak', 'thrustCap', 'dropouts'], maxFaults: 1, maxDrops: 1 },
+  hard: { altScale: [0.95, 1.2], offsetScale: [0.9, 1.3], speedScale: [1.0, 1.1], windScale: [1.1, 1.7], fuel: [7600, 8600], padHalf: [9, 12], faults: ['leak', 'thrustCap', 'dropouts', 'weakSide'], maxFaults: 2, maxDrops: 4 },
 };
-export const FAULT_RANGES = { leak: [25, 140], thrustCap: [0.55, 0.92], dropouts: [1, 3], weakFactor: [0.2, 0.7] };
+export const FAULT_RANGES = { leak: [25, 140], thrustCap: [0.45, 0.92], dropouts: [1, 4], weakFactor: [0.05, 0.7] };
 export const FACTORS = ['altScale', 'offsetScale', 'speedScale', 'windScale', 'fuel', 'padHalf'];
 
 const inRange = (v, [lo, hi]) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
@@ -20,7 +20,7 @@ export function activeFaults(f) {
   if (!f) return out;
   if (f.leak > 0) out.push('leak');
   if (typeof f.thrustCap === 'number' && f.thrustCap < 1) out.push('thrustCap');
-  if (f.dropouts > 0) out.push('dropouts');
+  if (f.dropouts > 0 || f.lowCut || f.stutter) out.push('dropouts');
   if (f.weakSide) out.push('weakSide');
   return out;
 }
@@ -56,8 +56,15 @@ export function validateScenario(sc, level = sc && sc.level) {
     else faults.thrustCap = round(f.thrustCap, 2);
   }
   if (act.includes('dropouts')) {
-    if (!Number.isInteger(f.dropouts) || !inRange(f.dropouts, FAULT_RANGES.dropouts)) errors.push('dropouts must be a whole number from 1 to 3');
-    else faults.dropouts = f.dropouts;
+    const n = f.dropouts > 0 ? f.dropouts : 0;
+    if (n && (!Number.isInteger(n) || n > R.maxDrops)) errors.push(`dropouts must be a whole number from 1 to ${R.maxDrops} on ${level}`);
+    else faults.dropouts = n;
+    if ((f.lowCut || f.stutter) && level !== 'hard') errors.push('low cut-outs and stutters are Hard only');
+    if (f.mild && level !== 'medium') errors.push('mild cut-outs are Medium only');
+    if (f.lowCut) faults.lowCut = true;
+    if (f.stutter) faults.stutter = true;
+    if (f.mild) faults.mild = true;
+    if (f.hidden) faults.hidden = true;
   }
   if (act.includes('weakSide')) {
     if (f.weakSide !== 'left' && f.weakSide !== 'right') errors.push("weakSide must be 'left' or 'right'");
@@ -87,7 +94,10 @@ export function faultLabels(f) {
   if (!f) return out;
   if (f.leak > 0) out.push({ key: 'leak', text: `Fuel leak: ${Math.round(f.leak)} kg/s`, short: 'Fuel leak', tone: 'bad' });
   if (typeof f.thrustCap === 'number' && f.thrustCap < 1) out.push({ key: 'thrustCap', text: `Engine limited to ${Math.round(f.thrustCap * 100)}% thrust`, short: 'Low thrust', tone: 'warn' });
-  if (f.dropouts > 0) out.push({ key: 'dropouts', text: `Engine cut-outs: ${f.dropouts === 1 ? 'one' : f.dropouts} while it burns`, short: 'Engine cut-outs', tone: 'bad' });
+  if ((f.dropouts > 0 || f.lowCut || f.stutter) && !f.hidden) { // a hidden cut-out is a surprise: no chip, no word in the briefing
+    const n = (f.dropouts || 0) + (f.lowCut ? 1 : 0) + (f.stutter ? 1 : 0);
+    out.push({ key: 'dropouts', text: `Engine cut-outs: ${n === 1 ? 'one' : n} while it burns`, short: 'Engine cut-outs', tone: 'bad' });
+  }
   if (f.weakSide) out.push({ key: 'weakSide', text: `${f.weakSide === 'left' ? 'Left' : 'Right'} steering weak${f.flicker ? ' and flickering' : ''}`, short: `${f.weakSide === 'left' ? 'Left' : 'Right'} steering`, tone: 'bad' });
   return out;
 }

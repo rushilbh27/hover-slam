@@ -3,6 +3,7 @@
 //   npm run scenarios -- --claude          ask Claude too (needs ANTHROPIC_API_KEY in .env.local)
 //   npm run scenarios -- --per-level 50    bigger bank
 //   npm run scenarios -- --fresh           start over instead of adding to the current bank
+//   npm run scenarios -- --redo hard       rebuild just one level (or medium,hard), keeping the others
 // Every scenario, whoever wrote it, must pass validation and be winnable in the simulator.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,14 +31,16 @@ const LEVELS = ['easy', 'medium', 'hard'];
 async function loadBank() {
   if (flag('fresh') || !fs.existsSync(out)) return { easy: [], medium: [], hard: [] };
   const { BANK } = await import(`${out}?t=${Date.now()}`);
-  return { easy: [...BANK.easy], medium: [...BANK.medium], hard: [...BANK.hard] };
+  const bank = { easy: [...BANK.easy], medium: [...BANK.medium], hard: [...BANK.hard] };
+  for (const level of val('redo', '').split(',')) if (bank[level]) bank[level] = []; // --redo medium,hard rebuilds just those levels
+  return bank;
 }
 
 // How often each kind may appear in a level's bank, as a share of its size, so the mix stays varied.
 const QUOTA = {
   easy: { none: 1 },
-  medium: { none: 0.2, leak: 0.4, thrustCap: 0.4 },
-  hard: { leak: 0.38, thrustCap: 0.38, dropouts: 0.42, weakSide: 0.55 },
+  medium: { none: 0.17, leak: 0.34, thrustCap: 0.34, dropouts: 0.17 },
+  hard: { leak: 0.36, thrustCap: 0.4, dropouts: 0.66, weakSide: 0.3 },
 };
 const kindsOf = (sc) => (activeFaults(sc.faults).length ? activeFaults(sc.faults) : ['none']);
 
