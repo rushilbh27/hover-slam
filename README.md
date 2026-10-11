@@ -24,6 +24,7 @@ You are the flight computer.
 | ↓ | Speed up. Let go of both to hold your falling speed |
 | R | Retry this scenario |
 | N | A new scenario |
+| Esc | Settings and help (the flight pauses while they are open) |
 
 On a phone you get touch buttons in two thumb clusters (lean on the left, throttle and engine on the right), and it works in portrait or landscape. The **Expert** checkbox swaps in raw controls: the arrows swivel the engine directly and ↑/↓ move a throttle lever.
 
@@ -107,12 +108,27 @@ Sound is generated in the browser, so there is nothing to download or license. T
 | `public/app.js` | The renderer, HUD, panels and start screens |
 | `public/menu.js` | The how-to-play diagrams and level cards |
 | `public/audio.js` | The sound, all synthesised with Web Audio (no audio files) |
-| `public/icons.js`, `public/ui.js` | The icon set, and canvas helpers for callouts, crosshairs and path lines |
+| `public/icons.js`, `public/ui.js` | The icon set (Phosphor Icons, MIT, see `public/vendor/`), and canvas helpers for callouts, crosshairs and path lines |
 | `public/styleguide.html` | The look in one page: type, colour, buttons, icons, callouts. Open `/styleguide.html` |
 | `public/fonts/` | D-DIN, by Datto, under the SIL Open Font License (see `OFL-1.1.txt`) |
+| `api/` | The feedback endpoint (`feedback.js` for Vercel, `_feedback.js` is the code the server and tests share) |
+| `public/feedback.js`, `public/tooltip.js` | The optional rating on the result card, and the hover tooltips |
 | `scripts/test.mjs` | The tests |
 | `scripts/generate-scenarios.mjs` | Builds the scenario bank, by rules or with Claude |
 | `scripts/lib/` | The scripted players, the rule-based writer and the Claude writer |
+
+## Player feedback
+
+After a landing, the result card asks, optionally, for a star rating and a short note. It is never required and never blocks the next run. What is sent: the stars, the note, the level, the scenario id, the result and score, and a random id kept in the player's browser so repeat players can be told apart. No account, no email, and the server does not keep IP addresses.
+
+It goes to `api/feedback.js`, which saves it in a Neon Postgres table (`hoverslam_feedback`, created on first use). The browser never talks to the database. To set it up, make a free Neon database and give the site its connection string as `DATABASE_URL`: as an environment variable on Vercel, or in `.env.local` when running locally. To read what players said:
+
+```
+npm run feedback            # the 40 most recent, with a summary by level
+npm run feedback -- 200     # more of them
+```
+
+Without `DATABASE_URL` the game works as usual, and feedback waits in the player's browser until the site can save it. The first Easy descent also shows key prompts; Hints in settings brings them back.
 
 ## Run it
 

@@ -671,7 +671,7 @@ test('every icon is a set of drawn paths, and the helper returns an inline svg',
   assert.ok(Object.keys(ICONS).length >= 20);
   for (const [name, parts] of Object.entries(ICONS)) {
     assert.ok(Array.isArray(parts) && parts.length > 0 && parts.every((d) => /^M/.test(d)), name);
-    assert.match(icon(name), /^<svg class="icon"[^>]*viewBox="0 0 24 24"/);
+    assert.match(icon(name), /^<svg class="icon"[^>]*viewBox="0 0 256 256"/);
   }
   assert.equal(icon('no-such-icon'), '');
 });
@@ -688,6 +688,111 @@ test('the canvas helpers draw a callout, a crosshair and a path', async () => {
   assert.equal(calls.find((c) => c[0] === 'fillText')[1], 'BOOSTER', 'labels are set in capitals');
 });
 
+test('every element id the game looks up exists in the page', () => {
+  const dir = path.join(import.meta.dirname, '..', 'public');
+  const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
+  const markup = read('index.html') + read('app.js') + read('menu.js'); // some ids are made by templates in the scripts
+  const ids = new Set([...read('app.js').matchAll(/\$\('([a-z0-9-]+)'\)/g)].map((m) => m[1]));
+  const missing = [...ids].filter((id) => !markup.includes(`id="${id}"`) && !markup.includes(`id=\\"${id}\\"`));
+  assert.deepEqual(missing, [], `ids with no element: ${missing.join(', ')}`);
+  for (const id of ['focus', 'dev', 'strip', 'edge', 'dock', 'drawer', 'settings', 'coach', 'hints', 'raw', 'levels', 'd-engine', 'd-menu', 'd-lab', 't-vy', 't-alt', 't-dx', 't-vx', 't-tilt']) assert.ok(ids.has(id) || read('index.html').includes(`id="${id}"`), id);
+});
+
+test('tooltips: controls use data-tip (no native titles to double up), and every tip has words', () => {
+  const dir = path.join(import.meta.dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  assert.ok(!/<(button|canvas|i|span|div)[^>]*\stitle="/.test(html), 'a native title would show a second tooltip');
+  const tips = [...html.matchAll(/data-tip="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(tips.length >= 15, `${tips.length} tips in the page`);
+  for (const t of tips) assert.ok(t.trim().length > 2, 'a tip with no label');
+  for (const id of ['d-engine', 'd-retry', 'd-new', 'd-menu', 'd-lab']) assert.match(html, new RegExp(`id="${id}"[^>]*data-tip="[^"]+"[^>]*data-key="`), `${id} shows its key`);
+  const audio = fs.readFileSync(path.join(dir, 'audio.js'), 'utf8');
+  assert.ok(!/\.title\s*=/.test(audio), 'the sound toggles use tips, not titles');
+});
+
+// ---------- optional feedback after a landing ----------
+const withStorage = async (fn) => {
+  const mem = new Map();
+  const saved = { ls: globalThis.localStorage, fetch: globalThis.fetch };
+  globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+  try { return await fn(mem); } finally { globalThis.localStorage = saved.ls; globalThis.fetch = saved.fetch; }
+};
+
+test('feedback is shaped for the table: a star rating and a note are both optional, but one must be there', async () => {
+  const { shape } = await import('../public/feedback.js');
+  await withStorage(async () => {
+    assert.equal(shape({ level: 'easy' }), null, 'nothing to send');
+    assert.equal(shape({ rating: 9, comment: '   ' }), null, 'out of range and blank');
+    const row = shape({ rating: 4, comment: '  nice  ', level: 'hard', scenarioId: 'h-004', outcome: 'Landed', score: 85 });
+    assert.deepEqual({ ...row, client_id: undefined }, { rating: 4, comment: 'nice', level: 'hard', scenario_id: 'h-004', outcome: 'Landed', score: 85, client_id: undefined });
+    assert.ok(row.client_id.length > 8, 'a random id for this browser');
+    assert.equal(shape({ comment: 'x'.repeat(900) }).comment.length, 500, 'long notes are cut at 500');
+    assert.equal(shape({ rating: 5, level: 'nightmare' }).level, null, 'unknown levels are dropped');
+    assert.equal(shape({ rating: 5 }).client_id, shape({ rating: 1 }).client_id, 'the same browser keeps the same id');
+  });
+});
+
+test('feedback that cannot be sent waits in the browser, and goes out once, in order, with the next one', async () => {
+  const { sendFeedback } = await import('../public/feedback.js');
+  await withStorage(async (mem) => {
+    globalThis.fetch = async () => ({ ok: false, status: 503 }); // storage not set up yet
+    assert.equal(await sendFeedback({ rating: 3 }), false, 'kept for later');
+    assert.equal(JSON.parse(mem.get('hs.feedbackQueue')).length, 1);
+    const calls = [];
+    globalThis.fetch = async (url, init) => { calls.push({ url, method: init.method, body: JSON.parse(init.body) }); return { ok: true, status: 201 }; };
+    assert.equal(await sendFeedback({ rating: 5, comment: 'great' }), true);
+    assert.deepEqual(calls.map((c) => c.body.rating), [3, 5], 'the waiting one goes first');
+    assert.equal(calls[0].url, '/api/feedback', 'it goes to this site, never straight to a database');
+    assert.equal(JSON.parse(mem.get('hs.feedbackQueue')).length, 0, 'the queue is empty after it is sent');
+    let n = 0;
+    globalThis.fetch = async () => (++n === 2 ? { ok: false, status: 500 } : { ok: true, status: 201 });
+    await sendFeedback({ rating: 1 });
+    assert.equal(await sendFeedback({ rating: 2 }), false, 'a failure leaves the rest waiting');
+    assert.equal(JSON.parse(mem.get('hs.feedbackQueue')).length, 1, 'only the one that failed is kept, nothing repeats');
+  });
+});
+
+test('the feedback endpoint: checks what arrives, saves it with parameters, and refuses politely when storage is not set up', async () => {
+  const { handleFeedback, clean, resetForTests, DDL } = await import('../api/_feedback.js');
+  resetForTests();
+  const env = { DATABASE_URL: 'postgresql://user:secret@ep-test-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require' };
+  const calls = [];
+  const fetchImpl = async (url, init) => { calls.push({ url, headers: init.headers, body: JSON.parse(init.body) }); return { ok: true, status: 200, json: async () => ({ rows: [] }) }; };
+  assert.equal((await handleFeedback({ method: 'GET', body: null, env, fetchImpl })).status, 405);
+  assert.equal((await handleFeedback({ method: 'POST', body: { level: 'easy' }, env, fetchImpl })).status, 400, 'nothing to keep');
+  assert.equal((await handleFeedback({ method: 'POST', body: { rating: 4 }, env: {}, fetchImpl })).status, 503, 'no database yet');
+  assert.equal(calls.length, 0, 'nothing was sent anywhere');
+  const evil = "x'); drop table hoverslam_feedback; --";
+  const ok = await handleFeedback({ method: 'POST', body: { rating: 5, comment: evil, level: 'hard', scenario_id: 'h-004', outcome: 'Landed', score: 85, client_id: 'abc' }, env, fetchImpl });
+  assert.equal(ok.status, 201);
+  assert.equal(calls.length, 2, 'the table is made once, then the row goes in');
+  assert.equal(calls[0].body.query, DDL);
+  assert.equal(calls[0].url, 'https://ep-test-pooler.us-east-2.aws.neon.tech/sql');
+  assert.equal(calls[0].headers['Neon-Connection-String'], env.DATABASE_URL);
+  assert.ok(!calls[1].body.query.includes('drop table'), 'what a player types never becomes part of the query');
+  assert.equal(calls[1].body.params[1], evil, 'it travels as a parameter');
+  await handleFeedback({ method: 'POST', body: { rating: 2 }, env, fetchImpl });
+  assert.equal(calls.length, 3, 'the table is not remade for every post');
+  assert.deepEqual(clean({ rating: 99, comment: 'ok', level: 'nightmare', score: 400 }), { rating: null, comment: 'ok', level: null, scenario_id: null, outcome: null, score: null, client_id: null });
+  assert.equal(clean({ comment: 'y'.repeat(900) }).comment.length, 500);
+  resetForTests();
+  const down = await handleFeedback({ method: 'POST', body: { rating: 3 }, env, fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({ message: 'boom' }) }) });
+  assert.equal(down.status, 502, 'a database failure is a polite 502, and the secret never leaves the server');
+  assert.ok(!JSON.stringify(down.json).includes('secret'));
+  resetForTests();
+  let last;
+  for (let k = 0; k < 10; k++) last = await handleFeedback({ method: 'POST', body: { rating: 3 }, env, fetchImpl, ip: '1.2.3.4' });
+  assert.equal(last.status, 429, 'a flood from one address is slowed down');
+  resetForTests();
+});
+
+test('the tutorial is Easy only and for the first game only', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /COACH\.on = app\.mode === 'game' && app\.level === 'easy'/, 'Easy only');
+  assert.match(app, /store\.get\('hs\.coachDone', 0\) < 1/, 'first game only');
+  assert.match(app, /if \(COACH\.on\) store\.set\('hs\.coachDone', 1\)/, 'the first game uses it up, however it ended');
+});
+
 // ---------- the single-file build ----------
 test('the single-file build is valid JavaScript with the bank inside it', () => {
   execFileSync(process.execPath, [path.join(import.meta.dirname, 'build-standalone.mjs')], { stdio: 'ignore' });
@@ -696,6 +801,7 @@ test('the single-file build is valid JavaScript with the bank inside it', () => 
   assert.ok(script.includes('const BANK ='), 'bank is bundled');
   assert.ok(html.includes('data:font/woff2;base64,') && !html.includes('url("fonts/'), 'the fonts are inside the file');
   assert.ok(script.includes('const ICONS ='), 'icons are bundled');
+  assert.ok(script.includes('function initTooltips'), 'tooltips are bundled');
   const file = path.join(os.tmpdir(), `hoverslam-check-${process.pid}.mjs`);
   fs.writeFileSync(file, script);
   try {

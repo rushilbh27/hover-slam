@@ -30,6 +30,7 @@
     "start": "node server.mjs",
     "test": "node scripts/test.mjs",
     "build": "node scripts/build-standalone.mjs",
-    "scenarios": "node scripts/generate-scenarios.mjs"
+    "scenarios": "node scripts/generate-scenarios.mjs",
+    "feedback": "node scripts/feedback.mjs"
   }
 }

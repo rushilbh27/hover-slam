@@ -4,6 +4,9 @@ import { humanControl } from './controls.js';
 import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
 import { audio } from './audio.js';
+import { icon } from './icons.js';
+import { initTooltips } from './tooltip.js';
+import { sendFeedback } from './feedback.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -137,6 +140,7 @@ function newFlight() {
   app.acc = 0;
   audio.reset(); // cut off the last flight's one-off sounds
   clearTimeout(app.cardTimer); // a result card from the flight you just left must not appear over this one
+  clearTimeout(app.labTimer);
   Object.assign(fx, freshFx());
   fx.scene = pickScene();
   cam.snap = true;
@@ -150,7 +154,8 @@ function start() {
   newFlight();
   app.running = true;
   $('intro').classList.add('hidden');
-  if (app.mode === 'sim') app.report = debrief(app.gains, app.seed);
+  if (app.mode === 'sim') { app.report = debrief(app.gains, app.seed); setDrawer(false); } // watch the flight with the whole scene
+  coachStart();
 }
 
 // A new scenario from the shuffle bag: every one in the level is played before any repeats.
@@ -158,9 +163,15 @@ function pickScenario() {
   app.scenario = nextScenario(app.level, BANK, store);
 }
 
+const FAULT_TIPS = {
+  leak: 'Propellant is draining from the tank. Light later and brake harder so the burn is short.',
+  thrustCap: 'The engine cannot give full thrust, so it brakes more slowly. Light it earlier.',
+  dropouts: 'The engine stops for a moment, more than once. Keep some height in hand.',
+  weakSide: 'The booster turns slowly toward one side. Start leaning early, and plan to steer the other way.',
+};
 function renderFaultChips() {
   const labels = app.mode === 'game' && app.scenario ? faultLabels(app.scenario.faults) : [];
-  $('faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}" data-k="${l.key}">${l.text}</span>`).join('');
+  $('faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}" data-k="${l.key}" data-tip="${l.short}" data-tip-detail="${FAULT_TIPS[l.key]}" data-tip-pos="bottom">${l.text}</span>`).join('');
   $('i-faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}">${l.text}</span>`).join('');
 }
 
@@ -210,6 +221,8 @@ window.addEventListener('keydown', (e) => {
     else if (e.code === 'Escape' && app.view !== 'welcome') setView('welcome');
     return;
   }
+  if (e.code === 'Escape') { e.preventDefault(); setDrawer(!app.menuOpen); return; }
+  if (app.menuOpen) return; // the game is paused: the keys belong to the drawer
   if (e.code === 'Space') {
     e.preventDefault();
     if (!app.running && !$('intro').classList.contains('hidden')) return start();
@@ -241,7 +254,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const f = app.flight;
-  if (f && app.running && !app.hold && !f.state.done) {
+  if (f && app.running && !app.hold && !app.menuOpen && !f.state.done) {
     const inp = app.input;
     if (app.mode === 'game' && $('raw').checked) inp.throttle = clamp(inp.throttle + ((inp.up ? 1 : 0) - (inp.down ? 1 : 0)) * 1.2 * dt, f.minThrottle, 1);
     // slow motion for the last metres
@@ -261,9 +274,10 @@ function frame(now) {
   } else if (f && f.state.done) {
     fx.slow = lerp(fx.slow, 1, Math.min(1, dt * 0.9)); // ease out of the touchdown slow motion
   }
-  updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow);
+  if (!app.menuOpen) updateFx(dt * (app.speed > 1 ? 1.5 : 1) * fx.slow); // the picture holds still while the drawer is open
   render(dt);
   hud();
+  placeFocus();
   if (app.flight) audio.tick(dt, audioState());
   requestAnimationFrame(frame);
 }
@@ -272,8 +286,8 @@ function frame(now) {
 function audioState() {
   const f = app.flight, s = f.state;
   return {
-    menu: app.attract, running: app.running, done: s.done,
-    lit: s.engineOn && !s.cut && !s.done && s.fuel > 0, throttle: s.throttle,
+    menu: app.attract, running: app.running && !app.menuOpen, done: s.done,
+    lit: s.engineOn && !s.cut && !s.done && s.fuel > 0 && !app.menuOpen, throttle: s.throttle,
     fall: -s.vy, alt: Math.max(0, s.y - BOOSTER.legHeight), wind: Math.abs(windAt(f.wind, s.t, s.y)),
     theme: themeKey(), scene: fx.scene,
   };
@@ -308,14 +322,16 @@ function onEnd() {
     explode(s);
   }
   app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
-  if (app.mode === 'sim') renderReport();
+  if (app.mode === 'sim') { renderReport(); app.labTimer = setTimeout(() => { if (app.ended && app.mode === 'sim') setDrawer(true); }, 2000); } // the report slides back in
+  if (COACH.on) store.set('hs.coachDone', 1); // the lesson is for the first game only, however it ended
+  COACH.on = false;
+  $('coach').classList.add('hidden');
   if (app.mode === 'game' && o.landed) {
     const sc = scoreFlight(o);
     const best = store.get('hs.best', {});
     if (!best[app.level] || sc > best[app.level]) { best[app.level] = sc; store.set('hs.best', best); }
     const cleared = store.get('hs.cleared', {});
     if (app.scenario && (!cleared[app.scenario.id] || sc > cleared[app.scenario.id])) { cleared[app.scenario.id] = sc; store.set('hs.cleared', cleared); }
-    renderBest();
   }
 }
 
@@ -360,12 +376,12 @@ function stat(label, value, ok) {
 }
 
 function showOutcome(o) {
+  if (app.mode === 'sim') return; // the lab's report says it all
   $('o-title').textContent = o.landed ? 'Landed' : o.reason;
   $('o-title').className = 'o-title ' + (o.landed ? 'good' : 'bad');
   const c = o.checks || {};
   let sub = '';
   if (o.landed) sub = `Score ${scoreFlight(o)} out of 100.`;
-  else if (app.mode === 'sim' && app.report) sub = app.report.findings[0].title + ' See the panel for why.';
   else sub = gameHint(o);
   $('o-sub').textContent = sub;
   const isTouch = o.reason !== 'Lost control' && o.reason !== 'Flew away' && o.reason !== 'Timed out';
@@ -379,8 +395,52 @@ function showOutcome(o) {
   // after a win the natural next step is a new scenario; after a loss it is another go
   $('o-next').classList.toggle('primary', !game || o.landed);
   $('o-retry').classList.toggle('primary', game && !o.landed);
+  rateReset(o);
   $('outcome').classList.remove('hidden');
 }
+
+// ---------- optional feedback after a landing ----------
+// Stars, then a note if the player wants to leave one. It is never required, never repeats within a run, and the keys stay free for the game.
+const RATE = { n: 0, sent: false, ctx: null };
+const RATE_WORDS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+function ratePaint(n) {
+  for (const b of $('rate-stars').querySelectorAll('.star')) {
+    const on = Number(b.dataset.n) <= n;
+    b.classList.toggle('on', on);
+    b.innerHTML = icon(on ? 'star-fill' : 'star', 22);
+    b.setAttribute('aria-checked', String(Number(b.dataset.n) === RATE.n));
+  }
+}
+function rateReset(o) {
+  const show = app.mode === 'game' && Boolean(o.landed);
+  $('rate').classList.toggle('hidden', !show);
+  Object.assign(RATE, { n: 0, sent: false, ctx: show ? { level: app.level, scenarioId: app.scenario && app.scenario.id, outcome: 'Landed', score: scoreFlight(o) } : null });
+  $('rate-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="star" role="radio" aria-checked="false" aria-label="${n} out of 5, ${RATE_WORDS[n]}" data-n="${n}" data-tip="${RATE_WORDS[n]}" data-tip-pos="top"></button>`).join('');
+  ratePaint(0);
+  $('rate-more').classList.add('hidden');
+  $('rate-text').value = '';
+  $('rate-send').disabled = false;
+  $('rate-q').textContent = 'How was that run? Optional.';
+  $('rate-note').classList.remove('hidden');
+}
+$('rate-stars').addEventListener('click', (e) => {
+  const b = e.target.closest('.star');
+  if (!b || RATE.sent) return;
+  RATE.n = Number(b.dataset.n);
+  ratePaint(RATE.n);
+  $('rate-more').classList.remove('hidden');
+});
+$('rate-stars').addEventListener('pointerover', (e) => { const b = e.target.closest('.star'); if (b && !RATE.sent) ratePaint(Number(b.dataset.n)); });
+$('rate-stars').addEventListener('pointerleave', () => { if (!RATE.sent) ratePaint(RATE.n); });
+$('rate-send').addEventListener('click', async () => {
+  if (RATE.sent || !RATE.ctx) return;
+  RATE.sent = true;
+  $('rate-send').disabled = true;
+  const ok = await sendFeedback({ ...RATE.ctx, rating: RATE.n || null, comment: $('rate-text').value });
+  $('rate-q').textContent = ok ? 'Thanks, that helps.' : 'Thanks. It will send when you are back online.';
+  $('rate-more').classList.add('hidden');
+  $('rate-note').classList.add('hidden');
+});
 
 function gameHint(o) {
   const f = app.flight;
@@ -405,9 +465,8 @@ $('o-next').addEventListener('click', () => {
   if (app.mode === 'game') return showIntro(true);
   app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start();
 });
-$('reroll').addEventListener('click', () => showIntro(true));
 $('start').addEventListener('click', () => start());
-$('restart').addEventListener('click', () => (app.mode === 'game' ? start() : showIntro()));
+$('restart').addEventListener('click', () => { setDrawer(false); if (app.mode === 'game') start(); else showIntro(); });
 
 // ---------- effects ----------
 
@@ -1510,6 +1569,30 @@ function drawMinimap(f) {
 
 // ---------- HUD ----------
 let hudT = 0;
+// an arrow icon in a slot, rewritten only when it changes
+function setDir(el, name) {
+  if (el.dataset.name === name) return;
+  el.dataset.name = name;
+  el.innerHTML = name ? icon(name, 13) : '';
+}
+
+// keeps the instruments beside the booster, every frame, and inside the picture
+function placeFocus() {
+  const f = app.flight;
+  if (!f || !$('focus').classList.contains('on')) return;
+  const s = f.state;
+  const hw = clamp(cam.s * 2.4, 8, 70), small = W < 520;
+  // keep the gauge on the left and the numbers on the right of the booster, a clear hand's width away from it, and both inside the picture
+  const gl = small ? 30 : 48, gr = small ? 40 : 60;
+  const lo = (small ? 78 : 96) + hw + gl + 6, hi = W - (hw + gr + (small ? 158 : 206)) - 10;
+  const x = hi < lo ? (lo + hi) / 2 : clamp(sx(s.x), lo, hi), y = clamp(sy(s.y + 21), small ? 240 : 130, H - 150);
+  const fc = $('focus');
+  fc.style.setProperty('--hw', `${hw.toFixed(1)}px`);
+  fc.style.setProperty('--gl', `${gl}px`);
+  fc.style.setProperty('--gr', `${gr}px`);
+  fc.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+}
+
 function hud() {
   const f = app.flight;
   if (!f) return;
@@ -1533,8 +1616,42 @@ function hud() {
   $('t-vx').className = low ? (Math.abs(s.vx) <= L.vx ? 'ok' : 'warn') : '';
   $('t-dx').className = low ? (Math.abs(s.x) <= f.pad.halfWidth ? 'ok' : 'warn') : '';
   $('t-tilt').className = low ? (Math.abs(s.theta) <= L.tilt ? 'ok' : 'warn') : '';
-  // target speed helper on Easy and Medium
-  $('t-vy-target').textContent = guided ? `m/s, aim for ${aim.toFixed(0)}` : 'm/s';
+  // the instruments that ride with the booster: a gauge that wants the dot on the centre tick, and the numbers that decide a landing
+  const fall = -s.vy;
+  const flying = app.running && !s.done && !app.attract;
+  const dev = clamp((fall - aim) / (aim * 0.3 + 4), -1, 1); // below the tick: falling faster than the plan, so brake
+  $('dev').style.display = guided ? '' : 'none';
+  $('dev').style.setProperty('--dy', `${(dev * 52).toFixed(1)}px`);
+  $('dev').dataset.s = Math.abs(dev) < 0.25 ? '' : Math.abs(dev) < 0.6 ? 'amber' : 'red';
+  $('t-vy-target').innerHTML = guided ? (low ? `aim ${aim.toFixed(0)}<br>limit ${L.vy}` : `aim ${aim.toFixed(0)}`) : ''; // numbers only, so markup is safe
+  const focus = $('focus');
+  focus.classList.toggle('on', flying);
+  focus.classList.toggle('final', low);
+  $('lim-dx').textContent = `/ ±${+f.pad.halfWidth.toFixed(0)}`;
+  $('lim-vx').textContent = `/ ${L.vx}`;
+  $('lim-tilt').textContent = `/ ${Math.round(L.tilt / DEG)}°`;
+  setDir($('pad-dir'), Math.abs(s.x) > 2 ? (s.x > 0 ? 'arrow-left' : 'arrow-right') : ''); // the pad is the other way from where you are
+  setDir($('vx-dir'), Math.abs(s.vx) > 0.3 ? (s.vx > 0 ? 'arrow-right' : 'arrow-left') : '');
+  const strip = $('strip'), range = clamp(80 + h * 0.35, 80, 420);
+  strip.classList.toggle('on', flying);
+  const dotPct = 50 + clamp(s.x / range, -1, 1) * 50;
+  $('strip-dot').style.left = `${dotPct}%`;
+  $('strip-pad').style.width = `${clamp((f.pad.halfWidth / range) * 100, 2, 100)}%`;
+  const vel = $('strip-vel'), vlen = clamp(Math.abs(s.vx) * 8, 0, 70);
+  vel.style.left = `${dotPct}%`; vel.style.width = `${vlen}px`; vel.style.transform = s.vx < 0 ? 'translateX(-100%)' : 'none';
+  const driftOut = low && (Math.abs(s.vx) > L.vx || Math.abs(s.theta) > L.tilt || Math.abs(s.x) > f.pad.halfWidth * 1.2);
+  strip.dataset.s = driftOut ? (Math.abs(s.vx) > L.vx * 1.8 || Math.abs(s.x) > f.pad.halfWidth * 2 ? 'red' : 'amber') : '';
+  // a cue at the edge of the eye: too fast near the deck, or drifting out of the landing limits
+  const tooFast = guided && flying && h < 400 && h > 6 && fall > aim * 1.35 + 6;
+  const edge = $('edge');
+  edge.classList.toggle('alarm', tooFast && !app.menuOpen);
+  edge.classList.toggle('warn', !tooFast && driftOut && flying && !app.menuOpen);
+  $('lamp-fuel').classList.toggle('hidden', !(flying && s.fuel / f.fuel0 < 0.12));
+  $('lamp-paused').classList.toggle('hidden', !(app.menuOpen && app.running && !s.done));
+  coachUpdate(f, s, h);
+  const eb = $('d-engine');
+  eb.classList.toggle('on', s.engineOn && !s.done);
+  eb.setAttribute('aria-pressed', String(Boolean(s.engineOn && !s.done)));
   const lit = s.engineOn && !s.done && !s.cut;
   const thr = lit ? s.throttle : 0;
   $('b-thr').style.width = `${thr * 100}%`;
@@ -1588,24 +1705,10 @@ function renderLevels() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(k === app.level));
     b.textContent = lv.label;
-    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); showIntro(true); });
+    b.dataset.tip = lv.label; b.dataset.tipDetail = LEVEL_COPY[k].tagline;
+    b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); setDrawer(false); showIntro(true); });
     box.appendChild(b);
   }
-  const lv = levelCfg();
-  $('level-blurb').textContent = lv.blurb;
-  const f = app.mode === 'game' && app.scenario ? scenarioFlight(app.level, app.scenario) : makeFlight(1, lv.opts);
-  $('limits-text').textContent = `Land inside the green zone (±${+f.pad.halfWidth.toFixed(1)} m) at under ${f.limits.vy} m/s down, ${f.limits.vx} m/s sideways and ${Math.round(f.limits.tilt / DEG)}° of tilt. The dotted line shows where you're heading.`;
-  renderBest();
-}
-
-function renderBest() {
-  const best = store.get('hs.best', {});
-  const cleared = store.get('hs.cleared', {});
-  const parts = Object.entries(LEVELS).map(([k, lv]) => {
-    const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
-    return n || best[k] ? `${lv.label}: ${n} of ${(BANK[k] || []).length} scenarios cleared${best[k] ? `, best ${best[k]}` : ''}` : null;
-  }).filter(Boolean);
-  $('best').innerHTML = parts.join('<br>');
 }
 
 // ---------- simulator pane ----------
@@ -1700,16 +1803,12 @@ $('test-all').addEventListener('click', () => {
 // ---------- tabs and selects ----------
 function setMode(mode) {
   app.mode = mode;
-  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === mode);
-  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('hidden', p.dataset.pane !== mode);
   document.body.dataset.mode = mode;
   app.ghosts = [];
   renderWindOptions();
-  $('wind-label').classList.toggle('hidden', mode === 'game');
-  $('reroll').classList.toggle('hidden', mode !== 'game');
   showIntro(true);
+  setDrawer(mode === 'sim'); // the lab opens on its settings, the game on the scene
 }
-for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setMode(t.dataset.tab));
 
 // the wind shown for each seed is the one the current level really uses
 function renderWindOptions() {
@@ -1728,6 +1827,90 @@ function renderWindOptions() {
 }
 $('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); if (app.mode === 'sim') start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
+
+// ---------- settings, the lab drawer and the dock ----------
+// In a flight, settings are a small popover over the dock; in the autopilot lab the nine settings live in a drawer. Either one pauses
+// the flight while it is open, and Esc opens and closes it.
+function setDrawer(open) {
+  const lab = app.mode === 'sim';
+  const el = lab ? $('drawer') : $('settings'), other = lab ? $('settings') : $('drawer');
+  other.classList.remove('open'); other.inert = true;
+  if (!open && el.contains(document.activeElement)) document.activeElement.blur(); // never leave Space on a hidden button
+  el.classList.toggle('open', open);
+  el.inert = !open;
+  app.menuOpen = open;
+  document.body.classList.toggle('drawer-open', open);
+  $('d-menu').setAttribute('aria-expanded', String(open && !lab));
+  $('d-lab').setAttribute('aria-expanded', String(open && lab));
+  if (open) {
+    Object.assign(app.input, { left: false, right: false, up: false, down: false });
+    (lab ? $('drawer-close') : el.querySelector('.level.active') || el.querySelector('button')).focus({ preventScroll: true });
+  }
+}
+for (const [id, name] of [['d-engine', 'engine'], ['d-retry', 'retry'], ['d-new', 'shuffle'], ['d-menu', 'gear'], ['d-lab', 'sliders'], ['drawer-close', 'close']]) $(id).innerHTML = icon(name, 20);
+$('to-lab').innerHTML = `${icon('sliders', 16)}Autopilot lab`;
+$('to-how').innerHTML = `${icon('help', 16)}How to play`;
+$('d-engine').addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  if (!app.running && !$('intro').classList.contains('hidden')) return start();
+  if (app.mode === 'game' && app.running) app.input.engine = !app.input.engine;
+});
+$('d-retry').addEventListener('click', (e) => { e.currentTarget.blur(); start(); });
+$('d-new').addEventListener('click', (e) => { e.currentTarget.blur(); showIntro(true); });
+for (const id of ['d-menu', 'd-lab']) $(id).addEventListener('click', (e) => { e.currentTarget.blur(); setDrawer(!app.menuOpen); });
+$('drawer-close').addEventListener('click', () => setDrawer(false));
+$('to-lab').addEventListener('click', () => setMode('sim'));
+$('to-game').addEventListener('click', () => setMode('game'));
+$('to-how').addEventListener('click', () => { setDrawer(false); showStart('how'); });
+$('stage').addEventListener('pointerdown', () => { if (app.menuOpen) setDrawer(false); });
+$('hints').checked = store.get('hs.hints', true);
+$('hints').addEventListener('change', (e) => { store.set('hs.hints', e.target.checked); if (e.target.checked) store.set('hs.coachDone', 0); }); // turning hints on brings the lesson back
+
+// ---------- the tutorial: key prompts at the moment they matter ----------
+// Space to light the engine, then the lean, then the speed. Each step ends when the player does the thing, and the lesson is
+// shown on the first Easy game only. Hints can be switched off, or back on for the next Easy game, in settings.
+const COACH = { on: false, step: 0, lean: 0, speed: 0, t: 0, shown: '' };
+function coachStart() {
+  COACH.on = app.mode === 'game' && app.level === 'easy' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 1; // Easy only, and only the first game
+  Object.assign(COACH, { step: 0, lean: 0, speed: 0, t: 0, shown: '' });
+  $('coach').classList.add('hidden');
+}
+const keycap = (label, k, wide) => `<kbd class="cap${wide ? ' wide' : ''}" data-k="${k}">${label}</kbd>`;
+function coachUpdate(f, s, h) {
+  const el = $('coach');
+  if (!COACH.on || !app.running || s.done || app.menuOpen) { el.classList.add('hidden'); return; }
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  const inp = app.input;
+  if (COACH.step === 0 && s.engineOn) COACH.step = 1;
+  if (COACH.step === 1) {
+    if (inp.left || inp.right) COACH.lean += 0.05;
+    if (COACH.lean > 0.7 || Math.abs(s.x) < f.pad.halfWidth) COACH.step = 2;
+  }
+  if (COACH.step === 2) {
+    if (inp.up || inp.down) COACH.speed += 0.05;
+    COACH.t += 0.05;
+    if (COACH.speed > 0.3 || COACH.t > 10) COACH.step = 3;
+  }
+  const low = h < 150;
+  const hot = COACH.step === 1 ? (s.x > 0 ? 'left' : 'right') : ''; // the key that goes toward the pad
+  const key = `${COACH.step}${hot}${touch}${low}`;
+  if (COACH.step === 3 && !low) { el.classList.add('hidden'); return; }
+  if (key !== COACH.shown) {
+    COACH.shown = key;
+    const lv = levelCfg();
+    const steps = [
+      [keycap('Space', 'engine', true), 'Light the engine', touch ? 'Tap Engine.' : '', app.level === 'easy' ? 'A cue tells you when it is time.' : 'Around 1,600 m leaves time to steer.'],
+      [keycap('←', 'left') + keycap('→', 'right'), 'Lean toward the pad', 'The arrow beside To pad shows the way.', 'Steering only works while the engine burns.'],
+      [keycap('↑', 'up') + keycap('↓', 'down'), 'Keep the dot on the centre tick', 'Up slows you down, down speeds you up.', 'Let go of both to hold your speed.'],
+      ['', 'Almost there', `Touch down under ${f.limits.vy} m/s,`, 'upright and over the pad.'],
+    ][COACH.step];
+    $('coach-keys').innerHTML = steps[0];
+    $('coach-text').innerHTML = `<b>${steps[1]}</b><span>${[steps[2], steps[3]].filter(Boolean).join(' ')}</span>`;
+    if (hot) $('coach-keys').querySelector(`[data-k="${hot}"]`).classList.add('hot');
+  }
+  for (const k of el.querySelectorAll('kbd[data-k]')) k.classList.toggle('down', k.dataset.k === 'engine' ? Boolean(s.engineOn) : Boolean(inp[k.dataset.k]));
+  el.classList.remove('hidden');
+}
 
 // ---------- start screen: welcome, how to play, choose a level ----------
 const startEl = $('start-screen');
@@ -1786,6 +1969,8 @@ function setView(v) {
 
 function showStart(view) {
   clearTimeout(app.cardTimer);
+  app.menuOpen = false; // the drawer is hidden behind the start screen, so it must not keep the game paused
+  document.body.classList.remove('drawer-open');
   app.attract = true;
   app.running = false;
   document.body.classList.add('in-menu');
@@ -1820,6 +2005,7 @@ $('menu-btn').addEventListener('click', () => showStart('levels'));
 
 // ---------- boot ----------
 audio.init();
+initTooltips();
 resize();
 renderLevels();
 renderSliders();

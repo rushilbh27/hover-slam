@@ -39,40 +39,66 @@
     <section class="stage-wrap">
       <canvas id="stage" aria-label="Booster landing view"></canvas>
 
-      <div class="hud top-left">
-        <div class="tele">
-          <div><label>Altitude</label><b id="t-alt">0</b><i>m</i></div>
-          <div><label>Falling</label><b id="t-vy">0</b><i id="t-vy-target">m/s</i></div>
-          <div><label>Sideways</label><b id="t-vx">0</b><i>m/s</i></div>
-          <div><label>Off pad</label><b id="t-dx">0</b><i>m</i></div>
-          <div><label>Tilt</label><b id="t-tilt">0</b><i>°</i></div>
-          <div><label>Engine angle</label><b id="t-gim">0</b><i>°</i></div>
+      <div id="edge" class="edge" aria-hidden="true"></div>
+
+      <!-- the flight instruments ride with the booster, so the eyes never leave it -->
+      <div id="focus" class="focus" aria-hidden="true">
+        <div class="dev" id="dev" data-tip="Falling speed" data-tip-detail="Keep the dot on the centre tick. Below it you are falling faster than the plan, so slow down. Above it, speed up." data-tip-pos="left">
+          <div class="dev-val"><b id="t-vy">0</b><i>m/s</i></div>
+          <span class="dev-track"><span class="dev-end top">slow</span><i class="dev-tick"></i><i class="dev-dot" id="dev-dot"></i><span class="dev-end bottom">fast</span></span>
+          <div class="dev-aim" id="t-vy-target">aim 0</div>
         </div>
-        <div class="bars">
-          <div class="bar"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" title="Hover: above this it slows down, below it speeds up"></i></span><b id="t-thr">0%</b></div>
-          <div class="bar fuel" id="bar-fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
-        </div>
-        <div class="faults" id="faults"></div>
-        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span></div>
+        <dl class="data-table focus-table">
+          <dt data-tip="Altitude" data-tip-detail="Height of the engine above the deck." data-tip-pos="right">Altitude</dt><dd data-tip="Altitude" data-tip-detail="Height of the engine above the deck." data-tip-pos="right"><b id="t-alt">0</b><i>m</i></dd>
+          <dt data-tip="To pad" data-tip-detail="Distance to the middle of the pad. The arrow points the way to steer." data-tip-pos="right">To pad</dt><dd data-tip="To pad" data-tip-detail="Distance to the middle of the pad. The arrow points the way to steer." data-tip-pos="right"><span class="dir" id="pad-dir"></span><b id="t-dx">0</b><i>m</i><em class="lim" id="lim-dx"></em></dd>
+          <dt data-tip="Sideways speed" data-tip-detail="How fast you are moving across. Keep it under the limit at touchdown." data-tip-pos="right">Sideways</dt><dd data-tip="Sideways speed" data-tip-detail="How fast you are moving across. Keep it under the limit at touchdown." data-tip-pos="right"><span class="dir" id="vx-dir"></span><b id="t-vx">0</b><i>m/s</i><em class="lim" id="lim-vx"></em></dd>
+          <dt data-tip="Tilt" data-tip-detail="How far you lean from upright. Touch down upright." data-tip-pos="right">Tilt</dt><dd data-tip="Tilt" data-tip-detail="How far you lean from upright. Touch down upright." data-tip-pos="right"><b id="t-tilt">0</b><i>°</i><em class="lim" id="lim-tilt"></em></dd>
+        </dl>
       </div>
 
+      <div id="strip" class="strip" aria-hidden="true" data-tip="Pad strip" data-tip-detail="You against the pad. The dot wants the middle tick, and the line shows which way you are drifting." data-tip-pos="top">
+        <span class="strip-pad" id="strip-pad"></span><i class="strip-tick"></i>
+        <i class="strip-dot" id="strip-dot"></i><i class="strip-vel" id="strip-vel"></i>
+        <span class="strip-l">L</span><span class="strip-r">R</span>
+      </div>
+
+      <div class="hud top-left">
+        <div class="bars">
+          <div class="bar" data-tip="Throttle" data-tip-detail="How hard the engine pushes. Once lit it cannot go below its minimum." data-tip-pos="bottom"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" data-tip="Hover mark" data-tip-detail="At this throttle the booster hovers. Above it you slow down, below it you speed up." data-tip-pos="bottom"></i></span><b id="t-thr">0%</b></div>
+          <div class="bar fuel" id="bar-fuel" data-tip="Fuel" data-tip-detail="Propellant left. A leak drains it, so the burn has to be short." data-tip-pos="bottom"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
+        </div>
+        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag" data-tip="Landing legs" data-tip-detail="They open on their own as you near the deck." data-tip-pos="bottom">Legs stowed</span><span id="f-pilot" class="flag">You fly</span><span class="flag" data-tip="Engine angle" data-tip-detail="The engine swivels to steer. In degrees." data-tip-pos="bottom">Gimbal <b id="t-gim">0</b>°</span></div>
+      </div>
+
+      <div class="hud top-center"><div class="faults" id="faults"></div><span class="fault lamp-fuel hidden" id="lamp-fuel">Fuel low</span><span class="fault paused hidden" id="lamp-paused">Paused</span></div>
+
       <div class="hud top-right">
-        <div class="clock" id="t-clock">T+ 00:00</div>
-        <div class="wind">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
+        <div class="clock" id="t-clock" data-tip="Mission clock" data-tip-detail="Time since the descent began." data-tip-pos="bottom">T+ 00:00</div>
+        <div class="wind" data-tip="Wind" data-tip-detail="Crosswind in metres per second. The arrow shows which way it blows. It dies down near the surface." data-tip-pos="bottom">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
         <div class="level-tag" id="t-level">Medium</div>
       </div>
 
+      <div id="coach" class="coach hidden" role="status" aria-live="polite"><div class="coach-keys" id="coach-keys"></div><div class="coach-text" id="coach-text"></div></div>
 
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
 
-      <canvas id="minimap" width="360" height="220" aria-label="Approach overview"></canvas>
+      <canvas id="minimap" width="360" height="220" aria-label="Approach overview" data-tip="Approach view" data-tip-detail="Your path so far, and where the pad is." data-tip-pos="right"></canvas>
 
       <div id="outcome" class="outcome hidden" role="dialog" aria-live="polite">
         <div class="o-scn" id="o-scn"></div>
         <div class="o-title" id="o-title">Landed</div>
         <div class="o-sub" id="o-sub"></div>
         <div class="o-stats" id="o-stats"></div>
+        <div class="rate hidden" id="rate">
+          <div class="rate-q" id="rate-q">How was that run? Optional.</div>
+          <div class="rate-stars" id="rate-stars" role="radiogroup" aria-label="Rate this run"></div>
+          <div class="rate-more hidden" id="rate-more">
+            <textarea id="rate-text" maxlength="500" rows="2" placeholder="What worked, and what did not?" aria-label="Feedback, optional"></textarea>
+            <button id="rate-send" class="small primary">Send</button>
+          </div>
+          <div class="rate-note" id="rate-note">Sent with your level and result. No account.</div>
+        </div>
         <div class="o-actions"><button id="o-retry">Retry this one</button><button id="o-next" class="primary">New scenario</button></div>
       </div>
 
@@ -92,31 +118,9 @@
       </div>
     </section>
 
-    <aside class="panel">
-      <div class="panel-head"><span class="wm">Hoverslam</span><button id="menu-btn" class="small">Menu</button></div>
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-tab="game" role="tab">Fly it</button>
-        <button class="tab" data-tab="sim" role="tab">Tune the autopilot</button>
-      </div>
-
-      <div class="pane" data-pane="game">
-        <div class="levels" id="levels" role="radiogroup" aria-label="Level"></div>
-        <p class="muted" id="level-blurb"></p>
-        <ul class="keys">
-          <li><span class="caps"><kbd class="cap wide">Space</kbd></span>Engine on or off</li>
-          <li><span class="caps"><kbd class="cap">←</kbd><kbd class="cap">→</kbd></span>Lean the booster</li>
-          <li><span class="caps"><kbd class="cap">↑</kbd></span>Slow down</li>
-          <li><span class="caps"><kbd class="cap">↓</kbd></span>Speed up. Let go of both to hold your speed</li>
-          <li><span class="caps"><kbd class="cap">R</kbd></span>Retry this scenario</li>
-          <li><span class="caps"><kbd class="cap">N</kbd></span>A new scenario</li>
-        </ul>
-        <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
-        <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>
-        <p class="muted" id="limits-text"></p>
-        <div class="best" id="best"></div>
-      </div>
-
-      <div class="pane hidden" data-pane="sim">
+    <aside class="panel" id="drawer" aria-label="Autopilot lab" inert>
+      <div class="panel-head"><span class="wm">Autopilot lab</span><span class="panel-head-actions"><button id="to-game" class="small ghost">Back to the game</button><button id="drawer-close" class="icon-btn" aria-label="Close" data-tip="Close" data-key="Esc" data-tip-pos="bottom"></button></span></div>
+      <div class="pane" data-pane="sim">
         <p>You don't fly this time. The flight computer does, using the nine settings below. Change them, press <b>Run flight</b>, and watch what happens.</p>
         <div class="run-row">
           <button id="run" class="primary">Run flight</button>
@@ -127,18 +131,34 @@
         <div id="test-result" class="result"></div>
         <div id="sliders"></div>
       </div>
-
       <div class="row controls">
         <label id="wind-label">Wind <select id="seed"></select></label>
         <label>Speed <select id="speed"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
         <button id="restart" class="ghost">Restart</button>
-        <button id="reroll" class="ghost">New scenario</button>
       </div>
-
-      <a class="bugs" href="https://github.com/rushilbh27/hover-slam/issues/new?template=bug_report.md" target="_blank" rel="noopener">Found a bug? <u>Contribute here</u></a>
-      <footer class="foot">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</footer>
     </aside>
   </main>
+  <div class="settings" id="settings" role="dialog" aria-label="Settings" inert>
+    <div class="set-row"><span class="set-label">Level</span><div class="levels" id="levels" role="radiogroup" aria-label="Level"></div></div>
+    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts on your first Easy descent</small></span></label>
+    <label class="switch"><input type="checkbox" id="raw"><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Expert controls<small>Arrows swivel the engine, up and down move the throttle lever</small></span></label>
+    <div class="set-actions">
+      <button id="to-lab" class="ghost small" data-tip="Autopilot lab" data-tip-detail="Tune the flight computer and watch it fly."></button>
+      <button id="to-how" class="ghost small" data-tip="How to play" data-tip-detail="The descent, the controls and the landing limits."></button>
+      <button id="menu-btn" class="ghost small" data-tip="Main menu" data-tip-detail="Back to the start screen. This descent is dropped.">Main menu</button>
+    </div>
+    <a class="bugs" href="https://github.com/rushilbh27/hover-slam/issues/new?template=bug_report.md" target="_blank" rel="noopener">Found a bug? <u>Contribute here</u></a>
+  </div>
+  <nav id="dock" class="dock" aria-label="Controls">
+    <button class="icon-btn game-only" id="d-engine" aria-label="Engine" data-tip="Engine" data-key="Space" data-tip-detail="Light it, or cut it."></button>
+    <button class="icon-btn game-only" id="d-retry" aria-label="Retry" data-tip="Retry" data-key="R" data-tip-detail="Another go at this scenario."></button>
+    <button class="icon-btn game-only" id="d-new" aria-label="New scenario" data-tip="New scenario" data-key="N" data-tip-detail="A different drop at this level."></button>
+    <span class="dock-sep game-only" aria-hidden="true"></span>
+    <button class="icon-btn" data-snd data-nosound></button>
+    <button class="icon-btn" data-mus data-nosound></button>
+    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="settings" aria-expanded="false" data-tip="Settings" data-key="Esc" data-tip-detail="Level, hints and expert controls. The flight pauses."></button>
+    <button class="icon-btn lab-only" id="d-lab" aria-label="Autopilot settings" aria-controls="drawer" aria-expanded="false" data-tip="Autopilot settings" data-key="Esc" data-tip-detail="The nine settings and the last report."></button>
+  </nav>
   <script type="module" src="app.js"></script>
 </body>
 </html>
