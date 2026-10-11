@@ -30,7 +30,6 @@ html, body { margin: 0; height: 100%; background: var(--hull); color: var(--ink)
 body { touch-action: manipulation; }
 .hidden { display: none !important; }
 .app { display: grid; grid-template-columns: minmax(0, 1fr); height: 100%; }
-body[data-mode="sim"] .app { grid-template-columns: minmax(0, 1fr) 400px; } /* the autopilot lab keeps its panel docked beside the scene */
 .stage-wrap { position: relative; overflow: hidden; background: var(--hull); }
 #stage { width: 100%; height: 100%; display: block; }
 /* the scene gets a lens: a soft vignette and a little film grain */
@@ -121,7 +120,7 @@ kbd, .cap {
 /* the cluster that follows the booster: a deviation gauge for falling speed on one side, the numbers that matter on the other */
 .focus { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-out; will-change: transform; }
 .focus.on { opacity: 1; }
-.dev { position: absolute; top: -66px; left: calc(-1 * (var(--hw, 14px) + 16px)); transform: translateX(-100%); width: 96px; text-align: right; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9); }
+.dev { position: absolute; top: -66px; left: calc(-1 * (var(--hw, 14px) + var(--gl, 48px))); transform: translateX(-100%); width: 96px; text-align: right; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9) }
 .dev-val { font: 700 32px/1 var(--display); font-variant-numeric: tabular-nums; }
 .dev-val i, .focus-table i { font-style: normal; font-size: 11px; color: var(--dim); margin-left: 3px; }
 .dev-track { position: relative; display: block; width: 2px; height: 110px; margin: 10px 0 8px auto; background: rgba(255, 255, 255, 0.4); }
@@ -135,8 +134,8 @@ kbd, .cap {
 .dev-end.top { top: -2px; }
 .dev-end.bottom { bottom: -2px; }
 .dev-aim { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
-.focus-table { position: absolute; top: -50px; left: calc(var(--hw, 14px) + 34px); width: 206px; margin: 0; background: rgba(10, 10, 10, 0.72); }
-.focus-table::before { content: ""; position: absolute; right: 100%; top: 24px; width: 34px; height: 1px; background: rgba(255, 255, 255, 0.55); }
+.focus-table { position: absolute; top: -50px; left: calc(var(--hw, 14px) + var(--gr, 60px)); width: 206px; margin: 0; background: rgba(10, 10, 10, 0.72) }
+.focus-table::before { content: ""; position: absolute; right: 100%; top: 24px; width: var(--gr, 60px); height: 1px; background: rgba(255, 255, 255, 0.45) }
 .focus-table dd { display: flex; justify-content: flex-end; align-items: baseline; gap: 2px; white-space: nowrap; }
 .focus-table dd b { font: 700 18px/1 var(--display); letter-spacing: 0.02em; }
 .focus-table .dir { align-self: center; margin-right: 6px; }
@@ -175,7 +174,7 @@ kbd, .cap {
 
 /* ---------- plates over the scene: the briefing and the result ---------- */
 .outcome, .intro { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; width: min(560px, calc(100% - 32px)); padding: 28px 34px; background: rgba(10, 10, 10, 0.94); border: 1px solid var(--seam); border-radius: 4px }
-.outcome { left: 58%; top: 45%; padding: 22px 30px; animation: rise 0.3s ease-out; }
+.outcome { left: 50%; top: 50%; padding: 22px 30px; animation: rise 0.3s ease-out }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
 .o-title, .i-title { font: 700 56px/0.95 var(--display); letter-spacing: 0.02em; text-transform: uppercase; text-wrap: balance }
 .outcome .o-title { font-size: 50px; }
@@ -197,32 +196,52 @@ kbd, .cap {
 .o-actions { display: flex; gap: 12px; justify-content: center; }
 
 /* ---------- the control panel ---------- */
-.panel { background: var(--console); border-left: 1px solid var(--seam); padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px }
+.panel { background: var(--console); border-left: 1px solid var(--seam); padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); z-index: 48; transform: translateX(100%); visibility: hidden; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.22s }
 .panel-head { display: flex; justify-content: space-between; align-items: center; }
 .panel-head-actions { display: flex; gap: 8px; align-items: center; }
 /* in a flight the panel is a drawer: closed it is out of sight and out of the tab order, open it pauses the game */
-body:not([data-mode="sim"]) .panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 100vw); z-index: 48; transform: translateX(100%); visibility: hidden; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.22s; }
-body:not([data-mode="sim"]) .panel.open { transform: none; visibility: visible; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s; }
-body[data-mode="sim"] #drawer-close { display: none; }
+.panel.open { transform: none; visibility: visible; transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s; }
 body.drawer-open #stage { filter: brightness(0.55); }
+/* settings in a flight: a small popover over the dock, not a sidebar */
+.settings { position: fixed; z-index: 54; left: 50%; bottom: 84px; width: min(340px, calc(100vw - 24px)); transform: translate(-50%, 8px); padding: 16px; display: grid; gap: 14px; background: rgba(10, 10, 10, 0.96); border: 1px solid var(--seam); border-radius: 4px; opacity: 0; visibility: hidden; transition: opacity 0.18s ease-out, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s 0.18s; }
+.settings.open { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity 0.18s ease-out, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s; }
+.set-row { display: grid; gap: 8px; }
+.set-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.switch { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.sw-track { position: relative; width: 34px; height: 18px; margin-top: 2px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 3px; transition: background 0.15s ease, border-color 0.15s ease; }
+.sw-track::after { content: ""; position: absolute; left: 2px; top: 2px; width: 12px; height: 12px; border-radius: 2px; background: var(--muted); transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease; }
+.switch input:checked + .sw-track { background: rgba(110, 155, 255, 0.22); border-color: var(--blue); }
+.switch input:checked + .sw-track::after { transform: translateX(16px); background: #fff; }
+.switch input:focus-visible + .sw-track { outline: 2px solid #fff; outline-offset: 3px; }
+.sw-text { display: grid; gap: 2px; font-weight: 700; font-size: 14px; }
+.sw-text small { font-weight: 400; font-size: 12.5px; color: var(--dim); line-height: 1.35; }
+.set-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--seam); }
+.set-actions button { flex: 1 1 auto; white-space: nowrap; }
+.settings .bugs { font-size: 12px; }
+/* the tutorial prompt: the key to press, and why, at the moment it matters */
+.coach { position: absolute; left: 50%; bottom: 132px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 12px 18px; max-width: min(580px, calc(100% - 24px)); background: rgba(10, 10, 10, 0.86); border: 1px solid var(--seam); border-radius: 4px; pointer-events: none; transition: opacity 0.2s ease-out; }
+.coach-keys { display: flex; gap: 6px; }
+.coach-keys .cap { min-width: 40px; height: 40px; margin: 0; font-size: 15px; }
+.coach-keys .cap.wide { min-width: 92px; }
+.coach .cap.hot { border-color: var(--blue); color: var(--blue-hi); }
+.coach .cap.down { background: #fff; color: #000; border-color: #fff; }
+.coach-text { display: grid; gap: 2px; }
+.coach-text b { font-size: 17px; }
+.coach-text span { font-size: 13px; color: var(--dim); line-height: 1.4; }
+.coach.hidden { display: none; }
 .wm { font: 700 26px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .row label, .check { color: var(--dim); display: inline-flex; align-items: center; gap: 8px; }
 .controls { padding: 14px 0 6px; border-top: 1px solid var(--seam); position: sticky; bottom: -18px; margin-top: auto; background: var(--console); z-index: 2 } /* painted deck line, always in reach */
-.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #000; padding: 3px; border-radius: 4px; border: 1px solid var(--seam) }
-.tab { border: none; background: transparent; padding: 8px 6px; color: var(--dim); border-radius: 3px }
-.tab:hover:not(:disabled) { background: #1a1a1a }
-.tab.active { background: #fff; color: #000 }
 .pane p { margin: 0 0 10px; }
 .muted { color: var(--dim); font-size: 14px; }
-.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
-.level { font: 700 18px var(--display); padding: 9px 0 10px; letter-spacing: 0.08em; text-transform: uppercase }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px }
+.level { font: 700 15px var(--display); padding: 8px 0 9px; letter-spacing: 0.08em; text-transform: uppercase }
 .level.active { background: #fff; color: #000 }
 .keys { list-style: none; padding: 0; margin: 4px 0 12px; display: grid; gap: 8px; }
 .keys li { display: grid; grid-template-columns: 104px 1fr; gap: 10px; align-items: center; color: var(--ink); }
 .keys .caps { display: flex; }
-.check { font-size: 14px; margin-bottom: 10px; align-items: flex-start; }
-.check input { margin-top: 4px; accent-color: #fff }
 .best { font-size: 14px; color: var(--blue-hi) }
 
 .run-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -265,20 +284,20 @@ body.drawer-open #stage { filter: brightness(0.55); }
 
 /* ---------- the start screen: a live landing behind, three views over it ---------- */
 .start[data-view="how"], .start[data-view="levels"] { background: rgba(0, 0, 0, 0.94); } /* the live landing fades back behind the reading screens */
-.vhead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; max-width: 1180px; margin-bottom: 26px; }
-.vhead .lede { margin-bottom: 0; }
-.vhead .nav { margin: 0; }
-.start { position: fixed; inset: 0; z-index: 40; overflow-y: auto; color: var(--ink); transition: background 0.3s ease; background: linear-gradient(90deg, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.78) 38%, rgba(0, 0, 0, 0.12) 72%, transparent 100%); }
-.view { min-height: 100%; padding: max(76px, clamp(24px, 5vw, 64px)) clamp(24px, 5vw, 64px) clamp(24px, 5vw, 64px); display: flex; flex-direction: column; justify-content: center; }
+.vhead { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; max-width: 1180px; margin: 0 auto 30px }
+.vhead .lede { margin: 0 auto }
+.vhead .nav { margin: 0; justify-content: center }
+.start { position: fixed; inset: 0; z-index: 40; overflow-y: auto; color: var(--ink); transition: background 0.3s ease; background: radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.66) 0%, rgba(0, 0, 0, 0.42) 50%, rgba(0, 0, 0, 0.14) 100%); }
+.view { min-height: 100%; padding: max(76px, clamp(24px, 5vw, 64px)) clamp(24px, 5vw, 64px); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center }
 .view[data-view="welcome"] { justify-content: space-between; }
-.welcome { max-width: 600px; margin: auto 0; }
+.welcome { max-width: 720px; margin: auto; display: flex; flex-direction: column; align-items: center }
 .wordmark { margin: 0; font: 700 clamp(72px, 12vw, 150px)/0.86 var(--display); letter-spacing: 0.01em; text-transform: uppercase }
-.pitch { font-size: 19px; line-height: 1.5; color: var(--dim); max-width: 36ch; margin: 28px 0 32px }
-.menu-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
-.fine { color: var(--dim); font-size: 12.5px; max-width: 70ch; margin: 0; }
+.pitch { font-size: 19px; line-height: 1.5; color: var(--dim); max-width: 38ch; margin: 28px auto 32px }
+.menu-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px }
+.fine { color: var(--dim); font-size: 12.5px; max-width: 70ch; margin: 0 auto }
 .view h2 { font: 700 clamp(38px, 5vw, 60px)/0.98 var(--display); letter-spacing: 0.02em; text-transform: uppercase; margin: 0 0 6px }
-.view .lede { color: var(--dim); margin: 0 0 28px; max-width: 58ch; }
-.how { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 36px; align-items: start; max-width: 1180px; }
+.view .lede { color: var(--dim); margin: 0 auto 28px; max-width: 58ch }
+.how { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 36px; align-items: start; max-width: 1180px; margin: 0 auto; text-align: left }
 .how .plate, .how-figs { min-width: 0; }
 .how-figs { display: grid; gap: 18px; }
 figure { margin: 0; }
@@ -309,9 +328,9 @@ figcaption { color: var(--dim); font-size: 13px; margin-top: 6px; }
 .how .keys { margin: 0 0 18px; }
 .limits { border-top: 1px solid var(--seam); padding-top: 14px; color: #d0d0d0 }
 .limits b { color: #fff; font-weight: 700 }
-.nav { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; align-items: center; }
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 380px)); gap: 26px; margin-top: 8px; }
-.lvl-card { display: flex; flex-direction: column; text-align: left; padding: 0; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); overflow: hidden; transition: border-color 0.12s ease, background 0.12s ease }
+.nav { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; align-items: center; justify-content: center }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 380px)); gap: 26px; margin: 8px auto 0; justify-content: center }
+.lvl-card { display: flex; flex-direction: column; text-align: left; padding: 0; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); overflow: hidden; transition: border-color 0.12s ease, background 0.12s ease align-items: stretch; justify-content: flex-start; }
 .lvl-card:hover:not(:disabled) { background: var(--plate-hi); border-color: rgba(255, 255, 255, 0.55) }
 .lvl-card:active:not(:disabled) { transform: scale(0.995) }
 .lvl-card .thumb { display: block; width: 100%; height: auto; }
@@ -321,7 +340,6 @@ figcaption { color: var(--dim); font-size: 13px; margin-top: 6px; }
 .lvl-card .dt { color: var(--dim); font-weight: 400; font-size: 14px; line-height: 1.4; }
 .lvl-card .pr { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--seam); color: var(--dim); font-size: 13px; font-weight: 400 }
 .lvl-card .pr b { color: var(--blue-hi); font-weight: 700 }
-body.in-menu .app { grid-template-columns: minmax(0, 1fr); }
 body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip, body.in-menu #edge, body.in-menu #minimap, body.in-menu .touch, body.in-menu #intro, body.in-menu .outcome, body.in-menu .caption, body.in-menu .cue { display: none !important; }
 
 /* ---------- phones and tablets: the game fills the screen, thumbs get two clusters ---------- */
@@ -334,15 +352,14 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip
   .how { grid-template-columns: minmax(0, 1fr); }
   .cards { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
 }
-@media (pointer: coarse) { #d-engine { display: none; } }
+@media (pointer: coarse) { #d-engine { display: none; } .coach-keys { display: none; } }
 @media (max-width: 900px), (pointer: coarse) and (max-height: 540px) {
-  .app, body[data-mode="sim"] .app { grid-template-columns: 1fr; height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
   .stage-wrap { height: 100vh; height: 100dvh; min-height: 460px; }
-  body[data-mode="sim"] .stage-wrap { height: 70vh; height: 70dvh; }
-  body[data-mode="sim"] .panel { border-left: none; border-top: 1px solid var(--seam); padding: 16px; }
   .top-left { left: 14px; top: 10px; }
   .top-right { right: 14px; top: 10px; }
-  .top-center { top: 104px; max-width: 80%; }
+  .top-center { top: 100px; max-width: 86%; }
+  .fault { font-size: 10px; padding: 5px 8px; }
   .bars { width: 168px; gap: 5px; }
   .bar { grid-template-columns: 44px 1fr 50px; gap: 8px; }
   .bar label { font-size: 10px; }
@@ -373,7 +390,7 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip
   .keys li { grid-template-columns: 92px 1fr; }
 }
 @media (pointer: coarse) and (max-height: 540px) {
-  .stage-wrap, body[data-mode="sim"] .stage-wrap { height: 100vh; height: 100dvh; min-height: 0; }
+  .stage-wrap { height: 100vh; height: 100dvh; min-height: 0; }
   .touch button { width: 64px; height: 64px; font-size: 13px; }
   .touch button.engine { width: 82px; }
   .bars { width: 168px; }
@@ -383,7 +400,7 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip
 }
 @media (prefers-reduced-motion: reduce) {
   .cue, .outcome, .slider.flash, .caption.pop, .bar.fuel.leaking em { animation: none; }
-  .edge, .focus, .strip, .dock, body:not([data-mode="sim"]) .panel { transition: none; }
+  .edge, .focus, .strip, .dock, .panel, .settings, .coach { transition: none; }
   .caption.pop { opacity: 1; }
   .lvl-card, button { transition: none; }
 }
@@ -428,10 +445,13 @@ body.in-menu .bugs.corner { display: block; }
 .dock .icon-btn.on { background: rgba(255, 255, 255, 0.16); }
 .dock .icon-btn[aria-pressed="false"], .dock .icon-btn.off { color: var(--muted); }
 .dock-sep { width: 1px; height: 22px; background: var(--seam); margin: 0 4px; }
-body.drawer-open .dock { left: calc((100% - min(400px, 100vw)) / 2); }
+body[data-mode="sim"].drawer-open .dock { left: calc((100% - min(440px, 100vw)) / 2); }
 body[data-mode="sim"] .game-only { display: none; }
-body[data-mode="sim"] .dock { left: calc((100% - 400px) / 2); }
-body.in-menu .dock { left: clamp(24px, 5vw, 64px); top: 22px; bottom: auto; transform: none; gap: 8px; padding: 0; background: none; border: 0; }
+body[data-mode="sim"] #intro { display: none; } /* the lab's drawer already says what to do */
+.lab-only { display: none; }
+body[data-mode="sim"] .lab-only { display: inline-grid; }
+body.in-menu .lab-only { display: none; }
+body.in-menu .dock { left: auto; right: clamp(24px, 5vw, 64px); top: 22px; bottom: auto; transform: none; gap: 8px; padding: 0; background: none; border: 0; }
 body.in-menu .dock .icon-btn { border-color: rgba(255, 255, 255, 0.28); background: rgba(0, 0, 0, 0.35); }
 body.in-menu .game-only { display: none; }
 .sound { position: fixed; left: clamp(24px, 5vw, 64px); top: 22px; z-index: 55; display: flex; gap: 8px; } /* only where there is no dock, as in the style guide */
@@ -439,8 +459,11 @@ body.in-menu .game-only { display: none; }
 
 /* on a phone the dock is a short row under the throttle and fuel bars, clear of the thumbs and the instruments, and only the settings button stays of the flight controls */
 @media (max-width: 900px), (pointer: coarse) and (max-height: 540px) {
-  .dock, body[data-mode="sim"] .dock, body.drawer-open .dock { left: 10px; right: auto; top: 54px; bottom: auto; transform: none; flex-direction: row; }
+  .dock, body[data-mode="sim"] .dock, body[data-mode="sim"].drawer-open .dock { left: 10px; right: auto; top: 54px; bottom: auto; transform: none; flex-direction: row; }
   .dock .game-only:not(#d-menu) { display: none; }
+  .coach { bottom: 204px; padding: 10px 14px; gap: 12px; }
+  .coach-keys .cap { min-width: 34px; height: 34px; }
+  .settings { bottom: 76px; }
   .dock-sep { display: none; }
-  body.in-menu .dock { left: clamp(24px, 5vw, 64px); right: auto; top: 22px; flex-direction: row; }
+  body.in-menu .dock { left: auto; right: 14px; top: 14px; flex-direction: row; }
 }

@@ -695,7 +695,7 @@ test('every element id the game looks up exists in the page', () => {
   const ids = new Set([...read('app.js').matchAll(/\$\('([a-z0-9-]+)'\)/g)].map((m) => m[1]));
   const missing = [...ids].filter((id) => !markup.includes(`id="${id}"`) && !markup.includes(`id=\\"${id}\\"`));
   assert.deepEqual(missing, [], `ids with no element: ${missing.join(', ')}`);
-  for (const id of ['focus', 'dev', 'strip', 'edge', 'dock', 'drawer', 'd-engine', 'd-menu', 't-vy', 't-alt', 't-dx', 't-vx', 't-tilt']) assert.ok(ids.has(id) || read('index.html').includes(`id="${id}"`), id);
+  for (const id of ['focus', 'dev', 'strip', 'edge', 'dock', 'drawer', 'settings', 'coach', 'hints', 'raw', 'levels', 'd-engine', 'd-menu', 'd-lab', 't-vy', 't-alt', 't-dx', 't-vx', 't-tilt']) assert.ok(ids.has(id) || read('index.html').includes(`id="${id}"`), id);
 });
 
 // ---------- the single-file build ----------

@@ -138,6 +138,7 @@ function newFlight() {
   app.acc = 0;
   audio.reset(); // cut off the last flight's one-off sounds
   clearTimeout(app.cardTimer); // a result card from the flight you just left must not appear over this one
+  clearTimeout(app.labTimer);
   Object.assign(fx, freshFx());
   fx.scene = pickScene();
   cam.snap = true;
@@ -151,7 +152,8 @@ function start() {
   newFlight();
   app.running = true;
   $('intro').classList.add('hidden');
-  if (app.mode === 'sim') app.report = debrief(app.gains, app.seed);
+  if (app.mode === 'sim') { app.report = debrief(app.gains, app.seed); setDrawer(false); } // watch the flight with the whole scene
+  coachStart();
 }
 
 // A new scenario from the shuffle bag: every one in the level is played before any repeats.
@@ -211,7 +213,7 @@ window.addEventListener('keydown', (e) => {
     else if (e.code === 'Escape' && app.view !== 'welcome') setView('welcome');
     return;
   }
-  if (e.code === 'Escape' && app.mode === 'game') { e.preventDefault(); setDrawer(!app.menuOpen); return; }
+  if (e.code === 'Escape') { e.preventDefault(); setDrawer(!app.menuOpen); return; }
   if (app.menuOpen) return; // the game is paused: the keys belong to the drawer
   if (e.code === 'Space') {
     e.preventDefault();
@@ -312,14 +314,16 @@ function onEnd() {
     explode(s);
   }
   app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
-  if (app.mode === 'sim') renderReport();
+  if (app.mode === 'sim') { renderReport(); app.labTimer = setTimeout(() => { if (app.ended && app.mode === 'sim') setDrawer(true); }, 2000); } // the report slides back in
+  if (COACH.on && COACH.step >= 2) store.set('hs.coachDone', store.get('hs.coachDone', 0) + 1); // a player who has used the engine and the lean has seen the lesson
+  COACH.on = false;
+  $('coach').classList.add('hidden');
   if (app.mode === 'game' && o.landed) {
     const sc = scoreFlight(o);
     const best = store.get('hs.best', {});
     if (!best[app.level] || sc > best[app.level]) { best[app.level] = sc; store.set('hs.best', best); }
     const cleared = store.get('hs.cleared', {});
     if (app.scenario && (!cleared[app.scenario.id] || sc > cleared[app.scenario.id])) { cleared[app.scenario.id] = sc; store.set('hs.cleared', cleared); }
-    renderBest();
   }
 }
 
@@ -364,12 +368,12 @@ function stat(label, value, ok) {
 }
 
 function showOutcome(o) {
+  if (app.mode === 'sim') return; // the lab's report says it all
   $('o-title').textContent = o.landed ? 'Landed' : o.reason;
   $('o-title').className = 'o-title ' + (o.landed ? 'good' : 'bad');
   const c = o.checks || {};
   let sub = '';
   if (o.landed) sub = `Score ${scoreFlight(o)} out of 100.`;
-  else if (app.mode === 'sim' && app.report) sub = app.report.findings[0].title + ' See the panel for why.';
   else sub = gameHint(o);
   $('o-sub').textContent = sub;
   const isTouch = o.reason !== 'Lost control' && o.reason !== 'Flew away' && o.reason !== 'Timed out';
@@ -409,7 +413,6 @@ $('o-next').addEventListener('click', () => {
   if (app.mode === 'game') return showIntro(true);
   app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start();
 });
-$('reroll').addEventListener('click', () => { setDrawer(false); showIntro(true); });
 $('start').addEventListener('click', () => start());
 $('restart').addEventListener('click', () => { setDrawer(false); if (app.mode === 'game') start(); else showIntro(); });
 
@@ -1527,11 +1530,14 @@ function placeFocus() {
   if (!f || !$('focus').classList.contains('on')) return;
   const s = f.state;
   const hw = clamp(cam.s * 2.4, 8, 70), small = W < 520;
-  // keep the gauge on the left and the numbers on the right of the booster, and both inside the picture
-  const lo = (small ? 78 : 96) + hw + 22, hi = W - (hw + 34 + (small ? 158 : 206)) - 10;
-  const x = hi < lo ? (lo + hi) / 2 : clamp(sx(s.x), lo, hi), y = clamp(sy(s.y + 21), small ? 200 : 130, H - 150);
+  // keep the gauge on the left and the numbers on the right of the booster, a clear hand's width away from it, and both inside the picture
+  const gl = small ? 30 : 48, gr = small ? 40 : 60;
+  const lo = (small ? 78 : 96) + hw + gl + 6, hi = W - (hw + gr + (small ? 158 : 206)) - 10;
+  const x = hi < lo ? (lo + hi) / 2 : clamp(sx(s.x), lo, hi), y = clamp(sy(s.y + 21), small ? 240 : 130, H - 150);
   const fc = $('focus');
   fc.style.setProperty('--hw', `${hw.toFixed(1)}px`);
+  fc.style.setProperty('--gl', `${gl}px`);
+  fc.style.setProperty('--gr', `${gr}px`);
   fc.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
 }
 
@@ -1590,6 +1596,7 @@ function hud() {
   edge.classList.toggle('warn', !tooFast && driftOut && flying && !app.menuOpen);
   $('lamp-fuel').classList.toggle('hidden', !(flying && s.fuel / f.fuel0 < 0.12));
   $('lamp-paused').classList.toggle('hidden', !(app.menuOpen && app.running && !s.done));
+  coachUpdate(f, s, h);
   const eb = $('d-engine');
   eb.classList.toggle('on', s.engineOn && !s.done);
   eb.setAttribute('aria-pressed', String(Boolean(s.engineOn && !s.done)));
@@ -1649,21 +1656,6 @@ function renderLevels() {
     b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); setDrawer(false); showIntro(true); });
     box.appendChild(b);
   }
-  const lv = levelCfg();
-  $('level-blurb').textContent = lv.blurb;
-  const f = app.mode === 'game' && app.scenario ? scenarioFlight(app.level, app.scenario) : makeFlight(1, lv.opts);
-  $('limits-text').textContent = `Land inside the green zone (±${+f.pad.halfWidth.toFixed(1)} m) at under ${f.limits.vy} m/s down, ${f.limits.vx} m/s sideways and ${Math.round(f.limits.tilt / DEG)}° of tilt. The dotted line shows where you're heading.`;
-  renderBest();
-}
-
-function renderBest() {
-  const best = store.get('hs.best', {});
-  const cleared = store.get('hs.cleared', {});
-  const parts = Object.entries(LEVELS).map(([k, lv]) => {
-    const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
-    return n || best[k] ? `${lv.label}: ${n} of ${(BANK[k] || []).length} scenarios cleared${best[k] ? `, best ${best[k]}` : ''}` : null;
-  }).filter(Boolean);
-  $('best').innerHTML = parts.join('<br>');
 }
 
 // ---------- simulator pane ----------
@@ -1758,17 +1750,12 @@ $('test-all').addEventListener('click', () => {
 // ---------- tabs and selects ----------
 function setMode(mode) {
   app.mode = mode;
-  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === mode);
-  for (const p of document.querySelectorAll('.pane')) p.classList.toggle('hidden', p.dataset.pane !== mode);
   document.body.dataset.mode = mode;
   app.ghosts = [];
   renderWindOptions();
-  $('wind-label').classList.toggle('hidden', mode === 'game');
-  $('reroll').classList.toggle('hidden', mode !== 'game');
-  setDrawer(false); // in the autopilot lab the panel stays docked beside the scene
   showIntro(true);
+  setDrawer(mode === 'sim'); // the lab opens on its settings, the game on the scene
 }
-for (const t of document.querySelectorAll('.tab')) t.addEventListener('click', () => setMode(t.dataset.tab));
 
 // the wind shown for each seed is the one the current level really uses
 function renderWindOptions() {
@@ -1788,23 +1775,28 @@ function renderWindOptions() {
 $('seed').addEventListener('change', (e) => { app.seed = Number(e.target.value); if (app.mode === 'sim') start(); });
 $('speed').addEventListener('change', (e) => { app.speed = Number(e.target.value); });
 
-// ---------- the drawer and the dock ----------
-// Settings and help live in a drawer that pauses the flight while it is open. In the autopilot lab it stays docked beside the scene.
+// ---------- settings, the lab drawer and the dock ----------
+// In a flight, settings are a small popover over the dock; in the autopilot lab the nine settings live in a drawer. Either one pauses
+// the flight while it is open, and Esc opens and closes it.
 function setDrawer(open) {
-  const d = $('drawer'), docked = app.mode === 'sim';
-  open = docked || open;
-  if (!open && d.contains(document.activeElement)) document.activeElement.blur(); // never leave Space on a hidden button
-  d.classList.toggle('open', open);
-  d.inert = !open;
-  app.menuOpen = open && !docked;
-  document.body.classList.toggle('drawer-open', app.menuOpen);
-  $('d-menu').setAttribute('aria-expanded', String(app.menuOpen));
-  if (app.menuOpen) {
+  const lab = app.mode === 'sim';
+  const el = lab ? $('drawer') : $('settings'), other = lab ? $('settings') : $('drawer');
+  other.classList.remove('open'); other.inert = true;
+  if (!open && el.contains(document.activeElement)) document.activeElement.blur(); // never leave Space on a hidden button
+  el.classList.toggle('open', open);
+  el.inert = !open;
+  app.menuOpen = open;
+  document.body.classList.toggle('drawer-open', open);
+  $('d-menu').setAttribute('aria-expanded', String(open && !lab));
+  $('d-lab').setAttribute('aria-expanded', String(open && lab));
+  if (open) {
     Object.assign(app.input, { left: false, right: false, up: false, down: false });
-    $('drawer-close').focus({ preventScroll: true });
+    (lab ? $('drawer-close') : el.querySelector('.level.active') || el.querySelector('button')).focus({ preventScroll: true });
   }
 }
-for (const [id, name] of [['d-engine', 'engine'], ['d-retry', 'retry'], ['d-new', 'shuffle'], ['d-menu', 'menu'], ['drawer-close', 'close']]) $(id).innerHTML = icon(name, 20);
+for (const [id, name] of [['d-engine', 'engine'], ['d-retry', 'retry'], ['d-new', 'shuffle'], ['d-menu', 'gear'], ['d-lab', 'sliders'], ['drawer-close', 'close']]) $(id).innerHTML = icon(name, 20);
+$('to-lab').innerHTML = `${icon('sliders', 16)}Autopilot lab`;
+$('to-how').innerHTML = `${icon('help', 16)}How to play`;
 $('d-engine').addEventListener('click', (e) => {
   e.currentTarget.blur();
   if (!app.running && !$('intro').classList.contains('hidden')) return start();
@@ -1812,9 +1804,60 @@ $('d-engine').addEventListener('click', (e) => {
 });
 $('d-retry').addEventListener('click', (e) => { e.currentTarget.blur(); start(); });
 $('d-new').addEventListener('click', (e) => { e.currentTarget.blur(); showIntro(true); });
-$('d-menu').addEventListener('click', (e) => { e.currentTarget.blur(); setDrawer(!app.menuOpen); });
+for (const id of ['d-menu', 'd-lab']) $(id).addEventListener('click', (e) => { e.currentTarget.blur(); setDrawer(!app.menuOpen); });
 $('drawer-close').addEventListener('click', () => setDrawer(false));
+$('to-lab').addEventListener('click', () => setMode('sim'));
+$('to-game').addEventListener('click', () => setMode('game'));
+$('to-how').addEventListener('click', () => { setDrawer(false); showStart('how'); });
 $('stage').addEventListener('pointerdown', () => { if (app.menuOpen) setDrawer(false); });
+$('hints').checked = store.get('hs.hints', true);
+$('hints').addEventListener('change', (e) => { store.set('hs.hints', e.target.checked); if (e.target.checked) store.set('hs.coachDone', 0); }); // turning hints on brings the lesson back
+
+// ---------- the tutorial: key prompts at the moment they matter ----------
+// Space to light the engine, then the lean, then the speed. Each step ends when the player does the thing, and the lesson is
+// shown until a player has flown it through twice. Hints can be switched off, or back on, in settings.
+const COACH = { on: false, step: 0, lean: 0, speed: 0, t: 0, shown: '' };
+function coachStart() {
+  COACH.on = app.mode === 'game' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 2;
+  Object.assign(COACH, { step: 0, lean: 0, speed: 0, t: 0, shown: '' });
+  $('coach').classList.add('hidden');
+}
+const keycap = (label, k, wide) => `<kbd class="cap${wide ? ' wide' : ''}" data-k="${k}">${label}</kbd>`;
+function coachUpdate(f, s, h) {
+  const el = $('coach');
+  if (!COACH.on || !app.running || s.done || app.menuOpen) { el.classList.add('hidden'); return; }
+  const touch = window.matchMedia('(pointer: coarse)').matches;
+  const inp = app.input;
+  if (COACH.step === 0 && s.engineOn) COACH.step = 1;
+  if (COACH.step === 1) {
+    if (inp.left || inp.right) COACH.lean += 0.05;
+    if (COACH.lean > 0.7 || Math.abs(s.x) < f.pad.halfWidth) COACH.step = 2;
+  }
+  if (COACH.step === 2) {
+    if (inp.up || inp.down) COACH.speed += 0.05;
+    COACH.t += 0.05;
+    if (COACH.speed > 0.3 || COACH.t > 10) COACH.step = 3;
+  }
+  const low = h < 150;
+  const hot = COACH.step === 1 ? (s.x > 0 ? 'left' : 'right') : ''; // the key that goes toward the pad
+  const key = `${COACH.step}${hot}${touch}${low}`;
+  if (COACH.step === 3 && !low) { el.classList.add('hidden'); return; }
+  if (key !== COACH.shown) {
+    COACH.shown = key;
+    const lv = levelCfg();
+    const steps = [
+      [keycap('Space', 'engine', true), 'Light the engine', touch ? 'Tap Engine.' : '', app.level === 'easy' ? 'A cue tells you when it is time.' : 'Around 1,600 m leaves time to steer.'],
+      [keycap('←', 'left') + keycap('→', 'right'), 'Lean toward the pad', 'The arrow beside To pad shows the way.', 'Steering only works while the engine burns.'],
+      [keycap('↑', 'up') + keycap('↓', 'down'), 'Keep the dot on the centre tick', 'Up slows you down, down speeds you up.', 'Let go of both to hold your speed.'],
+      ['', 'Almost there', `Touch down under ${f.limits.vy} m/s,`, 'upright and over the pad.'],
+    ][COACH.step];
+    $('coach-keys').innerHTML = steps[0];
+    $('coach-text').innerHTML = `<b>${steps[1]}</b><span>${[steps[2], steps[3]].filter(Boolean).join(' ')}</span>`;
+    if (hot) $('coach-keys').querySelector(`[data-k="${hot}"]`).classList.add('hot');
+  }
+  for (const k of el.querySelectorAll('kbd[data-k]')) k.classList.toggle('down', k.dataset.k === 'engine' ? Boolean(s.engineOn) : Boolean(inp[k.dataset.k]));
+  el.classList.remove('hidden');
+}
 
 // ---------- start screen: welcome, how to play, choose a level ----------
 const startEl = $('start-screen');

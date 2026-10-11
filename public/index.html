@@ -78,6 +78,8 @@
         <div class="level-tag" id="t-level">Medium</div>
       </div>
 
+      <div id="coach" class="coach hidden" role="status" aria-live="polite"><div class="coach-keys" id="coach-keys"></div><div class="coach-text" id="coach-text"></div></div>
+
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
 
@@ -107,32 +109,9 @@
       </div>
     </section>
 
-    <aside class="panel" id="drawer" aria-label="Settings and help" inert>
-      <div class="panel-head"><span class="wm">Hoverslam</span><span class="panel-head-actions"><button id="menu-btn" class="small ghost">Main menu</button><button id="drawer-close" class="icon-btn" aria-label="Close settings" title="Close (Esc)"></button></span></div>
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-tab="game" role="tab">Fly it</button>
-        <button class="tab" data-tab="sim" role="tab">Tune the autopilot</button>
-      </div>
-
-      <div class="pane" data-pane="game">
-        <div class="levels" id="levels" role="radiogroup" aria-label="Level"></div>
-        <p class="muted" id="level-blurb"></p>
-        <ul class="keys">
-          <li><span class="caps"><kbd class="cap wide">Space</kbd></span>Engine on or off</li>
-          <li><span class="caps"><kbd class="cap">←</kbd><kbd class="cap">→</kbd></span>Lean the booster</li>
-          <li><span class="caps"><kbd class="cap">↑</kbd></span>Slow down</li>
-          <li><span class="caps"><kbd class="cap">↓</kbd></span>Speed up. Let go of both to hold your speed</li>
-          <li><span class="caps"><kbd class="cap">R</kbd></span>Retry this scenario</li>
-          <li><span class="caps"><kbd class="cap">N</kbd></span>A new scenario</li>
-          <li><span class="caps"><kbd class="cap">Esc</kbd></span>Settings and help. The game pauses while it is open</li>
-        </ul>
-        <label class="check"><input type="checkbox" id="raw"> Expert: raw controls. Arrows swivel the engine directly, ↑ and ↓ move the throttle lever, and a white mark on the bar shows the throttle that hovers.</label>
-        <p class="muted">Steering moves you sideways only while the engine is burning. With it off, the arrows just tilt the booster.</p>
-        <p class="muted" id="limits-text"></p>
-        <div class="best" id="best"></div>
-      </div>
-
-      <div class="pane hidden" data-pane="sim">
+    <aside class="panel" id="drawer" aria-label="Autopilot lab" inert>
+      <div class="panel-head"><span class="wm">Autopilot lab</span><span class="panel-head-actions"><button id="to-game" class="small ghost">Back to the game</button><button id="drawer-close" class="icon-btn" aria-label="Close" title="Close (Esc)"></button></span></div>
+      <div class="pane" data-pane="sim">
         <p>You don't fly this time. The flight computer does, using the nine settings below. Change them, press <b>Run flight</b>, and watch what happens.</p>
         <div class="run-row">
           <button id="run" class="primary">Run flight</button>
@@ -143,18 +122,24 @@
         <div id="test-result" class="result"></div>
         <div id="sliders"></div>
       </div>
-
       <div class="row controls">
         <label id="wind-label">Wind <select id="seed"></select></label>
         <label>Speed <select id="speed"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
         <button id="restart" class="ghost">Restart</button>
-        <button id="reroll" class="ghost">New scenario</button>
       </div>
-
-      <a class="bugs" href="https://github.com/rushilbh27/hover-slam/issues/new?template=bug_report.md" target="_blank" rel="noopener">Found a bug? <u>Contribute here</u></a>
-      <footer class="foot">Simplified physics for a game, with rough public figures for a booster. Not affiliated with SpaceX or any launch company.</footer>
     </aside>
   </main>
+  <div class="settings" id="settings" role="dialog" aria-label="Settings" inert>
+    <div class="set-row"><span class="set-label">Level</span><div class="levels" id="levels" role="radiogroup" aria-label="Level"></div></div>
+    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts during a descent</small></span></label>
+    <label class="switch"><input type="checkbox" id="raw"><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Expert controls<small>Arrows swivel the engine, up and down move the throttle lever</small></span></label>
+    <div class="set-actions">
+      <button id="to-lab" class="ghost small"></button>
+      <button id="to-how" class="ghost small"></button>
+      <button id="menu-btn" class="ghost small">Main menu</button>
+    </div>
+    <a class="bugs" href="https://github.com/rushilbh27/hover-slam/issues/new?template=bug_report.md" target="_blank" rel="noopener">Found a bug? <u>Contribute here</u></a>
+  </div>
   <nav id="dock" class="dock" aria-label="Controls">
     <button class="icon-btn game-only" id="d-engine" aria-label="Engine" title="Engine (Space)"></button>
     <button class="icon-btn game-only" id="d-retry" aria-label="Retry" title="Retry (R)"></button>
@@ -162,7 +147,8 @@
     <span class="dock-sep game-only" aria-hidden="true"></span>
     <button class="icon-btn" data-snd data-nosound></button>
     <button class="icon-btn" data-mus data-nosound></button>
-    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="drawer" aria-expanded="false" title="Settings (Esc)"></button>
+    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="settings" aria-expanded="false" title="Settings (Esc)"></button>
+    <button class="icon-btn lab-only" id="d-lab" aria-label="Autopilot settings" aria-controls="drawer" aria-expanded="false" title="Autopilot settings (Esc)"></button>
   </nav>
   <script type="module" src="app.js"></script>
 </body>
