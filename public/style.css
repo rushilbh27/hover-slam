@@ -531,3 +531,31 @@ body.in-menu .game-only { display: none; }
 .lvl-card .specs i { font: 600 10px/1.1 var(--body); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .lvl-card .specs b { font: 700 19px/1 var(--display); letter-spacing: 0.03em; }
 @media (max-width: 560px) { .facts dd { font-size: 28px; } .lvl-card .specs { grid-template-columns: repeat(2, 1fr); } .lvl-card .specs > span:nth-child(3) { border-left: 0; padding-left: 0; } }
+
+/* how to play: one screen on a laptop, diagram beside three plain steps, controls and limits underneath */
+.vhead { margin-bottom: 22px; gap: 10px; }
+.vhead .lede { margin-bottom: 0; }
+.how2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; align-items: center; width: 100%; max-width: 1100px; margin: 0 auto; text-align: left; }
+.how-fig { min-width: 0; }
+.how-steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 22px; }
+.how-steps li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; column-gap: 14px; row-gap: 4px; align-items: start; }
+.how-steps li::before { content: counter(s); grid-row: 1 / span 2; font: 700 22px/38px var(--display); width: 38px; height: 38px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 50%; }
+.how-steps b { font: 700 26px/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; align-self: center; }
+.how-steps span { grid-column: 2; color: #d6d6d6; font-size: 16px; line-height: 1.5; max-width: 46ch; }
+.how-steps .cap { margin: 0 1px; vertical-align: 1px; }
+.how-foot { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; width: 100%; max-width: 1100px; margin: 34px auto 0; padding-top: 22px; border-top: 1px solid var(--seam); text-align: left; }
+.how-foot h3 { margin: 0 0 12px; font: 600 12px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.how-foot .keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.how-foot .keys li { display: grid; grid-template-columns: 116px 1fr; align-items: center; gap: 16px; font-size: 15px; }
+.how-foot .caps { display: flex; gap: 6px; }
+.lims { display: flex; margin-bottom: 12px; }
+.lims > span { flex: 1; display: grid; gap: 4px; font-size: 13px; color: var(--dim); padding-right: 12px; }
+.lims > span + span { padding-left: 14px; border-left: 1px solid var(--seam); }
+.lims b { font: 700 30px/1 var(--display); color: #fff; letter-spacing: 0.02em; }
+.how-foot .limits { border: 0; padding: 0; margin: 0; font-size: 14px; color: var(--dim); max-width: 46ch; }
+.view[data-view="how"] .nav { margin-top: 28px; }
+@media (max-width: 860px) { .how2, .how-foot { grid-template-columns: 1fr; gap: 26px; } }
+.view[data-view="how"] { padding-top: 64px; padding-bottom: 28px; }
+.view[data-view="how"] .how-foot { margin-top: 26px; }
+.view[data-view="how"] .nav { margin-top: 20px; }
+@media (max-width: 860px) { .view[data-view="how"] { padding-top: 76px; } }

@@ -153,7 +153,7 @@ export const KEYS = [
   { caps: ['Space'], text: 'Engine on or off' },
   { caps: ['←', '→'], text: 'Lean the booster' },
   { caps: ['↑'], text: 'Slow down' },
-  { caps: ['↓'], text: 'Speed up. Let go of both to hold your speed' },
+  { caps: ['↓'], text: 'Speed up. Let go of both to keep your speed' },
 ];
 
 export const keycaps = (caps) => caps.map((c) => `<kbd class="cap${c === 'Space' ? ' wide' : ''}">${c}</kbd>`).join('');
