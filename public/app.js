@@ -8,7 +8,7 @@ import { icon } from './icons.js';
 import { drawCallout, drawCrosshair, tangents, magnifierSpot, LOOK } from './ui.js';
 import { initTooltips } from './tooltip.js';
 import { sendFeedback } from './feedback.js';
-import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
+import { LEVEL_COPY, levelSpecs, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -2243,7 +2243,7 @@ function renderLevelCards() {
     <div class="cards">${Object.entries(LEVELS).map(([k, lv]) => {
       const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
       const copy = LEVEL_COPY[k];
-      return `<button class="lvl-card" data-level="${k}">${levelThumb(k)}<span class="body"><span class="nm">${lv.label}</span><span class="tg">${copy.tagline}</span><span class="dt">${copy.detail}</span><span class="pr">${n ? `<b>${n}</b> of ${(BANK[k] || []).length} cleared${best[k] ? `, best ${best[k]}` : ''}` : `${(BANK[k] || []).length} scenarios, none flown yet`}</span></span></button>`;
+      return `<button class="lvl-card" data-level="${k}">${levelThumb(k)}<span class="body"><span class="nm">${lv.label}</span><span class="tg">${copy.tagline}</span><span class="dt">${copy.detail}</span><span class="specs">${levelSpecs(lv).map(([k2, v2]) => `<span><i>${k2}</i><b>${v2}</b></span>`).join('')}</span><span class="pr">${n ? `<b>${n}</b> of ${(BANK[k] || []).length} cleared${best[k] ? `, best ${best[k]}` : ''}` : `${(BANK[k] || []).length} scenarios, none flown yet`}</span></span></button>`;
     }).join('')}</div>
     <div class="nav"><button id="lv-back" class="ghost">Back</button><button id="lv-how" class="textlink">How to play</button></div>`;
   for (const c of document.querySelectorAll('.lvl-card')) c.addEventListener('click', () => chooseLevel(c.dataset.level));

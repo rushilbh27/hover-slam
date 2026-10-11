@@ -506,3 +506,28 @@ body.in-menu .game-only { display: none; }
 .rate-more textarea:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .rate-note { font-size: 11.5px; color: var(--muted); }
 .rate-note.hidden { display: none; }
+
+/* ---------- phase 3: the start screens ---------- */
+.facts { display: flex; gap: 0; margin: 40px 0 0; padding: 0; border-top: 1px solid rgba(255, 255, 255, 0.35); width: min(100%, 460px); }
+.facts > div { flex: 1; padding: 12px 18px 0 0; }
+.facts > div + div { padding-left: 18px; border-left: 1px solid var(--seam); }
+.facts dt { font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
+.facts dd { margin: 0; font: 700 34px/1 var(--display); letter-spacing: 0.02em; }
+.facts dd i { font: 600 13px var(--body); font-style: normal; color: var(--dim); letter-spacing: 0.06em; }
+.d-tag text { fill: #fff; font: 700 13px var(--display); letter-spacing: 0.14em; }
+.d-tag .d-sub { fill: #d6d6d6; font: 400 12px var(--body); letter-spacing: 0.02em; }
+.d-anim .d-rocket rect { fill: #eef1f6; }
+.d-anim .d-flame { fill: var(--flame); }
+@media (prefers-reduced-motion: no-preference) { .d-static { display: none; } }
+@media (prefers-reduced-motion: reduce) { .d-anim { display: none; } }
+.how .plate { background: transparent; border: 0; padding: 0; }
+.steps li { grid-template-columns: 44px 1fr; padding-top: 14px; border-top: 1px solid var(--seam); }
+.steps li::before { border-color: rgba(255, 255, 255, 0.5); }
+.lvl-card { transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease; }
+.lvl-card:hover:not(:disabled), .lvl-card:focus-visible { box-shadow: inset 0 3px 0 var(--blue); }
+.lvl-card .specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 8px; border-top: 1px solid var(--seam); }
+.lvl-card .specs > span { display: grid; gap: 4px; padding: 10px 8px 2px 0; }
+.lvl-card .specs > span + span { padding-left: 10px; border-left: 1px solid var(--seam); }
+.lvl-card .specs i { font: 600 10px/1.1 var(--body); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.lvl-card .specs b { font: 700 19px/1 var(--display); letter-spacing: 0.03em; }
+@media (max-width: 560px) { .facts dd { font-size: 28px; } .lvl-card .specs { grid-template-columns: repeat(2, 1fr); } .lvl-card .specs > span:nth-child(3) { border-left: 0; padding-left: 0; } }

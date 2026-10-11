@@ -61,12 +61,24 @@ export function descentDiagram() {
   <rect x="372" y="260" width="68" height="3" class="d-pad"/>
   <path d="M96 34 L196 138" class="d-fall"/>
   <path d="M196 138 C 252 196, 330 232, 406 258" class="d-burn"/>
+  <g class="d-anim" aria-hidden="true">
+    <g class="d-rocket">
+      <rect x="-24" y="-4" width="26" height="8" rx="1.5"/>
+      <path d="M2 -3 L20 0 L2 3 Z" class="d-flame"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4;0.41;0.85;0.86;1" dur="9s" repeatCount="indefinite"/></path>
+      <animateMotion dur="9s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;0.385;1;1" keyTimes="0;0.4;0.85;1" keySplines="0.5 0 1 1;0 0 0.25 1;0 0 1 1" path="M96 34 L196 138 C 252 196, 330 232, 406 258"/>
+    </g>
+  </g>
   <g class="d-mark"><circle cx="96" cy="34" r="13"/><text x="96" y="39" text-anchor="middle">1</text></g>
   <g class="d-mark"><circle cx="196" cy="138" r="13"/><text x="196" y="143" text-anchor="middle">2</text></g>
   <g class="d-mark"><circle cx="406" cy="236" r="13"/><text x="406" y="241" text-anchor="middle">3</text></g>
-  <g class="d-rocket" transform="translate(96 34) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/></g>
-  <g class="d-rocket" transform="translate(196 138) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/><path d="M-3 4 L3 4 L0 20 Z" class="d-flame"/></g>
-  <g class="d-rocket" transform="translate(406 252)"><rect x="-4" y="-26" width="8" height="26" rx="1.5"/><path d="M-4 -4 L-12 4 M4 -4 L12 4" class="d-leg"/></g>
+  <g class="d-tag"><text x="116" y="30">FALL</text><text x="116" y="44" class="d-sub">engine off</text></g>
+  <g class="d-tag"><text x="216" y="134">BURN</text><text x="216" y="148" class="d-sub">Space, then brake</text></g>
+  <g class="d-tag"><text x="388" y="212" text-anchor="end">TOUCH DOWN</text><text x="388" y="226" text-anchor="end" class="d-sub">on the green</text></g>
+  <g class="d-static">
+    <g class="d-rocket" transform="translate(96 34) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/></g>
+    <g class="d-rocket" transform="translate(196 138) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/><path d="M-3 4 L3 4 L0 20 Z" class="d-flame"/></g>
+    <g class="d-rocket" transform="translate(406 252)"><rect x="-4" y="-26" width="8" height="26" rx="1.5"/><path d="M-4 -4 L-12 4 M4 -4 L12 4" class="d-leg"/></g>
+  </g>
   <text x="30" y="318" class="d-axis">about 2,000 m up</text>
   <text x="430" y="318" class="d-axis" text-anchor="end">the landing platform</text>
 </svg>`;
@@ -124,6 +136,17 @@ export function levelThumb(level) {
   <rect x="102" y="114" width="9" height="10" fill="#8a4b3a"/><rect x="201" y="116" width="9" height="8" fill="#3f5f7a"/>
   <g transform="translate(150 ${L.y}) rotate(${L.tilt})"><rect x="-4" y="-34" width="8" height="34" rx="1.5" fill="#e9edf2"/><rect x="-4" y="-34" width="8" height="5" fill="#1b2029"/><path d="M-4 -4 L-11 4 M4 -4 L11 4" stroke="#1b2029" stroke-width="2" fill="none"/>${flame}</g>
 </svg>`;
+}
+
+// The numbers that tell the levels apart, read straight from the level settings.
+export function levelSpecs(lv) {
+  const o = lv.opts, w = o.windScale;
+  return [
+    ['Pad', `${Math.round(o.padHalf * 2)} m`],
+    ['Wind', w <= 0.5 ? 'Light' : w <= 1.1 ? 'Cross' : 'Gusts'],
+    ['Min throttle', `${Math.round(o.minThrottle * 100)}%`],
+    ['Land under', `${o.limits.vy} m/s`],
+  ];
 }
 
 export const KEYS = [
