@@ -59,25 +59,35 @@ export function descentDiagram() {
   <rect x="318" y="262" width="176" height="9" fill="#586272"/>
   <rect x="318" y="271" width="176" height="5" fill="#1c2430"/>
   <rect x="372" y="260" width="68" height="3" class="d-pad"/>
-  <path d="M96 34 L196 138" class="d-fall"/>
-  <path d="M196 138 C 252 196, 330 232, 406 258" class="d-burn"/>
+  <path d="M330 24 C 345 60, 360 100, 372 140" class="d-fall"/>
+  <path d="M372 140 C 378 172, 406 196, 406 244" class="d-burn"/>
   <g class="d-anim" aria-hidden="true">
     <g class="d-rocket">
-      <rect x="-24" y="-4" width="26" height="8" rx="1.5"/>
-      <path d="M2 -3 L20 0 L2 3 Z" class="d-flame"><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.4;0.41;0.85;0.86;1" dur="9s" repeatCount="indefinite"/></path>
-      <animateMotion dur="9s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;0.385;1;1" keyTimes="0;0.4;0.85;1" keySplines="0.5 0 1 1;0 0 0.25 1;0 0 1 1" path="M96 34 L196 138 C 252 196, 330 232, 406 258"/>
+      <g class="d-legs"><path d="M1 -4 L13 -12 M1 4 L13 12"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.66;0.72;1" dur="10s" repeatCount="indefinite"/></path></g>
+      <rect x="-30" y="-4" width="32" height="8"/>
+      <path d="M-30 -4 L-37 0 L-30 4 Z"/>
+      <rect x="-26" y="-7" width="4" height="14" class="d-fin"/>
+      <rect x="2" y="-3" width="3" height="6" class="d-skirt"/>
+      <g><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.43;0.44;0.93;0.94;1" dur="10s" repeatCount="indefinite"/>
+        <path d="M5 -3 L26 0 L5 3 Z" class="d-flame"><animateTransform attributeName="transform" type="scale" values="1 1;1.35 0.85;0.9 1.05;1 1" dur="0.28s" repeatCount="indefinite" additive="sum"/></path></g>
+      <animateMotion dur="10s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;0.42;1;1" keyTimes="0;0.43;0.93;1" keySplines="0.4 0 1 1;0 0 0.3 1;0 0 1 1" path="M330 24 C 345 60, 360 100, 372 140 C 300 190, 406 190, 406 244"/>
     </g>
   </g>
-  <g class="d-mark"><circle cx="96" cy="34" r="13"/><text x="96" y="39" text-anchor="middle">1</text></g>
-  <g class="d-mark"><circle cx="196" cy="138" r="13"/><text x="196" y="143" text-anchor="middle">2</text></g>
-  <g class="d-mark"><circle cx="406" cy="236" r="13"/><text x="406" y="241" text-anchor="middle">3</text></g>
-  <g class="d-tag"><text x="116" y="30">FALL</text><text x="116" y="44" class="d-sub">engine off</text></g>
-  <g class="d-tag"><text x="216" y="134">BURN</text><text x="216" y="148" class="d-sub">Space, then brake</text></g>
-  <g class="d-tag"><text x="388" y="212" text-anchor="end">TOUCH DOWN</text><text x="388" y="226" text-anchor="end" class="d-sub">on the green</text></g>
+  <g class="d-mark"><circle cx="330" cy="24" r="13"/><text x="330" y="29" text-anchor="middle">1</text></g>
+  <g class="d-mark"><circle cx="372" cy="140" r="13"/><text x="372" y="145" text-anchor="middle">2</text></g>
+  <g class="d-mark"><circle cx="440" cy="236" r="13"/><text x="440" y="241" text-anchor="middle">3</text></g>
+  <g class="d-tag"><text x="310" y="22" text-anchor="end">FALL</text><text x="310" y="36" text-anchor="end" class="d-sub">engine off</text></g>
+  <g class="d-tag"><text x="352" y="136" text-anchor="end">BURN</text><text x="352" y="150" text-anchor="end" class="d-sub">Space, then brake</text></g>
+  <g class="d-tag"><text x="458" y="232">TOUCH DOWN</text><text x="458" y="246" class="d-sub">on the green</text></g>
+  <g class="d-read" aria-hidden="true">
+    <text x="20" y="28" class="d-rd">FALLING <tspan class="d-rv">150 m/s</tspan><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.42;0.43;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></text>
+    <text x="20" y="28" class="d-rd">ENGINE ON, SLOWING <tspan class="d-rv">150 to 3 m/s</tspan><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.42;0.43;0.7;0.71;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></text>
+    <text x="20" y="28" class="d-rd">LEGS OUT, DOWN AT <tspan class="d-rv">2 m/s</tspan><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.7;0.71;1" calcMode="discrete" dur="10s" repeatCount="indefinite"/></text>
+  </g>
   <g class="d-static">
-    <g class="d-rocket" transform="translate(96 34) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/></g>
-    <g class="d-rocket" transform="translate(196 138) rotate(-40)"><rect x="-4" y="-22" width="8" height="26" rx="1.5"/><path d="M-3 4 L3 4 L0 20 Z" class="d-flame"/></g>
-    <g class="d-rocket" transform="translate(406 252)"><rect x="-4" y="-26" width="8" height="26" rx="1.5"/><path d="M-4 -4 L-12 4 M4 -4 L12 4" class="d-leg"/></g>
+    <g class="d-rocket" transform="translate(330 24) rotate(-14)"><rect x="-4" y="-30" width="8" height="32" rx="1.5"/></g>
+    <g class="d-rocket" transform="translate(372 140) rotate(-16)"><rect x="-4" y="-30" width="8" height="32" rx="1.5"/><path d="M-3 2 L3 2 L0 22 Z" class="d-flame"/></g>
+    <g class="d-rocket" transform="translate(406 252)"><rect x="-4" y="-32" width="8" height="32" rx="1.5"/><path d="M-4 -4 L-12 4 M4 -4 L12 4" class="d-leg"/></g>
   </g>
   <text x="30" y="318" class="d-axis">about 2,000 m up</text>
   <text x="430" y="318" class="d-axis" text-anchor="end">the landing platform</text>

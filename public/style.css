@@ -559,3 +559,10 @@ body.in-menu .game-only { display: none; }
 .view[data-view="how"] .how-foot { margin-top: 26px; }
 .view[data-view="how"] .nav { margin-top: 20px; }
 @media (max-width: 860px) { .view[data-view="how"] { padding-top: 76px; } }
+.d-anim .d-rocket > rect, .d-anim .d-rocket > path:not(.d-flame) { fill: #eef1f6; }
+.d-anim .d-fin { fill: #9aa4b5; }
+.d-anim .d-skirt { fill: #2a303b; }
+.d-anim .d-legs path { fill: none; stroke: #eef1f6; stroke-width: 2; stroke-linecap: round; }
+.d-rd { fill: #fff; font: 600 12px var(--body); letter-spacing: 0.12em; }
+.d-rv { fill: var(--blue-hi); font: 700 15px var(--display); letter-spacing: 0.04em; }
+@media (prefers-reduced-motion: reduce) { .d-read { display: none; } }
