@@ -136,6 +136,12 @@ npm run feedback -- 200     # more of them
 
 Without `DATABASE_URL` the game works as usual, and feedback waits in the player's browser until the site can save it. The very first descent, on any level, also shows key prompts; Hints in settings brings them back.
 
+## Developer numbers
+
+`/dev.html` shows how many people play and what they do: players (today, this week, this month, came back), descents started and finished, landing rate and average score per level, how runs end, phone against desktop, a 14-day chart, and every piece of feedback with its stars. It asks for the admin key (`ADMIN_TOKEN`; on Vercel it is an environment variable), keeps it in that browser, and refreshes every 30 seconds.
+
+The game sends three small events to `/api/event`: a visit, a descent started, a descent finished. Each carries only the random id the browser already keeps, the level, the result and whether it is a phone. Nothing is sent from localhost or when the browser says Do Not Track.
+
 ## Run it
 
 ```

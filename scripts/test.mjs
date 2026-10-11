@@ -737,6 +737,26 @@ test('"light the engine" is shown at the start of a descent on every level, and 
   assert.ok(!/levelCfg\(\)\.cue/.test(app), 'no level-specific timing cue any more');
 });
 
+test('usage events are cleaned, and the numbers page is locked behind the admin key', async () => {
+  const { cleanEvent, sameToken, handleEvent, handleStats, resetStatsForTests } = await import('../api/_stats.js');
+  resetStatsForTests();
+  assert.equal(cleanEvent({ kind: 'nope', client_id: 'abcdefgh1' }), null, 'unknown kinds are dropped');
+  assert.equal(cleanEvent({ kind: 'visit', client_id: 'short' }), null, 'a real id is needed');
+  const row = cleanEvent({ kind: 'end', client_id: 'abcdefgh1', mode: 'game', level: 'hard', outcome: 'Landed', landed: true, score: 150, duration_s: 40, device: 'tablet' });
+  assert.equal(row.level, 'hard'); assert.equal(row.score, null, 'out-of-range score is dropped'); assert.equal(row.device, null);
+  assert.equal(sameToken('abc', 'abc'), true); assert.equal(sameToken('abc', 'abd'), false); assert.equal(sameToken('', ''), false);
+  assert.equal((await handleEvent({ method: 'GET', body: {} })).status, 405);
+  assert.equal((await handleEvent({ method: 'POST', body: { kind: 'visit', client_id: 'abcdefgh1' }, env: {} })).status, 503, 'no database: refused politely');
+  assert.equal((await handleStats({ method: 'GET', token: 'x', env: {} })).status, 503, 'no admin key set: closed');
+  assert.equal((await handleStats({ method: 'GET', token: 'wrong', env: { ADMIN_TOKEN: 'right-key', DATABASE_URL: 'postgres://u:p@h/db' } })).status, 401);
+});
+
+test('counting never runs from localhost or with Do Not Track, and the game still builds with it', () => {
+  const t = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'track.js'), 'utf8');
+  assert.match(t, /doNotTrack/); assert.match(t, /localhost/);
+  assert.match(fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'dev.html'), 'utf8'), /noindex/, 'the numbers page is not indexed');
+});
+
 test('every element id the game looks up exists in the page', () => {
   const dir = path.join(import.meta.dirname, '..', 'public');
   const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
