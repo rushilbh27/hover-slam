@@ -166,6 +166,7 @@ kbd, .cap {
 .edge.alarm { --edge-c: rgba(255, 81, 72, 0.4); opacity: 1; }
 
 .cue { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font: 700 36px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; pointer-events: none; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8); animation: pulse 0.6s ease-in-out infinite alternate }
+.cue small { display: block; margin-top: 12px; font: 600 15px/1 var(--body); letter-spacing: 0.16em; color: var(--ink); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9); }
 .caption { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); font: 700 84px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; pointer-events: none; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75); opacity: 0 }
 .caption.warn { color: var(--amber) }
 .caption.pop { animation: pop 1.5s ease-out forwards; }
@@ -495,6 +496,9 @@ body.in-menu .game-only { display: none; }
 .star { padding: 4px; background: transparent; border: 0; color: var(--muted); border-radius: 3px; }
 .star:hover:not(:disabled) { background: transparent; color: #fff; }
 .star.on { color: #fff; }
+.star > span { display: flex; pointer-events: none; }
+.star .s-fill, .star.on .s-out { display: none; }
+.star.on .s-fill { display: flex; }
 .rate-more { display: flex; gap: 8px; width: 100%; align-items: flex-start; }
 .rate-more.hidden { display: none; }
 .rate-more textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); font: 400 14px/1.4 var(--body); }

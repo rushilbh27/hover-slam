@@ -52,9 +52,10 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, legsAt: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
+const freshFx = () => ({ queue: [], pool: 0, poolX: 0, scorch: null, column: null, ripples: [], foam: [], standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, legsAt: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
 const fx = freshFx();
 const rain = [];
+let poolAcc = 0; // fractional particles owed to the deck fire
 
 // One look per level, so the difficulty is visible: a sunset, a dusk with a moon, a night storm.
 const THEMES = {
@@ -318,11 +319,11 @@ function onEnd() {
     fx.standing = true;
     touchdown(s, 'Off the pad', 'warn');
   } else if (soft) {
-    splash(s); // a gentle touch in the water: it tips over and sinks
+    waterImpact(s, 0.3, false); // a gentle touch in the water: it tips over and sinks
   } else if (o.reason !== 'Flew away' && o.reason !== 'Timed out') {
-    explode(s);
+    crash(s);
   }
-  app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
+  app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : fx.exploded ? 2300 : 1300); // a crash gets time to play out
   if (app.mode === 'sim') { renderReport(); app.labTimer = setTimeout(() => { if (app.ended && app.mode === 'sim') setDrawer(true); }, 2000); } // the report slides back in
   if (COACH.on) store.set('hs.coachDone', 1); // the lesson is for the first game only, however it ended
   COACH.on = false;
@@ -338,17 +339,6 @@ function onEnd() {
 
 // A landing that feels like one: dust rolls across the deck, sparks scatter, the camera punches in
 // and holds a beat in slow motion, and the word lands with it.
-function splash(s) {
-  fx.exploded = true; // it goes under
-  for (let i = 0; i < 46; i++) {
-    fx.sparks.push({ x: s.x + (Math.random() - 0.5) * 5, y: 0.2, vx: (Math.random() - 0.5) * 18, vy: 10 + Math.random() * 24, life: 0, max: 1.2 + Math.random() * 0.9, water: true });
-  }
-  for (let i = 0; i < 7; i++) fx.steam.push({ x: s.x + (Math.random() - 0.5) * 4, y: 0.8, vx: (Math.random() - 0.5) * 5, vy: 2 + Math.random() * 3, life: 0, max: 1.6, r: 1.2 + Math.random() });
-  fx.ring = { r: 0, a: 1, bad: true };
-  fx.shake = 0.3;
-  audio.splash();
-}
-
 function touchdown(s, word, tone) {
   for (let i = 0; i < 40; i++) {
     const dir = i % 2 ? 1 : -1;
@@ -407,8 +397,7 @@ const RATE_WORDS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
 function ratePaint(n) {
   for (const b of $('rate-stars').querySelectorAll('.star')) {
     const on = Number(b.dataset.n) <= n;
-    b.classList.toggle('on', on);
-    b.innerHTML = icon(on ? 'star-fill' : 'star', 22);
+    b.classList.toggle('on', on); // the filled and the outline icon are both in the button; CSS shows one, so the element under the pointer never changes
     b.setAttribute('aria-checked', String(Number(b.dataset.n) === RATE.n));
   }
 }
@@ -416,7 +405,7 @@ function rateReset(o) {
   const show = app.mode === 'game' && Boolean(o.landed);
   $('rate').classList.toggle('hidden', !show);
   Object.assign(RATE, { n: 0, sent: false, ctx: show ? { level: app.level, scenarioId: app.scenario && app.scenario.id, outcome: 'Landed', score: scoreFlight(o) } : null });
-  $('rate-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="star" role="radio" aria-checked="false" aria-label="${n} out of 5, ${RATE_WORDS[n]}" data-n="${n}" data-tip="${RATE_WORDS[n]}" data-tip-pos="top"></button>`).join('');
+  $('rate-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="star" role="radio" aria-checked="false" aria-label="${n} out of 5, ${RATE_WORDS[n]}" data-n="${n}" data-tip="${RATE_WORDS[n]}" data-tip-pos="top"><span class="s-out">${icon('star', 22)}</span><span class="s-fill">${icon('star-fill', 22)}</span></button>`).join('');
   ratePaint(0);
   $('rate-more').classList.add('hidden');
   $('rate-text').value = '';
@@ -471,21 +460,99 @@ $('restart').addEventListener('click', () => { setDrawer(false); if (app.mode ==
 
 // ---------- effects ----------
 
-function explode(s) {
+// ---------- crashes ----------
+// A hard crash is not one thing. On the barge it is a fireball and a column of black smoke, with burning wreckage thrown across a
+// hard deck and fires that keep going. In the sea there is no fire: a column of water, spray, foam, rings spreading over the
+// surface, and wreckage that goes under. How big either one is follows how hard it hit.
+const DECK_HALF = 32; // the barge, in metres either side of the pad centre
+const rnd = (a, b) => a + Math.random() * (b - a);
+const calmMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function crash(s) {
+  const k = clamp(Math.hypot(s.vx, s.vy) / 55, 0.35, 1.5); // a 6 m/s thump is not a 150 m/s impact
+  if (Math.abs(s.x) <= DECK_HALF) deckCrash(s, k);
+  else waterImpact(s, k, true);
+}
+
+function deckCrash(s, k) {
   fx.exploded = true;
   audio.crash(Math.abs(s.vy));
-  fx.flash = 1;
-  fx.shake = 1;
-  const y = Math.max(0, s.y);
-  for (let i = 0; i < 140; i++) {
-    const a = Math.random() * Math.PI;
-    const v = 8 + Math.random() * 45;
-    fx.fire.push({ smoke: Math.random() < 0.3, x: s.x + (Math.random() - 0.5) * 6, y: y + Math.random() * 20, vx: Math.cos(a) * v * (Math.random() < 0.5 ? -1 : 1), vy: Math.sin(a) * v * 0.7 + 4, life: 0, max: 0.8 + Math.random() * 1.8, r: 3 + Math.random() * 6 });
+  const calm = calmMotion();
+  fx.flash = calm ? 0.2 : Math.min(1, 0.5 + 0.4 * k);
+  fx.shake = calm ? 0.3 : Math.min(1, 0.55 + 0.45 * k);
+  fx.slow = calm ? 1 : 0.35; // a beat of slow motion, then it eases back
+  fx.punch = calm ? 0 : 0.8;
+  const y = Math.max(0, s.y), n = (a) => Math.max(4, Math.round(a * k));
+  // the first burst: hot gas thrown out hard and low along the deck
+  for (let i = 0; i < n(60); i++) {
+    const dir = i % 2 ? 1 : -1;
+    fx.fire.push({ x: s.x + rnd(-3, 3), y: rnd(0.3, 3), vx: dir * rnd(8, 52) * (0.6 + 0.4 * k), vy: rnd(1, 12), life: 0, max: rnd(0.5, 1.3), r: rnd(3, 8) });
   }
-  for (let i = 0; i < 18; i++) {
-    fx.debris.push({ x: s.x, y: y + Math.random() * 30, vx: (Math.random() - 0.5) * 50, vy: 10 + Math.random() * 35, a: Math.random() * 6, va: (Math.random() - 0.5) * 12, w: 1 + Math.random() * 3, h: 0.6 + Math.random() * 2, life: 0 });
+  // the fireball: a ball of fire that boils upward, hot and bright at first, then orange, then dark red
+  for (let i = 0; i < n(64); i++) {
+    const a = rnd(0.12, 0.88) * Math.PI, v = rnd(5, 8 + 26 * k);
+    fx.fire.push({ x: s.x + rnd(-4, 4), y: y * Math.random() + rnd(1, 5), vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.9 + 8, life: 0, max: rnd(0.9, 2.3), r: rnd(4, 5 + 7 * k), rise: 10 });
+  }
+  // black smoke that climbs in a column and takes a long time to thin out
+  for (let i = 0; i < n(34); i++) {
+    fx.fire.push({ smoke: true, x: s.x + rnd(-5, 5), y: rnd(1, 8), vx: rnd(-7, 7), vy: rnd(4, 14), life: 0, max: rnd(0.3, 0.9), tail: rnd(3.5, 6.5), r: rnd(4, 7), rise: 15 });
+  }
+  // the propellant goes up a moment later: a second, bigger bloom, higher
+  fx.queue.push({ in: 0.28, f: () => {
+    fx.flash = Math.max(fx.flash, calm ? 0.15 : 0.5 * Math.min(1, k));
+    fx.shake = Math.max(fx.shake, calm ? 0.25 : 0.75);
+    for (let i = 0; i < n(46); i++) {
+      const a = rnd(0.1, 0.9) * Math.PI, v = rnd(6, 10 + 24 * k);
+      fx.fire.push({ x: s.x + rnd(-6, 6), y: rnd(4, 12), vx: Math.cos(a) * v * (Math.random() < 0.5 ? -1 : 1) * 0.8, vy: Math.sin(a) * v + 8, life: 0, max: rnd(0.9, 2.0), r: rnd(6, 7 + 9 * k), rise: 12 });
+    }
+    audio.thump();
+  } });
+  // wreckage: chunks that tumble out, burning and trailing smoke for a moment, and bounce on the deck
+  for (let i = 0; i < n(22); i++) {
+    const big = i < 4;
+    fx.debris.push({ hot: true, x: s.x + rnd(-2, 2), y: y + rnd(0, 30), vx: rnd(-30, 30) * (0.5 + 0.5 * k) * (big ? 0.5 : 1), vy: rnd(10, 18 + 32 * k), a: rnd(0, 6), va: rnd(-10, 10), w: big ? rnd(3, 5) : rnd(0.8, 2.6), h: big ? rnd(1, 2) : rnd(0.5, 1.6), life: 0 });
+  }
+  // sparks shower and bounce, dust rolls out, a shock ring runs along the deck, and it all leaves a scorch and a fire that keeps burning
+  for (let i = 0; i < n(44); i++) {
+    const dir = i % 2 ? 1 : -1;
+    fx.sparks.push({ x: s.x + rnd(-3, 3), y: rnd(0.5, 3), vx: dir * rnd(4, 34), vy: rnd(8, 30), life: 0, max: rnd(0.6, 1.5) });
+  }
+  for (let i = 0; i < 26; i++) {
+    const dir = i % 2 ? 1 : -1;
+    fx.dust.push({ x: s.x + rnd(-3, 3), y: rnd(0.4, 1.4), vx: dir * rnd(8, 44), vy: rnd(0.3, 2), life: 0, max: rnd(1, 2), r: rnd(1.6, 3.4) });
   }
   fx.ring = { r: 0, a: 1, bad: true };
+  fx.scorch = { x: s.x, r: 5 + 7 * k, t: 0 };
+  fx.pool = 3 + 2.5 * k;
+  fx.poolX = s.x;
+}
+
+// Into the sea: from a gentle touch (it tips over and goes under) to a high-speed hit (a tall column of water).
+function waterImpact(s, k, big) {
+  fx.exploded = true; // it goes under
+  const calm = calmMotion();
+  audio.splash(big);
+  fx.shake = calm ? 0.2 : big ? Math.min(0.9, 0.35 + 0.4 * k) : 0.3;
+  if (big && !calm) { fx.slow = 0.4; fx.punch = 0.6; }
+  const n = (a) => Math.max(6, Math.round(a * k));
+  fx.column = { x: s.x, t: 0, k };
+  // spray: a crown of droplets thrown up and out, tallest in the middle
+  for (let i = 0; i < n(big ? 110 : 150); i++) {
+    const d = rnd(-1, 1), up = (1 - Math.abs(d) * 0.55) * rnd(14, 38 + 40 * k);
+    fx.sparks.push({ x: s.x + d * rnd(0.5, 3), y: 0.2, vx: d * rnd(5, 18 + 10 * k), vy: up, life: 0, max: rnd(1.1, 2.4), water: true });
+  }
+  // mist hanging over it
+  for (let i = 0; i < n(12); i++) fx.steam.push({ x: s.x + rnd(-3, 3), y: rnd(0.8, 3 + 12 * k), vx: rnd(-4, 4), vy: rnd(2, 8), life: 0, max: rnd(1.6, 3), r: rnd(1.6, 3 + 3 * k) });
+  // foam that stays on the surface after it, and rings that spread out and fade
+  for (let i = 0; i < n(big ? 12 : 6); i++) fx.foam.push({ x: s.x + rnd(-1, 1) * (3 + 7 * k), r: rnd(2, 4 + 5 * k), life: 0, max: rnd(2.8, 5) });
+  fx.ring = { r: 0, a: 1, bad: true };
+  fx.ripples = [0.18, 0.5, 0.9].map((d, i) => ({ x: s.x, r: 0, a: 0.55 - i * 0.1, wait: d, speed: 20 + 10 * k - i * 3 }));
+  if (!big) return;
+  // wreckage that splashes down around it and sinks, and the steam where hot metal meets water
+  for (let i = 0; i < n(12); i++) {
+    fx.debris.push({ x: s.x + rnd(-2, 2), y: rnd(0, 18), vx: rnd(-22, 22) * (0.5 + 0.5 * k), vy: rnd(10, 16 + 26 * k), a: rnd(0, 6), va: rnd(-9, 9), w: rnd(0.8, 3), h: rnd(0.5, 1.6), life: 0 });
+  }
+  for (let i = 0; i < 9; i++) fx.steam.push({ x: s.x + rnd(-4, 4), y: rnd(0.6, 4), vx: rnd(-5, 5), vy: rnd(3, 9), life: 0, max: rnd(2, 3.4), r: rnd(2, 5) });
 }
 
 function updateFx(dt) {
@@ -592,14 +659,36 @@ function updateFx(dt) {
   for (const p of fx.steam) { p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt; p.r += dt * 3; }
   fx.steam = fx.steam.filter((p) => p.life < p.max);
 
-  for (const p of fx.fire) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.5; p.vy = p.vy * (1 - dt * 1.5) + dt * 6; if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.3; } p.life += dt; p.r += dt * (p.life < p.max ? 9 : 1.5); }
-  fx.fire = fx.fire.filter((p) => p.life < p.max + (p.smoke ? 2.5 : 0)).slice(-260);
+  for (const p of fx.fire) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - dt * 1.5; p.vy = p.vy * (1 - dt * 1.5) + dt * (p.rise || 6); if (p.y < 0) { p.y = 0; p.vy = Math.abs(p.vy) * 0.3; } p.life += dt; p.r += dt * (p.life < p.max ? 9 : 1.5); }
+  fx.fire = fx.fire.filter((p) => p.life < p.max + (p.tail || (p.smoke ? 2.5 : 0))).slice(-420);
   for (const d of fx.debris) {
     d.x += d.vx * dt; d.y += d.vy * dt; d.vy -= G * dt; d.a += d.va * dt; d.life += dt;
+    if (d.hot && d.life > 0.3 && d.life < 1.5 && Math.random() < dt * 9) fx.fire.push({ smoke: true, x: d.x, y: d.y, vx: 0, vy: 1, life: 0, max: 0.12, tail: 1.5, r: rnd(0.8, 1.6), rise: 5 }); // burning wreckage trails smoke
     if (d.y < 0.5 && Math.abs(d.x) < 34) { d.y = 0.5; d.vy = -d.vy * 0.3; d.vx *= 0.6; d.va *= 0.5; }
-    else if (d.y < 0) { d.dead = true; fx.steam.push({ x: d.x, y: 0.4, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0, max: 1.2, r: 1.5 }); } // splashes into the sea
+    else if (d.y < 0) { // splashes into the sea
+      d.dead = true;
+      fx.steam.push({ x: d.x, y: 0.4, vx: (Math.random() - 0.5) * 6, vy: 3 + Math.random() * 4, life: 0, max: 1.2, r: 1.5 });
+      for (let i = 0; i < 5; i++) fx.sparks.push({ x: d.x, y: 0.2, vx: rnd(-5, 5), vy: rnd(6, 16), life: 0, max: rnd(0.6, 1.1), water: true });
+      fx.foam.push({ x: d.x, r: rnd(1, 2.4), life: 0, max: rnd(1.6, 2.6) });
+    }
   }
   fx.debris = fx.debris.filter((d) => !d.dead && d.life < 9);
+  // things set up to happen a moment after the crash, and the fire that keeps burning on the deck
+  for (const q of fx.queue) { q.in -= dt; if (q.in <= 0) q.f(); }
+  fx.queue = fx.queue.filter((q) => q.in > 0);
+  if (fx.pool > 0) {
+    fx.pool -= dt;
+    poolAcc += dt * 110;
+    for (; poolAcc >= 1; poolAcc--) fx.fire.push({ x: fx.poolX + rnd(-9, 9), y: rnd(0.3, 1.5), vx: rnd(-3, 3), vy: rnd(3, 9), life: 0, max: rnd(0.4, 0.95), r: rnd(1.3, 2.8), rise: 16 });
+    if (Math.random() < dt * 22) fx.fire.push({ smoke: true, x: fx.poolX + rnd(-8, 8), y: rnd(1, 3), vx: rnd(-2, 2), vy: rnd(4, 9), life: 0, max: 0.2, tail: rnd(2, 3.4), r: rnd(1.8, 3), rise: 12 });
+  }
+  if (fx.scorch) fx.scorch.t += dt;
+  // the water: a column that rises and falls back, rings that spread, foam that lingers
+  if (fx.column) { fx.column.t += dt; if (fx.column.t > 2.4) fx.column = null; }
+  for (const r of fx.ripples) { if (r.wait > 0) r.wait -= dt; else { r.r += r.speed * dt; r.a -= dt * 0.22; } }
+  fx.ripples = fx.ripples.filter((r) => r.a > 0);
+  for (const p of fx.foam) { p.life += dt; p.r += dt * 0.9; }
+  fx.foam = fx.foam.filter((p) => p.life < p.max);
   if (fx.ring) { fx.ring.r += dt * (fx.ring.bad ? 90 : 30); fx.ring.a -= dt * (fx.ring.bad ? 1.2 : 0.5); if (fx.ring.a <= 0) fx.ring = null; }
 }
 
@@ -645,6 +734,7 @@ function render(dt) {
   app.pred = null;
   if (!app.attract && app.running && !s.done) drawTrail();
   if (app.mode === 'game' && app.running && !s.done) drawPrediction(f);
+  drawScorch();
   drawSmoke(fx.smoke, 'deck');
   if (!fx.exploded) {
     // nothing of the booster or its flame shows below the deck
@@ -655,6 +745,8 @@ function render(dt) {
     drawBooster(f);
     ctx.restore();
   }
+  drawFoam();
+  drawColumn();
   drawFire();
   drawSmoke(fx.vent, 'vent');
   drawSmoke(fx.dust, 'dust');
@@ -1467,14 +1559,14 @@ function drawFire() {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     if (k < 1) {
       ctx.globalCompositeOperation = 'lighter';
-      const c = k < 0.3 ? '255, 230, 170' : k < 0.6 ? '255, 140, 60' : '200, 60, 30';
-      g.addColorStop(0, `rgba(${c}, ${0.7 * (1 - k * 0.7)})`);
+      const c = k < 0.25 ? '255, 222, 150' : k < 0.6 ? '255, 132, 52' : '196, 56, 28';
+      g.addColorStop(0, `rgba(${c}, ${0.46 * (1 - k * 0.7)})`);
       g.addColorStop(1, `rgba(${c}, 0)`);
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      const a = 0.13 * (1 - (p.life - p.max) / 2.5);
-      g.addColorStop(0, `rgba(40, 34, 36, ${a})`);
-      g.addColorStop(1, 'rgba(40, 34, 36, 0)');
+      const a = 0.17 * (1 - (p.life - p.max) / (p.tail || 2.5));
+      g.addColorStop(0, `rgba(36, 31, 33, ${a})`);
+      g.addColorStop(1, 'rgba(36, 31, 33, 0)');
     }
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -1485,14 +1577,82 @@ function drawFire() {
     ctx.translate(sx(d.x), sy(d.y));
     ctx.rotate(d.a);
     ctx.globalAlpha = clamp(1 - (d.life - 2.5) / 2.5, 0, 1);
-    ctx.fillStyle = d.life < 1.5 ? '#ffb070' : '#4a505b';
+    ctx.fillStyle = d.hot && d.life < 1.5 ? '#ffb070' : '#4a505b';
     ctx.fillRect((-d.w / 2) * cam.s, (-d.h / 2) * cam.s, d.w * cam.s, d.h * cam.s);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
 }
 
+// the black mark a deck fire leaves, on the deck only
+function drawScorch() {
+  const c = fx.scorch;
+  if (!c) return;
+  const x0 = sx(-DECK_HALF), x1 = sx(DECK_HALF), d = clamp(6 * cam.s, 5, 30), y0 = sy(0) + fx.bob;
+  const x = sx(c.x), r = c.r * cam.s, a = 0.6 * Math.min(1, c.t * 1.5);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x0, y0 - d / 2, x1 - x0, d); ctx.clip();
+  ctx.translate(x, y0); ctx.scale(1, 0.42);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+  g.addColorStop(0, `rgba(6, 5, 5, ${a})`);
+  g.addColorStop(0.55, `rgba(12, 9, 9, ${a * 0.6})`);
+  g.addColorStop(1, 'rgba(12, 9, 9, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.restore();
+}
+
+// foam lying on the surface after something went in
+function drawFoam() {
+  for (const p of fx.foam) {
+    const k = p.life / p.max, r = p.r * cam.s, a = 0.6 * (1 - k) * Math.min(1, p.life * 6);
+    ctx.save();
+    ctx.translate(sx(p.x), sy(0) + 1);
+    ctx.scale(1, 0.2);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, `rgba(238, 246, 255, ${a})`);
+    g.addColorStop(0.7, `rgba(210, 228, 244, ${a * 0.6})`);
+    g.addColorStop(1, 'rgba(210, 228, 244, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+    ctx.restore();
+  }
+}
+
+// the column of water thrown up by a hard hit: it climbs fast, widens, and falls back in on itself
+function drawColumn() {
+  const c = fx.column;
+  if (!c) return;
+  const T = c.t, rise = clamp(T / 0.45, 0, 1), fall = clamp((T - 0.45) / 1.6, 0, 1);
+  const hgt = (10 + 24 * c.k) * (1 - (1 - rise) ** 2.4) * (1 - fall ** 1.7);
+  if (hgt < 0.3) return;
+  const wb = (2.4 + 3.2 * c.k) * (1 + 0.9 * T), wt = wb * (0.62 + 0.5 * fall);
+  const x = sx(c.x), y = sy(0), h = hgt * cam.s, b = wb * cam.s, t = wt * cam.s;
+  const a = 0.8 * (1 - fall ** 2);
+  const g = ctx.createLinearGradient(0, y - h, 0, y);
+  g.addColorStop(0, `rgba(244, 250, 255, ${a})`);
+  g.addColorStop(1, `rgba(150, 196, 228, ${a * 0.65})`);
+  ctx.save();
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - b, y);
+  ctx.bezierCurveTo(x - b * 0.7, y - h * 0.45, x - t * 1.1, y - h * 0.75, x - t * 0.8, y - h * 0.93); // up the side to a rounded crown
+  ctx.quadraticCurveTo(x, y - h - t * 0.7, x + t * 0.8, y - h * 0.93);
+  ctx.bezierCurveTo(x + t * 1.1, y - h * 0.75, x + b * 0.7, y - h * 0.45, x + b, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawRing() {
+  for (const r of fx.ripples) { // rings spreading over the water
+    if (r.wait > 0) continue;
+    ctx.strokeStyle = `rgba(220, 236, 255, ${Math.max(0, r.a)})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(sx(r.x), sy(0), r.r * cam.s, r.r * cam.s * 0.16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   if (!fx.ring) return;
   const s = app.flight.state;
   ctx.strokeStyle = fx.ring.bad ? `rgba(255, 210, 160, ${fx.ring.a * 0.6})` : `rgba(91, 227, 164, ${fx.ring.a * 0.8})`;
@@ -1589,13 +1749,15 @@ function drawScenePins(f) {
   }
   // labels on the booster itself, once it is big enough to carry them: the engine, and the legs
   const vs = boosterScale();
-  if (42 * vs >= 110 && !app.menuOpen) {
+  if (42 * vs >= 126 && !app.menuOpen) {
     const x0 = sx(s.x), y0 = sy(s.y), c = Math.cos(s.theta), sn = Math.sin(s.theta);
     const at = (bx, by) => [x0 + vs * (bx * c - by * sn), y0 + vs * (bx * sn + by * c)]; // a point on the booster, in metres from the nozzle
-    if (s.cut) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, 'Engine out', { dir: 1, rise: 30, bend: 26, run: 100, color: LOOK.amber }); }
-    else if (s.engineOn && s.throttle > 0.02) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, `Engine ${Math.round(s.throttle * 100)}%`, { dir: 1, rise: 30, bend: 26, run: 100 }); }
     const legsText = fx.legs > 0 && fx.legs < 1 ? 'Legs deploying' : fx.legs >= 1 && performance.now() - fx.legsAt < 3500 ? 'Legs locked' : '';
-    if (legsText) { const [ax, ay] = at(-7.9, 2.5); drawCallout(ctx, ax, ay, legsText, { dir: -1, rise: -26, bend: 26, run: 100 }); }
+    // both labels run out to the right, under the numbers (the gauge is on the left): the legs one first, the engine one below it
+    if (legsText) { const [ax, ay] = at(7.9, 2.5); drawCallout(ctx, ax, ay, legsText, { dir: 1, rise: 34, bend: 22, run: 100 }); }
+    const engineRise = legsText ? 62 : 34;
+    if (s.cut) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, 'Engine out', { dir: 1, rise: engineRise, bend: 26, run: 100, color: LOOK.amber }); }
+    else if (s.engineOn && s.throttle > 0.02) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, `Engine ${Math.round(s.throttle * 100)}%`, { dir: 1, rise: engineRise, bend: 26, run: 100 }); }
   }
   ctx.restore();
   // a magnifier over the last stretch: the legs and the deck close up, and how the landing limits stand
@@ -1707,7 +1869,7 @@ function placeFocus() {
   const s = f.state;
   const hw = clamp(cam.s * 2.4, 8, 70), small = W < 520;
   // keep the gauge on the left and the numbers on the right of the booster, a clear hand's width away from it, and both inside the picture
-  const gl = small ? 30 : 48, gr = small ? 40 : 60;
+  const gl = small ? 40 : 76, gr = small ? 50 : 90;
   const lo = (small ? 78 : 96) + hw + gl + 6, hi = W - (hw + gr + (small ? 158 : 206)) - 10;
   const x = hi < lo ? (lo + hi) / 2 : clamp(sx(s.x), lo, hi), y = clamp(sy(s.y + 21), small ? 240 : 130, H - 150);
   const fc = $('focus');
@@ -1715,6 +1877,10 @@ function placeFocus() {
   fc.style.setProperty('--gl', `${gl}px`);
   fc.style.setProperty('--gr', `${gr}px`);
   fc.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+  // the "light the engine" cue sits just under the instruments, where the eyes already are (phones keep it centred, higher up)
+  const cue = $('cue');
+  if (W >= 520) { cue.style.left = `${x.toFixed(1)}px`; cue.style.top = `${Math.min(y + 112, H - 210).toFixed(1)}px`; }
+  else { cue.style.left = ''; cue.style.top = ''; }
 }
 
 function hud() {
@@ -1815,7 +1981,12 @@ function hud() {
       if (h <= ((s.vy * s.vy) / (2 * brake)) * 1.35) msg = 'Light the engine';
     }
   }
-  cue.textContent = msg;
+  const sub = msg === 'Light the engine' ? (window.matchMedia('(pointer: coarse)').matches ? 'Tap Engine' : 'Press Space') : '';
+  if (cue.dataset.k !== msg + sub) { // only rebuilt when the words change
+    cue.dataset.k = msg + sub;
+    cue.textContent = msg;
+    if (sub) { const small = document.createElement('small'); small.textContent = sub; cue.appendChild(small); }
+  }
   cue.classList.toggle('hidden', !msg);
 }
 

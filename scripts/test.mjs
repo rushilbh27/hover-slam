@@ -710,6 +710,25 @@ test('the magnifier: tangent lines touch the circle, and it sits where it fits a
   assert.ok(!hit, 'clear of the approach window');
 });
 
+test('a crash on the barge and a crash in the sea are different effects', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const body = (name) => { const i = app.indexOf(`function ${name}(`); return app.slice(i, app.indexOf('\n}\n', i)); };
+  assert.match(body('crash'), /DECK_HALF/, 'where it hit decides which one');
+  assert.match(body('deckCrash'), /fx\.fire\.push/, 'the deck has a fireball');
+  assert.match(body('deckCrash'), /fx\.scorch/, 'and leaves a scorch mark');
+  assert.ok(!/fx\.fire\.push|fx\.scorch/.test(body('waterImpact')), 'the sea has no fire');
+  assert.match(body('waterImpact'), /fx\.column/, 'the sea has a column of water');
+  assert.match(body('waterImpact'), /fx\.foam/, 'and foam');
+});
+
+test('the rating stars keep the same elements under the pointer, so a click is never lost', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  const i = app.indexOf('function ratePaint(');
+  const paint = app.slice(i, app.indexOf('\n}\n', i));
+  assert.ok(!/innerHTML/.test(paint), 'painting a star must not rebuild it');
+  assert.match(app, /s-out[^`]*s-fill/, 'both icons are in the button, CSS shows one');
+});
+
 test('every element id the game looks up exists in the page', () => {
   const dir = path.join(import.meta.dirname, '..', 'public');
   const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
