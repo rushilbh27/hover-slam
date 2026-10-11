@@ -72,7 +72,11 @@ npm run scenarios -- --per-level 50   # a bigger bank
 
 For `--claude`, copy `.env.example` to `.env.local` and paste an Anthropic API key (the file is git-ignored). Claude writes the scenario data; the simulator still checks every one, so a bad or unwinnable scenario is dropped before it can reach a player. Scenarios are generated ahead of time in batches, not when you press a button, so playing is instant and the cost is predictable.
 
-![The final approach, with the plume hitting the deck](docs/game-final-approach.jpg)
+![The final approach: the magnifier shows fall speed, sideways speed and tilt against their limits](docs/game-final-approach.jpg)
+
+A crash is not one thing. On the barge it is a fireball and smoke; in the sea there is no fire, only a column of water, spray and foam.
+
+![A hard hit in the sea: a column of water, spray and rings on the surface](docs/crash-sea.jpg)
 
 ### Tune the autopilot (the simulator)
 

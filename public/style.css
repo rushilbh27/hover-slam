@@ -568,3 +568,25 @@ body.in-menu .game-only { display: none; }
 .d-rd { fill: #fff; font: 600 12px var(--body); letter-spacing: 0.12em; }
 .d-rv { fill: var(--blue-hi); font: 700 15px var(--display); letter-spacing: 0.04em; }
 @media (prefers-reduced-motion: reduce) { .d-read { display: none; } }
+
+/* ---------- phase 4: the briefing and result cards in the instrument look ---------- */
+.outcome, .intro { border-color: rgba(255, 255, 255, 0.28); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); background: rgba(8, 8, 8, 0.95); }
+.outcome::before, .intro::before { content: ""; position: absolute; left: -1px; right: -1px; top: -1px; height: 3px; background: var(--blue); border-radius: 4px 4px 0 0; }
+.outcome:has(.o-title.bad)::before { background: var(--alarm); }
+.i-kicker, .o-scn { font-weight: 600; letter-spacing: 0.16em; }
+.o-stats { gap: 0; margin: 4px 0 18px; border-top: 1px solid var(--seam); border-bottom: 1px solid var(--seam); flex-wrap: nowrap; }
+.o-stats div { flex: 1; align-items: center; padding: 12px 6px 10px; }
+.o-stats div + div { border-left: 1px solid var(--seam); }
+.o-stats label { font-weight: 600; letter-spacing: 0.14em; font-size: 10.5px; margin-bottom: 6px; }
+.o-stats b { font-size: 26px; }
+.i-faults .chip, .i-faults > * { letter-spacing: 0.04em; }
+.i-rule { padding-top: 14px; border-top: 1px solid var(--seam); }
+.o-actions button, .intro .big { min-width: 150px; }
+@media (max-width: 560px) {
+  .outcome, .intro { padding: 20px 16px; }
+  .o-stats { flex-wrap: wrap; }
+  .o-stats div { flex: 1 1 33%; border-left: 0 !important; border-bottom: 1px solid var(--seam); }
+  .o-stats div:nth-last-child(-n+2) { border-bottom: 0; }
+  .o-actions { flex-wrap: wrap; }
+  .o-actions button { flex: 1 1 140px; }
+}
