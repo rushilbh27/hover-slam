@@ -52,7 +52,8 @@ export function autopilotBest(level, sc) {
 export const autopilotLands = (level, sc) => Boolean(autopilotBest(level, sc));
 
 // A scenario must be landable with the keys the player really has, at some reasonable moment to light the engine.
-const keysCanLand = (level, sc, heights) => heights.some((igniteAt) => playKeys(level, sc, { igniteAt }).landed);
+// `need` of the moments must work, so a scenario is never won only by one lucky height.
+const keysCanLand = (level, sc, heights, need = 1) => heights.filter((igniteAt) => playKeys(level, sc, { igniteAt }).landed).length >= need;
 
 // Who must be able to win a scenario:
 // Easy by a player who only lights the engine and steers.
@@ -60,7 +61,9 @@ const keysCanLand = (level, sc, heights) => heights.some((igniteAt) => playKeys(
 // Hard by a key pilot too, and by the flight computer, so it is possible and it takes real skill.
 export function winnable(level, sc) {
   if (level === 'easy') return { ok: playHuman(level, sc, 'lazy').landed, by: 'a player who only steers' };
-  if (level === 'medium') return { ok: keysCanLand(level, sc, [1400, 1600, 1800]), by: 'a key pilot lighting at 1400, 1600 or 1800 m' };
+  if (level === 'medium') return { ok: keysCanLand(level, sc, [1400, 1600, 1800], 2), by: 'a key pilot lighting at two of 1400, 1600 or 1800 m' };
+  // A scripted key pilot cannot plan ahead, so it cannot prove a very weak steering side is beatable: there the flight computer, which can, must land it.
+  if (sc.faults && sc.faults.weakSide && sc.faults.weakFactor < 0.4) { const best = autopilotBest(level, sc); return { ok: Boolean(best) && best.fuelLeft > 400, by: 'the flight computer, with fuel to spare (a steering side this weak needs planning)' }; }
   return { ok: keysCanLand(level, sc, [1400, 1600, 1800, 2000]) && autopilotLands(level, sc), by: 'a key pilot and the flight computer' };
 }
 

@@ -16,6 +16,7 @@ const NAMES = {
     none: ['Crosswind drop', 'Gusty approach', 'Tight pad', 'Salt wind', 'Side-eye', 'Narrow margin', 'Rough weather', 'Cold front', 'Choppy sea', 'Thin deck'],
     leak: ['Slow leak', 'Leaking tank', 'Fuel bleed', 'Dripping lines', 'Cracked seal', 'Pinhole', 'Fuel on the wind', 'Losing propellant', 'Loose valve', 'Seeping tank'],
     thrustCap: ['Tired engine', 'Throttled back', 'Weak thrust', 'Limp engine', 'Short of breath', 'Governed burn', 'Gentle push', 'Half-hearted burn', 'Clipped engine', 'Low on power'],
+    dropouts: ['Brief stall', 'Hiccup', 'Quick cough', 'Missed beat', 'Short stumble', 'Flutter', 'Blink', 'Momentary lapse', 'Skip', 'Stutter step'],
   },
   hard: {
     weakSide: ['Flaky steering', 'Stubborn thruster', 'Lopsided steering', 'Sticky gimbal', 'One good side', 'Lame thruster', 'Wonky nozzle', 'Pulling sideways', 'Sluggish side', 'Drifting hand'],
@@ -31,12 +32,16 @@ function briefing(level, sc, flight, labels) {
   const off = Math.round(Math.abs(flight.state.x) / 10) * 10;
   const start = `Starts about ${y} m up and ${off} m off the pad.`;
   const wind = sc.opts.windScale < 0.3 ? 'Calm air.' : sc.opts.windScale < 0.8 ? 'Light wind.' : sc.opts.windScale < 1.3 ? 'Strong wind.' : 'Violent gusts.';
-  if (!labels.length) return level === 'easy' ? `${start} ${wind} Plenty of fuel.` : `${start} ${wind} No faults: just you and the gusts.`;
+  if (!labels.length) {
+    if (level === 'easy') return `${start} ${wind} Plenty of fuel.`;
+    return sc.faults ? `Pre-flight check: nothing flagged. ${start} ${wind}` : `${start} ${wind} No faults: just you and the gusts.`; // a hidden cut-out says nothing
+  }
   const f = sc.faults;
   const bits = [];
   if (f.leak) bits.push(`A fuel line is leaking at ${Math.round(f.leak)} kg/s, so don't dawdle: light early enough to steer, then follow the aim-for speed straight down.`);
   if (f.thrustCap) bits.push(`The engine only gives ${Math.round(f.thrustCap * 100)}% thrust, so light it earlier.`);
-  if (f.dropouts) bits.push(`The engine cuts out ${f.dropouts === 1 ? 'once' : f.dropouts + ' times'} early in the burn, for under a second. Keep some height in hand.`);
+  const cuts = (f.dropouts || 0) + (f.lowCut ? 1 : 0) + (f.stutter ? 1 : 0);
+  if (cuts && !f.hidden) bits.push(`The engine cuts out ${cuts === 1 ? 'once' : cuts + ' times'}, without warning${f.lowCut ? ', and one can come close to the deck' : ''}${f.mild ? ', but only briefly' : ''}. Keep some height in hand.`);
   if (f.weakSide) bits.push(`${f.weakSide === 'left' ? 'Left' : 'Right'} steering is weak${f.flicker ? ' and flickers' : ''}, so leaning ${f.weakSide} is slow. Start early if the pad is on that side.`);
   return `${bits.join(' ')} ${start}`;
 }
@@ -51,21 +56,32 @@ export function candidate(level, i, taken = new Set()) {
   let kinds = [];
   if (level === 'medium') {
     const x = r();
-    kinds = x < 0.15 ? [] : x < 0.6 ? ['leak'] : ['thrustCap'];
+    kinds = x < 0.17 ? [] : x < 0.5 ? ['leak'] : x < 0.83 ? ['thrustCap'] : ['dropouts'];
   } else if (level === 'hard') {
-    const pool = ['weakSide', 'weakSide', 'thrustCap', 'dropouts', 'leak'];
-    const n = r() < 0.7 ? 1 : 2;
+    const pool = ['weakSide', 'weakSide', 'thrustCap', 'thrustCap', 'dropouts', 'dropouts', 'dropouts', 'dropouts', 'leak', 'leak'];
+    const n = r() < 0.45 ? 1 : 2;
     while (kinds.length < n) {
       const k = pick(r, pool);
-      if (!kinds.includes(k)) kinds.push(k);
+      if (kinds.includes(k)) continue;
+      if ((k === 'weakSide' && kinds.includes('dropouts')) || (k === 'dropouts' && kinds.includes('weakSide'))) continue; // a weak side and cut-outs together are too much
+      kinds.push(k);
     }
   }
   const hard = level === 'hard';
   for (const k of kinds) {
-    if (k === 'leak') faults.leak = hard ? between([25, 60], r) : between([30, 75], r);
-    if (k === 'thrustCap') faults.thrustCap = hard ? between([0.8, 0.92], r) : between([0.78, 0.92], r);
-    if (k === 'dropouts') faults.dropouts = r() < 0.8 ? 1 : 2;
-    if (k === 'weakSide') { faults.weakSide = r() < 0.6 ? 'left' : 'right'; faults.weakFactor = between([0.4, 0.7], r); faults.flicker = r() < 0.35; }
+    // two faults at once are each a little gentler, so a pair stays beatable
+    const pair = kinds.length === 2;
+    if (k === 'leak') faults.leak = hard ? between(pair ? [70, 90] : [78, 90], r) : between([60, 90], r);
+    if (k === 'thrustCap') faults.thrustCap = hard ? between(pair ? [0.66, 0.74] : [0.6, 0.74], r) : between([0.6, 0.75], r);
+    if (k === 'dropouts' && !hard) { faults.dropouts = 1; faults.mild = true; } // Medium: one short cut-out, early
+    if (k === 'dropouts' && hard) {
+      const x = r();
+      faults.dropouts = x < 0.3 ? 1 : x < 0.7 ? 2 : x < 0.93 ? 3 : 4;
+      if (r() < 0.4) faults.lowCut = true;
+      if (faults.dropouts <= 2 && r() < 0.25) faults.stutter = true;
+      if (r() < 0.4) faults.hidden = true;
+    }
+    if (k === 'weakSide') { faults.weakSide = r() < 0.5 ? 'left' : 'right'; faults.weakFactor = between([0.28, 0.42], r); faults.flicker = r() < 0.4; }
   }
   if (hard && kinds.length) { opts.windScale = between([1.1, 1.45], r); opts.padHalf = between([10.5, 12], r); } // faults are the extra difficulty, so the weather and pad ease a little
   const seed = 100 + Math.floor(r() * 899000);

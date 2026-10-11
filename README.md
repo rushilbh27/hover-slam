@@ -52,10 +52,10 @@ Each level has a bank of 30 scenarios, and every play draws the next one from a 
 | Level | What varies |
 | --- | --- |
 | Easy | The start: low or high, near or far, a calm day or a breeze. No faults |
-| Medium | A bit more of everything, and usually one fault: a fuel leak or a thrust limit |
-| Hard | Strong gusts and one or two faults: a leak, low thrust, engine cut-outs, or weak (sometimes flickering) steering on one side |
+| Medium | A bit more of everything, and usually one fault: a heavy fuel leak (up to 90 kg/s), an engine limited to about 60–75% thrust, or one brief engine cut-out |
+| Hard | Strong gusts and one or two faults: a fast leak (up to 90 kg/s), an engine limited to about 60–74% thrust, engine cut-outs (up to four, spread over the whole burn, sometimes one near the deck, sometimes a quick stutter), or very weak (sometimes flickering) steering on one side. About half the scenarios have cut-outs, and some give no warning |
 
-Faults are always shown on screen, with a chip under the readouts, a flashing fuel bar for a leak, and a chip naming the fault. Engine cut-outs are silent: the engine just stops, with no pop-up to distract you. So a loss feels like the challenge and not a bug.
+Most faults are shown on screen, with a chip under the readouts, a flashing fuel bar for a leak, and a chip naming the fault. Engine cut-outs are silent: the engine just stops, with no pop-up to distract you. On some Hard scenarios the briefing doesn't mention them at all. So a loss feels like the challenge and not a bug.
 
 ![A Medium scenario with a fuel leak: the fuel bar is red and the tank is venting](docs/scenario-leak.jpg)
 
@@ -130,7 +130,7 @@ npm test
 53 checks, no browser needed:
 
 - **Physics:** the same wind gives the same flight, fuel never goes negative, and a nearly empty booster at the real 40% throttle floor climbs.
-- **Faults:** a leak drains fuel at its rate, a thrust cap really limits thrust, engine cut-outs stop the thrust and fall early in the burn, a weak side turns slower than the other, and a flickering side drops out. A flight with no faults is exactly what it was before.
+- **Faults:** a leak drains fuel at its rate, a thrust cap really limits thrust, engine cut-outs stop the thrust and are spread over the whole burn, a low cut-out fires once near the deck and a stutter is four quick cuts, a weak side turns slower than the other, and a flickering side drops out. A flight with no faults is exactly what it was before.
 - **Autopilot:** the reference settings land every wind and the starting settings don't. Scoring and the settings validator behave.
 - **Explanations:** every setting has a plain-language description, and the debrief names the right cause for late ignition, a too-low touchdown speed, too little damping and ignoring the pad.
 - **Game controls:** a scripted player who never touches ↑ or ↓ wins every Easy wind, but never wins Medium or Hard. The lean builds up smoothly with no jump or overshoot, the arrows work with the engine off, letting go stops sideways drift, and the booster never climbs when the keys are left alone.
