@@ -52,8 +52,8 @@ Each level has a bank of 30 scenarios, and every play draws the next one from a 
 | Level | What varies |
 | --- | --- |
 | Easy | The start: low or high, near or far, a calm day or a breeze. No faults |
-| Medium | A bit more of everything, and usually one fault: a heavy fuel leak, an engine limited to about 60–75% thrust, or one brief engine cut-out |
-| Hard | Strong gusts and one or two faults: a fast leak, an engine limited to about 60–74% thrust, engine cut-outs (up to four, spread over the whole burn, sometimes one near the deck, sometimes a quick stutter), or very weak (sometimes flickering) steering on one side. About half the scenarios have cut-outs, and some give no warning |
+| Medium | A bit more of everything, and usually one fault: a heavy fuel leak (up to 90 kg/s), an engine limited to about 60–75% thrust, or one brief engine cut-out |
+| Hard | Strong gusts and one or two faults: a fast leak (up to 90 kg/s), an engine limited to about 60–74% thrust, engine cut-outs (up to four, spread over the whole burn, sometimes one near the deck, sometimes a quick stutter), or very weak (sometimes flickering) steering on one side. About half the scenarios have cut-outs, and some give no warning |
 
 Most faults are shown on screen, with a chip under the readouts, a flashing fuel bar for a leak, and a chip naming the fault. Engine cut-outs are silent: the engine just stops, with no pop-up to distract you. On some Hard scenarios the briefing doesn't mention them at all. So a loss feels like the challenge and not a bug.
 

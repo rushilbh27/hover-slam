@@ -474,13 +474,13 @@ test('the harder bank: Hard has real cut-outs, big leaks, weak engines and steer
   assert.ok(withCuts.some((f) => f.dropouts >= 2), 'some come more than once');
   for (const f of hardFaults) {
     if (f.thrustCap) assert.ok(f.thrustCap <= 0.74, `Hard thrust ${f.thrustCap}`);
-    if (f.leak) assert.ok(f.leak >= 75, `Hard leak ${f.leak}`);
+    if (f.leak) assert.ok(f.leak >= 70 && f.leak <= 90, `Hard leak ${f.leak}`);
     if (f.weakSide) assert.ok(f.weakFactor <= 0.42, `Hard steering ${f.weakFactor}`);
   }
   for (const sc of BANK.medium) {
     const f = sc.faults || {};
     if (f.thrustCap) assert.ok(f.thrustCap <= 0.75, `Medium thrust ${f.thrustCap}`);
-    if (f.leak) assert.ok(f.leak >= 60, `Medium leak ${f.leak}`);
+    if (f.leak) assert.ok(f.leak >= 60 && f.leak <= 90, `Medium leak ${f.leak}`);
     if (f.dropouts) assert.ok(f.mild && f.dropouts === 1, 'Medium cut-outs are single and mild');
   }
   assert.ok(BANK.medium.filter((s) => s.faults && s.faults.dropouts).length >= 3, 'Medium has a few mild cut-outs');

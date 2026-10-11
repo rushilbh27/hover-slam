@@ -8,7 +8,7 @@ export const RANGES = {
   medium: { altScale: [0.85, 1.15], offsetScale: [0.7, 1.1], speedScale: [0.9, 1.05], windScale: [0.7, 1.2], fuel: [8200, 9400], padHalf: [12, 16], faults: ['leak', 'thrustCap', 'dropouts'], maxFaults: 1, maxDrops: 1 },
   hard: { altScale: [0.95, 1.2], offsetScale: [0.9, 1.3], speedScale: [1.0, 1.1], windScale: [1.1, 1.7], fuel: [7600, 8600], padHalf: [9, 12], faults: ['leak', 'thrustCap', 'dropouts', 'weakSide'], maxFaults: 2, maxDrops: 4 },
 };
-export const FAULT_RANGES = { leak: [25, 140], thrustCap: [0.45, 0.92], dropouts: [1, 4], weakFactor: [0.05, 0.7] };
+export const FAULT_RANGES = { leak: [25, 90], thrustCap: [0.45, 0.92], dropouts: [1, 4], weakFactor: [0.05, 0.7] };
 export const FACTORS = ['altScale', 'offsetScale', 'speedScale', 'windScale', 'fuel', 'padHalf'];
 
 const inRange = (v, [lo, hi]) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;

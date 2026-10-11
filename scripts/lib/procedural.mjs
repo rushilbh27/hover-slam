@@ -71,7 +71,7 @@ export function candidate(level, i, taken = new Set()) {
   for (const k of kinds) {
     // two faults at once are each a little gentler, so a pair stays beatable
     const pair = kinds.length === 2;
-    if (k === 'leak') faults.leak = hard ? between(pair ? [75, 105] : [85, 130], r) : between([60, 100], r);
+    if (k === 'leak') faults.leak = hard ? between(pair ? [70, 90] : [78, 90], r) : between([60, 90], r);
     if (k === 'thrustCap') faults.thrustCap = hard ? between(pair ? [0.66, 0.74] : [0.6, 0.74], r) : between([0.6, 0.75], r);
     if (k === 'dropouts' && !hard) { faults.dropouts = 1; faults.mild = true; } // Medium: one short cut-out, early
     if (k === 'dropouts' && hard) {
