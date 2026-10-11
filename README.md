@@ -28,6 +28,8 @@ You are the flight computer.
 
 On a phone you get touch buttons in two thumb clusters (lean on the left, throttle and engine on the right), and it works in portrait or landscape. The **Expert** checkbox swaps in raw controls: the arrows swivel the engine directly and ↑/↓ move a throttle lever.
 
+The picture is drawn like a flight diagram. A thin blue line is the path you have flown, and a dashed white line is where you will be if you hold the controls as they are, ending in a crosshair on the deck that says how far from the pad you would land. The booster carries small labels for its engine and legs. The Approach window at the bottom left shows the whole descent side on, and in the last 60 m a magnifier opens beside the deck with your fall speed, sideways speed and tilt against their landing limits (not on phones, where there is no room).
+
 | Level | What changes |
 | --- | --- |
 | Easy | Light wind, wide pad, extra fuel, the engine throttles to 15% so it can hover, a cue says when to light it, a landing assist softens the last metres, and it stops drifting when you let go. Lands at up to 6 m/s |
@@ -128,7 +130,7 @@ npm run feedback            # the 40 most recent, with a summary by level
 npm run feedback -- 200     # more of them
 ```
 
-Without `DATABASE_URL` the game works as usual, and feedback waits in the player's browser until the site can save it. The first Easy descent also shows key prompts; Hints in settings brings them back.
+Without `DATABASE_URL` the game works as usual, and feedback waits in the player's browser until the site can save it. The very first descent, on any level, also shows key prompts; Hints in settings brings them back.
 
 ## Run it
 

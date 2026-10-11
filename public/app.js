@@ -5,6 +5,7 @@ import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
 import { audio } from './audio.js';
 import { icon } from './icons.js';
+import { drawCallout, drawCrosshair, tangents, magnifierSpot, LOOK } from './ui.js';
 import { initTooltips } from './tooltip.js';
 import { sendFeedback } from './feedback.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
@@ -51,7 +52,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
+const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, legsAt: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
 const fx = freshFx();
 const rain = [];
 
@@ -497,6 +498,7 @@ function updateFx(dt) {
   const legs0 = fx.legs;
   fx.legs = clamp(fx.legs + (s.y < 320 || s.done ? dt / 2.2 : 0), 0, 1);
   if (legs0 === 0 && fx.legs > 0 && !app.attract) audio.legs();
+  if (legs0 < 1 && fx.legs >= 1) fx.legsAt = performance.now();
   fx.punch = Math.max(0, fx.punch - dt * 1.4);
   fx.fin += (fx.finCmd - fx.fin) * Math.min(1, dt * 9);
 
@@ -640,6 +642,8 @@ function render(dt) {
   drawHorizonLife(th);
   drawExtras(th);
   drawBarge(f, th);
+  app.pred = null;
+  if (!app.attract && app.running && !s.done) drawTrail();
   if (app.mode === 'game' && app.running && !s.done) drawPrediction(f);
   drawSmoke(fx.smoke, 'deck');
   if (!fx.exploded) {
@@ -661,7 +665,7 @@ function render(dt) {
   drawRain(dt, th);
   if (fx.bolt) { const a = boltAlpha(); ctx.fillStyle = `rgba(190, 210, 255, ${a * 0.2})`; ctx.fillRect(0, 0, W, H); }
   if (fx.flash > 0) { ctx.fillStyle = `rgba(255, 214, 170, ${fx.flash * 0.55})`; ctx.fillRect(0, 0, W, H); }
-  drawPadArrow(f);
+  drawScenePins(f);
   drawMinimap(f);
 }
 
@@ -1498,73 +1502,193 @@ function drawRing() {
   ctx.stroke();
 }
 
+// The overlays that make the scene read like a technical diagram: hairlines, a blue line for where you have been, a dashed white
+// line for where you are heading, and small capital labels on leader lines.
+function drawTrail() {
+  const pts = app.trail;
+  if (pts.length < 2) return;
+  const n = pts.length, chunk = 14;
+  ctx.save();
+  ctx.lineWidth = 1.6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (let i = 0; i < n - 1; i += chunk) { // older stretches fade
+    const end = Math.min(n - 1, i + chunk);
+    ctx.strokeStyle = `rgba(110, 155, 255, ${0.12 + 0.78 * (end / n)})`;
+    ctx.beginPath();
+    ctx.moveTo(sx(pts[i][0]), sy(pts[i][1]));
+    for (let j = i + 1; j <= end; j++) ctx.lineTo(sx(pts[j][0]), sy(pts[j][1]));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawPrediction(f) {
   // where you'll be in the next few seconds if you hold the controls as they are
   const sim = { wind: f.wind, limits: f.limits, pad: f.pad, minThrottle: f.minThrottle, fuel0: f.fuel0, state: { ...f.state } };
   const st = { ...app.steer };
-  const pts = [];
+  const pts = [[f.state.x, f.state.y]];
   for (let i = 0; i < 240 && !sim.state.done; i++) {
     step(sim, human(sim, 1 / 40, st), 1 / 40);
     if (i % 4 === 0) pts.push([sim.state.x, sim.state.y]);
   }
-  ctx.fillStyle = 'rgba(238, 242, 247, 0.55)';
-  for (let i = 0; i < pts.length; i++) {
-    ctx.globalAlpha = 1 - i / pts.length;
+  const o = sim.state.outcome;
+  const end = sim.state.done && o && o.checks && 'onPad' in o.checks ? { x: sim.state.x, onPad: o.checks.onPad, off: Math.max(0, o.distance - f.pad.halfWidth) } : null;
+  app.pred = { pts, end };
+  ctx.save();
+  ctx.lineWidth = 1; ctx.setLineDash([4, 5]); ctx.lineCap = 'round';
+  const parts = 4, per = Math.ceil(pts.length / parts);
+  for (let c = 0; c < parts; c++) { // fading out as it runs on
+    const seg = pts.slice(Math.max(0, c * per - 1), (c + 1) * per);
+    if (seg.length < 2) continue;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.85 - c * 0.2})`;
     ctx.beginPath();
-    ctx.arc(sx(pts[i][0]), sy(pts[i][1]), 1.6, 0, Math.PI * 2);
-    ctx.fill();
+    seg.forEach(([x, y], k) => (k ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y))));
+    ctx.stroke();
   }
-  ctx.globalAlpha = 1;
-  if (sim.state.done && sim.state.outcome && sim.state.outcome.checks && 'onPad' in sim.state.outcome.checks) {
-    const x = sx(sim.state.x), y = sy(0);
-    const ok = sim.state.outcome.checks.onPad;
-    ctx.strokeStyle = ok ? 'rgba(91, 227, 164, 0.9)' : 'rgba(255, 107, 91, 0.9)';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x - 6, y - 8); ctx.lineTo(x + 6, y - 20); ctx.moveTo(x + 6, y - 8); ctx.lineTo(x - 6, y - 20); ctx.stroke();
-  }
+  ctx.restore();
+  if (end) drawCrosshair(ctx, sx(end.x), sy(0), 8, end.onPad ? LOOK.line : LOOK.amber);
 }
 
-function drawPadArrow(f) {
+// the pad, when it has slid off the side of the picture
+function drawPadPointer(f) {
   const px = sx(0);
   if (px > 24 && px < W - 24) return;
   const left = px <= 24;
   const x = left ? 28 : W - 28;
   const y = clamp(sy(0) - 40, 80, H - 40);
-  ctx.fillStyle = 'rgba(91, 227, 164, 0.95)';
+  ctx.save();
+  ctx.fillStyle = LOOK.line;
   ctx.beginPath();
   if (left) { ctx.moveTo(x - 12, y); ctx.lineTo(x + 2, y - 9); ctx.lineTo(x + 2, y + 9); }
   else { ctx.moveTo(x + 12, y); ctx.lineTo(x - 2, y - 9); ctx.lineTo(x - 2, y + 9); }
   ctx.fill();
-  ctx.font = '700 15px "Big Shoulders Display", "Arial Narrow", sans-serif';
+  ctx.font = LOOK.font;
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
   ctx.textAlign = left ? 'left' : 'right';
-  ctx.fillText(`Pad ${Math.round(Math.abs(f.state.x))} m`, left ? x + 8 : x - 8, y + 24);
+  ctx.fillText(`PAD ${Math.round(Math.abs(f.state.x))} M`, left ? x + 8 : x - 8, y + 24);
+  ctx.restore();
 }
 
+// where the approach window sits over the picture, so nothing else is placed on top of it
+function mapRect() {
+  const a = canvas.getBoundingClientRect(), b = mini.getBoundingClientRect();
+  return b.width ? { x: b.left - a.left, y: b.top - a.top, w: b.width, h: b.height } : null;
+}
+
+function drawScenePins(f) {
+  const s = f.state;
+  drawPadPointer(f);
+  if (app.attract || !app.running || s.done) return;
+  const h = Math.max(0, s.y - BOOSTER.legHeight);
+  ctx.save();
+  // the label on the predicted touchdown, fading once the magnifier takes over
+  if (app.mode === 'game' && app.pred && app.pred.end) {
+    const e = app.pred.end, x = sx(e.x), right = x < W * 0.62;
+    ctx.globalAlpha = clamp((h - 40) / 40, 0, 1);
+    if (ctx.globalAlpha > 0) drawCallout(ctx, x + (right ? 6 : -6), sy(0), e.onPad ? 'Predicted: on the pad' : `Predicted: ${Math.round(e.off)} m off`, { dir: right ? 1 : -1, rise: -34, bend: 26, run: 150, color: e.onPad ? LOOK.line : LOOK.amber });
+    ctx.globalAlpha = 1;
+  }
+  // labels on the booster itself, once it is big enough to carry them: the engine, and the legs
+  const vs = boosterScale();
+  if (42 * vs >= 110 && !app.menuOpen) {
+    const x0 = sx(s.x), y0 = sy(s.y), c = Math.cos(s.theta), sn = Math.sin(s.theta);
+    const at = (bx, by) => [x0 + vs * (bx * c - by * sn), y0 + vs * (bx * sn + by * c)]; // a point on the booster, in metres from the nozzle
+    if (s.cut) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, 'Engine out', { dir: 1, rise: 30, bend: 26, run: 100, color: LOOK.amber }); }
+    else if (s.engineOn && s.throttle > 0.02) { const [ax, ay] = at(0.85, 0.4); drawCallout(ctx, ax, ay, `Engine ${Math.round(s.throttle * 100)}%`, { dir: 1, rise: 30, bend: 26, run: 100 }); }
+    const legsText = fx.legs > 0 && fx.legs < 1 ? 'Legs deploying' : fx.legs >= 1 && performance.now() - fx.legsAt < 3500 ? 'Legs locked' : '';
+    if (legsText) { const [ax, ay] = at(-7.9, 2.5); drawCallout(ctx, ax, ay, legsText, { dir: -1, rise: -26, bend: 26, run: 100 }); }
+  }
+  ctx.restore();
+  // a magnifier over the last stretch: the legs and the deck close up, and how the landing limits stand
+  if (W >= 700 && h < 60) {
+    const R = 66, alpha = clamp((60 - h) / 20, 0, 1);
+    const zoom = clamp(R / (cam.s * (h / 2 + 4)), 1, 3.5); // frames the feet and the deck, and tightens as they meet
+    const P = [sx(s.x), sy(0)];
+    const spot = magnifierSpot({ px: P[0], py: P[1], r: R, W, H, avoid: mapRect(), below: 70 });
+    const yc = h / 2; // halfway between the feet and the deck
+    const half = (R / zoom) * dpr;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.arc(spot.x, spot.y, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.save(); ctx.clip();
+    ctx.drawImage(canvas, sx(s.x) * dpr - half, sy(yc) * dpr - half, half * 2, half * 2, spot.x - R, spot.y - R, R * 2, R * 2); // a copy of what is already drawn
+    ctx.restore();
+    ctx.strokeStyle = LOOK.line; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(spot.x, spot.y, R, 0, Math.PI * 2); ctx.stroke();
+    const cone = tangents(P, [spot.x, spot.y], R);
+    if (cone) {
+      ctx.globalAlpha = alpha * 0.75;
+      ctx.beginPath(); cone.forEach(([x, y]) => { ctx.moveTo(P[0], P[1]); ctx.lineTo(x, y); }); ctx.stroke();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = LOOK.line; ctx.beginPath(); ctx.arc(P[0], P[1], 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    const L = f.limits;
+    const rows = [
+      [`Fall ${Math.abs(s.vy).toFixed(1)} / limit ${L.vy}`, Math.abs(s.vy) <= L.vy],
+      [`Side ${Math.abs(s.vx).toFixed(1)} / limit ${L.vx}`, Math.abs(s.vx) <= L.vx],
+      [`Tilt ${Math.abs(s.theta / DEG).toFixed(1)}° / limit ${Math.round(L.tilt / DEG)}°`, Math.abs(s.theta) <= L.tilt],
+    ];
+    ctx.font = LOOK.font; ctx.textAlign = 'center';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'; ctx.shadowBlur = 5; // readable over a bright horizon
+    rows.forEach(([t, ok], i) => { ctx.fillStyle = ok ? '#9bb8ff' : LOOK.amber; ctx.fillText(t.toUpperCase(), spot.x, spot.y + R + 20 + i * 16); });
+    ctx.restore();
+  }
+}
+
+// The approach window: the whole descent side on, with the height stretched so the last few hundred metres have room.
 function drawMinimap(f) {
-  const w = mini.width, h = mini.height;
-  mctx.clearRect(0, 0, w, h);
-  const xr = 320, yr = 2400;
-  const mx = (x) => w / 2 + (x / xr) * (w / 2 - 10);
-  const my = (y) => h - 18 - (y / yr) * (h - 30);
-  mctx.fillStyle = 'rgba(120, 150, 200, 0.12)';
-  mctx.fillRect(0, my(0), w, h - my(0));
-  mctx.fillStyle = '#5be3a4';
-  mctx.fillRect(mx(-f.pad.halfWidth), my(0) - 2, mx(f.pad.halfWidth) - mx(-f.pad.halfWidth), 4);
+  const cw = mini.clientWidth, ch = mini.clientHeight;
+  if (!cw) return;
+  if (mini.width !== Math.round(cw * dpr) || mini.height !== Math.round(ch * dpr)) { mini.width = Math.round(cw * dpr); mini.height = Math.round(ch * dpr); }
+  mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mctx.clearRect(0, 0, cw, ch);
+  const L = 16, R = cw - 16, T = 34, B = ch - 28, xr = 320, yr = 2500;
+  const mx = (x) => (L + R) / 2 + clamp(x / xr, -1, 1) * ((R - L) / 2);
+  const my = (y) => B - Math.sqrt(clamp(y, 0, yr) / yr) * (B - T);
+  const s = f.state;
+  mctx.font = '600 10px "D-DIN", "Arial Narrow", Arial, sans-serif';
+  if ('letterSpacing' in mctx) mctx.letterSpacing = '1.4px';
+  mctx.fillStyle = '#bdbdbd';
+  mctx.fillText('APPROACH', L - 2, 19);
+  // height ticks down the left edge, and the deck
+  mctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+  for (const y of [100, 500, 1000, 2000]) mctx.fillRect(L - 9, my(y), 5, 1);
+  mctx.fillRect(L - 9, B, R - L + 18, 1);
+  // the pad, with a tick at its middle
+  mctx.fillStyle = '#fff';
+  mctx.fillRect(mx(-f.pad.halfWidth), B - 1, mx(f.pad.halfWidth) - mx(-f.pad.halfWidth), 3);
+  mctx.fillRect(mx(0), B - 7, 1, 7);
+  // the five winds of the autopilot lab, faint
   for (const gtr of app.ghosts) {
-    mctx.strokeStyle = gtr.landed ? 'rgba(91, 227, 164, 0.35)' : 'rgba(255, 107, 91, 0.35)';
-    mctx.lineWidth = 1.5;
+    mctx.strokeStyle = gtr.landed ? 'rgba(110, 155, 255, 0.35)' : 'rgba(242, 193, 78, 0.45)';
+    mctx.lineWidth = 1;
     mctx.beginPath();
     gtr.trace.forEach(([x, y], i) => (i ? mctx.lineTo(mx(x), my(y)) : mctx.moveTo(mx(x), my(y))));
     mctx.stroke();
   }
-  mctx.strokeStyle = 'rgba(110, 155, 255, 0.95)';
-  mctx.lineWidth = 2;
+  // where you have been (solid blue) and where you are heading (dashed white)
+  mctx.lineJoin = 'round';
+  mctx.strokeStyle = LOOK.blue; mctx.lineWidth = 2;
   mctx.beginPath();
   app.trail.forEach(([x, y], i) => (i ? mctx.lineTo(mx(x), my(y)) : mctx.moveTo(mx(x), my(y))));
   mctx.stroke();
-  const s = f.state;
-  mctx.fillStyle = '#eef2f7';
-  mctx.beginPath(); mctx.arc(mx(s.x), my(s.y), 4, 0, Math.PI * 2); mctx.fill();
+  if (app.pred && app.pred.pts.length > 1) {
+    mctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; mctx.lineWidth = 1; mctx.setLineDash([3, 4]);
+    mctx.beginPath();
+    app.pred.pts.forEach(([x, y], i) => (i ? mctx.lineTo(mx(x), my(y)) : mctx.moveTo(mx(x), my(y))));
+    mctx.stroke();
+    mctx.setLineDash([]);
+  }
+  // you
+  const dx = mx(s.x), dy = my(s.y);
+  mctx.fillStyle = '#fff';
+  mctx.beginPath(); mctx.arc(dx, dy, 3.5, 0, Math.PI * 2); mctx.fill();
+  if (!s.done) drawCallout(mctx, dx, dy, 'Booster', { dir: dx < cw / 2 ? 1 : -1, rise: -16, bend: 12, run: 64, font: '600 10px "D-DIN", Arial, sans-serif', tracking: '1.2px' });
+  mctx.fillStyle = '#bdbdbd';
+  mctx.textAlign = 'left';
+  mctx.fillText(`OFF PAD ${Math.round(Math.abs(s.x))} M`, L - 2, ch - 8);
+  mctx.textAlign = 'start';
 }
 
 // ---------- HUD ----------
@@ -1868,10 +1992,10 @@ $('hints').addEventListener('change', (e) => { store.set('hs.hints', e.target.ch
 
 // ---------- the tutorial: key prompts at the moment they matter ----------
 // Space to light the engine, then the lean, then the speed. Each step ends when the player does the thing, and the lesson is
-// shown on the first Easy game only. Hints can be switched off, or back on for the next Easy game, in settings.
+// shown on the first game only, on whatever level it is. Hints can be switched off, or back on for the next game, in settings.
 const COACH = { on: false, step: 0, lean: 0, speed: 0, t: 0, shown: '' };
 function coachStart() {
-  COACH.on = app.mode === 'game' && app.level === 'easy' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 1; // Easy only, and only the first game
+  COACH.on = app.mode === 'game' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 1; // the first game only, on whatever level it is
   Object.assign(COACH, { step: 0, lean: 0, speed: 0, t: 0, shown: '' });
   $('coach').classList.add('hidden');
 }
