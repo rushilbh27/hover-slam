@@ -302,24 +302,24 @@ export const DT = 1 / 120;
 export const LEVELS = {
   easy: {
     label: 'Easy',
-    blurb: 'Light wind, a big pad and extra fuel. The engine throttles down to 15%, so it can hover. A cue tells you when to light it, the landing assist softens the last metres, and it stops drifting by itself when you let go of the arrows.',
+    blurb: 'Light wind, a big pad and extra fuel. The engine throttles down to 15%, so it can hover. The landing assist softens the last metres, and it stops drifting by itself when you let go of the arrows.',
     opts: { windScale: 0.25, fuel: 11000, padHalf: 22, minThrottle: 0.15, speedScale: 0.8, altScale: 0.75, offsetScale: 0.35, limits: { vy: 6, vx: 3, tilt: 12 * DEG, omega: 12 * DEG } },
     flare: { c: 1.5, a: 3 }, // landing assist: caps the falling speed near the deck
-    lean: 12, cue: true, target: true, driftHold: true, aimDecel: 3, // aimDecel: the braking the on-screen aim-for speed assumes
+    lean: 12, target: true, driftHold: true, aimDecel: 3, // aimDecel: the braking the on-screen aim-for speed assumes
   },
   medium: {
     label: 'Medium',
-    blurb: 'Real crosswind, a smaller pad and no cue: you pick the moment to light the engine. Light early enough to steer, around 1,600 m, then follow the aim-for speed down to the deck. Lands at up to 3.2 m/s. The landing assist only helps in the last few metres, and it still stops drifting when you let go of the arrows.',
+    blurb: 'Real crosswind, a smaller pad, and you pick the moment to light the engine. Light early enough to steer, around 1,600 m, then follow the aim-for speed down to the deck. Lands at up to 3.2 m/s. The landing assist only helps in the last few metres, and it still stops drifting when you let go of the arrows.',
     opts: { windScale: 1.0, fuel: 8600, padHalf: 14, minThrottle: 0.3, offsetScale: 0.85, limits: { vy: 3.2, vx: 1.6, tilt: 6.5 * DEG, omega: 6.5 * DEG } },
     flare: { c: 1.4, a: 6 },
-    lean: 12, cue: false, target: true, driftHold: true, aimDecel: 5,
+    lean: 12, target: true, driftHold: true, aimDecel: 5,
   },
   hard: {
     label: 'Hard',
     blurb: 'The real thing. Strong gusts, a narrow pad, and an engine that can\'t throttle below 40%, so it can never hover: you have to time one burn that ends exactly at the deck. Land at under 3 m/s down, 1.5 m/s sideways and 6° of tilt. No landing assist, and nothing stops your drift but you.',
     opts: { windScale: 1.4, fuel: 8200, padHalf: 11, minThrottle: 0.4, limits: { vy: 3, vx: 1.5, tilt: 6 * DEG, omega: 6 * DEG } },
     flare: null,
-    lean: 10, cue: false, target: true, driftHold: false, aimDecel: 5,
+    lean: 10, target: true, driftHold: false, aimDecel: 5,
   },
 };
 

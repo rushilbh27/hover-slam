@@ -136,6 +136,7 @@ function newFlight() {
   } else app.flight = makeFlight(app.seed, undefined);
   app.input.engine = false;
   app.input.throttle = 0.8;
+  app.engineLit = false; // the "light the engine" cue is for the start of a descent only
   app.trail = [];
   app.steer = { want: 0, vHold: 0 };
   app.ended = false;
@@ -1971,15 +1972,14 @@ function hud() {
   $('wind-arrow').style.transform = `rotate(${w < 0 ? 180 : 0}deg)`;
   $('t-level').textContent = app.mode === 'game' && app.scenario ? `${levelCfg().label} · ${app.scenario.name}` : 'Simulator';
 
-  // cues: climbing (any level), and "light it now" on Easy
+  // cues: climbing, and "light the engine" at the start of a descent on every level. The second goes away the moment the engine is lit
+  // and never comes back, since cutting it and lighting it again is a way to fly.
+  if (s.engineOn) app.engineLit = true;
   const cue = $('cue');
   let msg = '';
   if (app.mode === 'game' && app.running && !s.done) {
     if (s.engineOn && s.vy > 1.5) msg = 'Climbing: throttle down or cut the engine';
-    else if (levelCfg().cue && !s.engineOn && s.vy < -5) {
-      const brake = (0.85 * B.thrustMax) / mass(s) - G;
-      if (h <= ((s.vy * s.vy) / (2 * brake)) * 1.35) msg = 'Light the engine';
-    }
+    else if (!app.engineLit) msg = 'Light the engine';
   }
   const sub = msg === 'Light the engine' ? (window.matchMedia('(pointer: coarse)').matches ? 'Tap Engine' : 'Press Space') : '';
   if (cue.dataset.k !== msg + sub) { // only rebuilt when the words change
@@ -2194,7 +2194,7 @@ function coachUpdate(f, s, h) {
     COACH.shown = key;
     const lv = levelCfg();
     const steps = [
-      [keycap('Space', 'engine', true), 'Light the engine', touch ? 'Tap Engine.' : '', app.level === 'easy' ? 'A cue tells you when it is time.' : 'Around 1,600 m leaves time to steer.'],
+      [keycap('Space', 'engine', true), 'Light the engine', touch ? 'Tap Engine.' : '', 'Around 1,600 m leaves time to steer.'],
       [keycap('←', 'left') + keycap('→', 'right'), 'Lean toward the pad', 'The arrow beside To pad shows the way.', 'Steering only works while the engine burns.'],
       [keycap('↑', 'up') + keycap('↓', 'down'), 'Keep the dot on the centre tick', 'Up slows you down, down speeds you up.', 'Let go of both to hold your speed.'],
       ['', 'Almost there', `Touch down under ${f.limits.vy} m/s,`, 'upright and over the pad.'],
@@ -2221,7 +2221,7 @@ function renderHow() {
       </div>
       <div class="plate">
         <ol class="steps">
-          <li><span><b>Fall</b>The engine is off. Easy shows a cue when to light it. On Medium and Hard, light it around 1,600 m so there is time to steer. Steering only works while the engine burns.</span></li>
+          <li><span><b>Fall</b>The engine is off, and a reminder at the start says to press Space. Light it around 1,600 m so there is time to steer. Steering only works while the engine burns.</span></li>
           <li><span><b>Burn</b>Press Space. Keep your falling speed on the aim-for number beside it: up slows you down, down speeds you up, and letting go holds your speed. Lean with left and right.</span></li>
           <li><span><b>Touch down</b>Upright, over the green, and slow: under 3 m/s down, 1.5 m/s sideways and 6 degrees of tilt. Easy forgives more.</span></li>
         </ol>

@@ -5,11 +5,11 @@ import { G } from './physics.js';
 export const LEVEL_COPY = {
   easy: {
     tagline: 'Calm air, a wide pad and an engine that can hover.',
-    detail: 'A cue tells you when to light it. Start here.',
+    detail: 'It forgives an early light. Start here.',
   },
   medium: {
     tagline: 'Real crosswind and a small pad.',
-    detail: 'No cue. Light early enough to steer, then follow the aim-for speed.',
+    detail: 'Light early enough to steer, then follow the aim-for speed.',
   },
   hard: {
     tagline: 'Night, rain and gusts. The engine can never hover.',

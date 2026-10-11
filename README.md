@@ -32,8 +32,8 @@ The picture is drawn like a flight diagram. A thin blue line is the path you hav
 
 | Level | What changes |
 | --- | --- |
-| Easy | Light wind, wide pad, extra fuel, the engine throttles to 15% so it can hover, a cue says when to light it, a landing assist softens the last metres, and it stops drifting when you let go. Lands at up to 6 m/s |
-| Medium | Real crosswind, 14 m pad, no cue, 30% minimum throttle (it can hover until the tank is nearly empty), landing assist only in the last few metres, drift hold on. Lands at up to 3.2 m/s down, 1.6 m/s sideways, 6.5° tilt |
+| Easy | Light wind, wide pad, extra fuel, the engine throttles to 15% so it can hover, a landing assist softens the last metres, and it stops drifting when you let go. Lands at up to 6 m/s |
+| Medium | Real crosswind, 14 m pad, 30% minimum throttle (it can hover until the tank is nearly empty), landing assist only in the last few metres, drift hold on. Lands at up to 3.2 m/s down, 1.6 m/s sideways, 6.5° tilt |
 | Hard | Strong gusts, 11 m pad, the real 40% minimum throttle (it can never hover), no assist, no drift hold. You time one burn that ends at the deck. Lands at up to 3 m/s down, 1.5 m/s sideways, 6° tilt |
 
 The first screen is a how-to-play page with a diagram of a whole descent and the controls, then three level cards. The look is original: a sunset, a moonlit dusk and a night storm, with gulls over the water and a landing platform modelled on a real drone ship.

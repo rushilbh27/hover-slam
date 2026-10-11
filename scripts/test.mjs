@@ -729,6 +729,14 @@ test('the rating stars keep the same elements under the pointer, so a click is n
   assert.match(app, /s-out[^`]*s-fill/, 'both icons are in the button, CSS shows one');
 });
 
+test('"light the engine" is shown at the start of a descent on every level, and not again once the engine has been lit', () => {
+  const app = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /if \(s\.engineOn\) app\.engineLit = true;/, 'lighting it ends the cue for good');
+  assert.match(app, /else if \(!app\.engineLit\) msg = 'Light the engine';/, 'shown until then, on any level');
+  assert.match(app, /app\.engineLit = false;/, 'and it comes back with the next descent');
+  assert.ok(!/levelCfg\(\)\.cue/.test(app), 'no level-specific timing cue any more');
+});
+
 test('every element id the game looks up exists in the page', () => {
   const dir = path.join(import.meta.dirname, '..', 'public');
   const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
