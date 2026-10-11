@@ -411,6 +411,7 @@ function rateReset(o) {
   $('rate-more').classList.add('hidden');
   $('rate-text').value = '';
   $('rate-send').disabled = false;
+  $('rate-send').textContent = 'Send';
   $('rate-q').textContent = 'How was that run? Optional.';
   $('rate-note').classList.remove('hidden');
 }
@@ -427,6 +428,7 @@ $('rate-send').addEventListener('click', async () => {
   if (RATE.sent || !RATE.ctx) return;
   RATE.sent = true;
   $('rate-send').disabled = true;
+  $('rate-send').textContent = 'Sending';
   const ok = await sendFeedback({ ...RATE.ctx, rating: RATE.n || null, comment: $('rate-text').value });
   $('rate-q').textContent = ok ? 'Thanks, that helps.' : 'Thanks. It will send when you are back online.';
   $('rate-more').classList.add('hidden');

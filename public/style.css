@@ -499,7 +499,9 @@ body.in-menu .game-only { display: none; }
 .star > span { display: flex; pointer-events: none; }
 .star .s-fill, .star.on .s-out { display: none; }
 .star.on .s-fill { display: flex; }
-.rate-more { display: flex; gap: 8px; width: 100%; align-items: flex-start; }
+.rate-more { display: flex; gap: 10px; width: 100%; align-items: stretch; }
+.rate-more button { align-self: stretch; min-width: 76px; padding: 0 18px; font-size: 14px; }
+.rate-more textarea { min-height: 62px; }
 .rate-more.hidden { display: none; }
 .rate-more textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); font: 400 14px/1.4 var(--body); }
 .rate-more textarea::placeholder { color: var(--muted); }
