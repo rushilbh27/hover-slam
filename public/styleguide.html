@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Hoverslam · Style guide</title>
+  <link rel="preload" href="fonts/D-DIN.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    html, body { height: auto; }
+    body { padding: clamp(20px, 5vw, 64px); max-width: 1180px; margin: 0 auto; }
+    h1 { font: 700 clamp(56px, 9vw, 112px)/0.9 var(--display); letter-spacing: 0.02em; text-transform: uppercase; margin: 0 0 8px; }
+    h2 { font: 700 13px var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 64px 0 18px; padding-top: 18px; border-top: 1px solid var(--seam); }
+    .lede { color: var(--dim); max-width: 60ch; }
+    .row { gap: 12px; }
+    .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .sw { border: 1px solid var(--seam); border-radius: 4px; overflow: hidden; font-size: 12px; }
+    .sw i { display: block; height: 54px; }
+    .sw span { display: block; padding: 8px 10px; color: var(--dim); }
+    .sw b { color: var(--ink); display: block; }
+    .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+    .ic { border: 1px solid var(--seam); border-radius: 4px; padding: 16px 8px 10px; display: grid; justify-items: center; gap: 10px; font-size: 11px; color: var(--dim); letter-spacing: 0.06em; }
+    .ic .icon { width: 28px; height: 28px; color: #fff; }
+    .specimen { display: grid; gap: 10px; }
+    .num { font: 700 56px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+    canvas { max-width: 100%; border: 1px solid var(--seam); border-radius: 4px; display: block; }
+    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; align-items: start; }
+    .dark-strip { padding: 22px; background: linear-gradient(180deg, #0c1330, #3b2a5c 60%, #c4565a); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Hoverslam</h1>
+  <p class="lede">The instrument look: black, D-DIN, hairlines, dark panels, and one soft blue for live data. Orange belongs to the game's own art, the sunset and the flame. This page is where the parts get checked before they go on screen.</p>
+
+  <h2>Type</h2>
+  <div class="cols">
+    <div class="specimen">
+      <div style="font: 700 64px/0.95 var(--display); letter-spacing: 0.02em; text-transform: uppercase;">Landed</div>
+      <div style="font: 700 28px/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase;">Final approach</div>
+      <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim);">Altitude · Falling · Sideways</div>
+      <p style="margin: 0;">A booster is falling at 140 metres a second. Its engine can't hover, so you get one burn to set it down on a floating landing platform at sea.</p>
+    </div>
+    <div class="specimen">
+      <div class="num" id="digits">0123456789</div>
+      <div class="num" id="digits2">1111111111</div>
+      <div class="num" id="digits3">0000000000</div>
+      <p class="muted" id="digit-note" style="margin: 0;"></p>
+    </div>
+  </div>
+
+  <h2>Colour</h2>
+  <div class="swatches" id="swatches"></div>
+
+  <h2>Buttons</h2>
+  <div class="row">
+    <button class="primary big">Play</button>
+    <button class="ghost big">How to play</button>
+    <button>Secondary</button>
+    <button class="primary">Primary</button>
+    <button class="ghost">Ghost</button>
+    <button class="small">Small</button>
+    <button disabled>Disabled</button>
+    <button class="textlink">Text link</button>
+  </div>
+  <div class="row" style="margin-top: 16px;" id="icon-buttons"></div>
+  <div class="row" style="margin-top: 16px;">
+    <span><kbd class="cap wide">Space</kbd> Engine on or off</span>
+    <span><kbd class="cap">←</kbd><kbd class="cap">→</kbd> Lean</span>
+    <span><kbd class="cap">R</kbd> Retry</span>
+  </div>
+
+  <h2>Data table, warning lamps and plates</h2>
+  <div class="cols">
+    <dl class="data-table" style="width: 250px;">
+      <dt>Altitude</dt><dd>1,619 m</dd>
+      <dt>Falling</dt><dd style="color: var(--blue-hi);">98.1 m/s</dd>
+      <dt>Sideways</dt><dd>2.0 m/s</dd>
+      <dt>Off pad</dt><dd>39 m</dd>
+    </dl>
+    <div class="row">
+      <span class="lamp">Fuel leak 85</span>
+      <span class="lamp warn">Thrust 70%</span>
+      <span class="lamp info">Autopilot</span>
+      <span class="lamp off">Engine off</span>
+    </div>
+    <div class="plate-card" style="padding: 18px 20px;">
+      <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px;">Hard · Rough night</div>
+      <div style="font: 700 36px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase;">Landed</div>
+    </div>
+  </div>
+
+  <h2>Icons</h2>
+  <div class="icons" id="icons"></div>
+
+  <h2>Callouts, crosshair and paths on the canvas</h2>
+  <canvas id="demo" style="width: 760px; height: 360px;"></canvas>
+
+  <script type="module">
+    import { ICONS, icon } from './icons.js';
+    import { drawCallout, drawCrosshair, drawPath, LOOK } from './ui.js';
+
+    const sw = [['--hull', 'Canvas'], ['--console', 'Console'], ['--plate', 'Plate'], ['--plate-hi', 'Plate raised'], ['--seam', 'Hairline'], ['--ink', 'Ink'], ['--dim', 'Dim text'], ['--muted', 'Muted text'], ['--blue', 'Live data'], ['--blue-hi', 'Live data, text'], ['--amber', 'Warning'], ['--alarm', 'Alarm'], ['--flame', 'Flame (scene art)'], ['--pad', 'Pad (scene art)']];
+    const cs = getComputedStyle(document.documentElement);
+    document.getElementById('swatches').innerHTML = sw.map(([v, n]) => `<div class="sw"><i style="background: var(${v})"></i><span><b>${n}</b>${cs.getPropertyValue(v).trim()}</span></div>`).join('');
+
+    document.getElementById('icons').innerHTML = Object.keys(ICONS).map((k) => `<div class="ic">${icon(k, 28)}<span>${k}</span></div>`).join('');
+    document.getElementById('icon-buttons').innerHTML = ['engine', 'retry', 'shuffle', 'speed', 'sound-on', 'music', 'sliders', 'help', 'menu', 'close'].map((k) => `<button class="icon-btn" aria-label="${k}" title="${k}">${icon(k, 20)}</button>`).join('')
+      + `<button class="icon-btn" aria-pressed="false" aria-label="sound off">${icon('sound-off', 20)}</button>`
+      + `<button class="ghost">${icon('arrow-right', 18)}&nbsp;Icon with text</button>`;
+
+    // tabular figures: a font whose digits are all the same width keeps the readouts from jittering
+    document.fonts.ready.then(() => {
+      const w = (id) => document.getElementById(id).getBoundingClientRect().width;
+      const a = w('digits2'), b = w('digits3');
+      document.getElementById('digit-note').textContent = Math.abs(a - b) < 0.5 ? 'Digits are all the same width, so readouts never jitter.' : `Digit widths differ (${a.toFixed(1)} vs ${b.toFixed(1)}), so numbers need a fixed-width fallback.`;
+    });
+
+    const c = document.getElementById('demo'), x = c.getContext('2d');
+    const W = 760, H = 360, dpr = Math.min(2, window.devicePixelRatio || 1);
+    c.width = W * dpr; c.height = H * dpr;
+    x.scale(dpr, dpr);
+    const g = x.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#060b1d'); g.addColorStop(0.5, '#121a3d'); g.addColorStop(0.8, '#3b2350'); g.addColorStop(1, '#a2464a');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#0b1220'; x.fillRect(0, 280, W, H - 280);
+    x.fillStyle = '#2a303c'; x.fillRect(410, 276, 160, 8);
+    drawPath(x, [[60, 20], [210, 75], [400, 130], [490, 165]]);
+    drawPath(x, [[490, 165], [505, 225], [515, 276]], { dashed: true });
+    x.fillStyle = '#d6dbe3'; x.fillRect(487, 160, 6, 55);
+    drawCrosshair(x, 515, 276);
+    document.fonts.ready.then(() => {
+      drawCallout(x, 495, 180, 'Booster', { dir: 1, rise: -20, bend: 20, run: 100 });
+      drawCallout(x, 518, 276, 'Predicted touchdown +12 m', { dir: 1, rise: -30, bend: 25, run: 160 });
+      drawCallout(x, 300, 100, 'Flown path', { dir: -1, rise: 25, bend: 20, run: 90, color: LOOK.blue });
+    });
+  </script>
+</body>
+</html>

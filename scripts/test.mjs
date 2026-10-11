@@ -651,12 +651,51 @@ test('the scenario schema asks for exactly the fields the game uses', () => {
   assert.deepEqual(Object.keys(item.properties.opts.properties).sort(), ['altScale', 'fuel', 'offsetScale', 'padHalf', 'speedScale', 'windScale']);
 });
 
+// ---------- the look: fonts, icons, no leftovers ----------
+test('the fonts the stylesheet names are in the repo, with their licence', () => {
+  const css = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'style.css'), 'utf8');
+  const files = [...css.matchAll(/url\("(fonts\/[^"]+)"\)/g)].map((m) => m[1]);
+  assert.ok(files.length >= 3, 'the stylesheet loads the D-DIN files');
+  for (const f of files) assert.ok(fs.existsSync(path.join(import.meta.dirname, '..', 'public', f)), f);
+  assert.ok(fs.existsSync(path.join(import.meta.dirname, '..', 'public', 'fonts', 'OFL-1.1.txt')), 'the font licence ships with the fonts');
+  assert.ok(!/Big Shoulders|Instrument Sans|fonts\.googleapis/.test(css + fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'index.html'), 'utf8')), 'no web fonts left over');
+});
+
+test('the interface uses no orange: it is left to the scene art and the flame', () => {
+  const css = fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'style.css'), 'utf8');
+  assert.ok(!/#ff6a28|#ff8a54|#ff7b3b|#ec5c18|255, 106, 40/i.test(css), 'old signal orange in the stylesheet');
+});
+
+test('every icon is a set of drawn paths, and the helper returns an inline svg', async () => {
+  const { ICONS, icon } = await import('../public/icons.js');
+  assert.ok(Object.keys(ICONS).length >= 20);
+  for (const [name, parts] of Object.entries(ICONS)) {
+    assert.ok(Array.isArray(parts) && parts.length > 0 && parts.every((d) => /^M/.test(d)), name);
+    assert.match(icon(name), /^<svg class="icon"[^>]*viewBox="0 0 24 24"/);
+  }
+  assert.equal(icon('no-such-icon'), '');
+});
+
+test('the canvas helpers draw a callout, a crosshair and a path', async () => {
+  const { drawCallout, drawCrosshair, drawPath } = await import('../public/ui.js');
+  const calls = [];
+  const ctx = new Proxy({}, { get: (_, k) => (k === 'measureText' ? () => ({ width: 60 }) : (...a) => calls.push([k, ...a])), set: () => true });
+  drawCallout(ctx, 100, 100, 'Booster', { dir: 1 });
+  drawCrosshair(ctx, 50, 50);
+  drawPath(ctx, [[0, 0], [10, 10], [20, 5]], { dashed: true });
+  const names = calls.map((c) => c[0]);
+  for (const n of ['lineTo', 'fillText', 'arc', 'setLineDash', 'stroke']) assert.ok(names.includes(n), n);
+  assert.equal(calls.find((c) => c[0] === 'fillText')[1], 'BOOSTER', 'labels are set in capitals');
+});
+
 // ---------- the single-file build ----------
 test('the single-file build is valid JavaScript with the bank inside it', () => {
   execFileSync(process.execPath, [path.join(import.meta.dirname, 'build-standalone.mjs')], { stdio: 'ignore' });
   const html = fs.readFileSync(path.join(import.meta.dirname, '..', 'dist', 'hoverslam.html'), 'utf8');
   const script = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf('</script>'));
   assert.ok(script.includes('const BANK ='), 'bank is bundled');
+  assert.ok(html.includes('data:font/woff2;base64,') && !html.includes('url("fonts/'), 'the fonts are inside the file');
+  assert.ok(script.includes('const ICONS ='), 'icons are bundled');
   const file = path.join(os.tmpdir(), `hoverslam-check-${process.pid}.mjs`);
   fs.writeFileSync(file, script);
   try {

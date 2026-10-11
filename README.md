@@ -107,6 +107,9 @@ Sound is generated in the browser, so there is nothing to download or license. T
 | `public/app.js` | The renderer, HUD, panels and start screens |
 | `public/menu.js` | The how-to-play diagrams and level cards |
 | `public/audio.js` | The sound, all synthesised with Web Audio (no audio files) |
+| `public/icons.js`, `public/ui.js` | The icon set, and canvas helpers for callouts, crosshairs and path lines |
+| `public/styleguide.html` | The look in one page: type, colour, buttons, icons, callouts. Open `/styleguide.html` |
+| `public/fonts/` | D-DIN, by Datto, under the SIL Open Font License (see `OFL-1.1.txt`) |
 | `scripts/test.mjs` | The tests |
 | `scripts/generate-scenarios.mjs` | Builds the scenario bank, by rules or with Claude |
 | `scripts/lib/` | The scripted players, the rule-based writer and the Claude writer |
