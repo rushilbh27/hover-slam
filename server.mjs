@@ -40,7 +40,7 @@ http.createServer((req, res) => {
     });
     return;
   }
-  if (url.pathname === '/admin') {
+  if (url.pathname === '/admin' || url.pathname === '/api/admin') { // the second is where the host's rewrite sends /admin
     if (!process.env.ADMIN_PASSWORD) { res.writeHead(503); return res.end('ADMIN_PASSWORD is not set'); }
     if (!basicOk(req.headers.authorization)) { res.writeHead(401, { 'content-type': 'text/plain', ...CHALLENGE }); return res.end('Login needed'); }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
