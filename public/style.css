@@ -499,10 +499,72 @@ body.in-menu .game-only { display: none; }
 .star > span { display: flex; pointer-events: none; }
 .star .s-fill, .star.on .s-out { display: none; }
 .star.on .s-fill { display: flex; }
-.rate-more { display: flex; gap: 8px; width: 100%; align-items: flex-start; }
+.rate-more { display: flex; gap: 10px; width: 100%; align-items: stretch; }
+.rate-more button { align-self: stretch; min-width: 76px; padding: 0 18px; font-size: 14px; }
+.rate-more textarea { min-height: 62px; }
 .rate-more.hidden { display: none; }
 .rate-more textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); font: 400 14px/1.4 var(--body); }
 .rate-more textarea::placeholder { color: var(--muted); }
 .rate-more textarea:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .rate-note { font-size: 11.5px; color: var(--muted); }
 .rate-note.hidden { display: none; }
+
+/* ---------- phase 3: the start screens ---------- */
+.facts { display: flex; gap: 0; margin: 40px 0 0; padding: 0; border-top: 1px solid rgba(255, 255, 255, 0.35); width: min(100%, 460px); }
+.facts > div { flex: 1; padding: 12px 18px 0 0; }
+.facts > div + div { padding-left: 18px; border-left: 1px solid var(--seam); }
+.facts dt { font: 600 11px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
+.facts dd { margin: 0; font: 700 34px/1 var(--display); letter-spacing: 0.02em; }
+.facts dd i { font: 600 13px var(--body); font-style: normal; color: var(--dim); letter-spacing: 0.06em; }
+.d-tag text { fill: #fff; font: 700 13px var(--display); letter-spacing: 0.14em; }
+.d-tag .d-sub { fill: #d6d6d6; font: 400 12px var(--body); letter-spacing: 0.02em; }
+.d-anim .d-rocket rect { fill: #eef1f6; }
+.d-anim .d-flame { fill: var(--flame); }
+@media (prefers-reduced-motion: no-preference) { .d-static { display: none; } }
+@media (prefers-reduced-motion: reduce) { .d-anim { display: none; } }
+.how .plate { background: transparent; border: 0; padding: 0; }
+.steps li { grid-template-columns: 44px 1fr; padding-top: 14px; border-top: 1px solid var(--seam); }
+.steps li::before { border-color: rgba(255, 255, 255, 0.5); }
+.lvl-card { transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease; }
+.lvl-card:hover:not(:disabled), .lvl-card:focus-visible { box-shadow: inset 0 3px 0 var(--blue); }
+.lvl-card .specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 8px; border-top: 1px solid var(--seam); }
+.lvl-card .specs > span { display: grid; gap: 4px; padding: 10px 8px 2px 0; }
+.lvl-card .specs > span + span { padding-left: 10px; border-left: 1px solid var(--seam); }
+.lvl-card .specs i { font: 600 10px/1.1 var(--body); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.lvl-card .specs b { font: 700 19px/1 var(--display); letter-spacing: 0.03em; }
+@media (max-width: 560px) { .facts dd { font-size: 28px; } .lvl-card .specs { grid-template-columns: repeat(2, 1fr); } .lvl-card .specs > span:nth-child(3) { border-left: 0; padding-left: 0; } }
+
+/* how to play: one screen on a laptop, diagram beside three plain steps, controls and limits underneath */
+.vhead { margin-bottom: 22px; gap: 10px; }
+.vhead .lede { margin-bottom: 0; }
+.how2 { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; align-items: center; width: 100%; max-width: 1100px; margin: 0 auto; text-align: left; }
+.how-fig { min-width: 0; }
+.how-steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 22px; }
+.how-steps li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; column-gap: 14px; row-gap: 4px; align-items: start; }
+.how-steps li::before { content: counter(s); grid-row: 1 / span 2; font: 700 22px/38px var(--display); width: 38px; height: 38px; text-align: center; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 50%; }
+.how-steps b { font: 700 26px/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; align-self: center; }
+.how-steps span { grid-column: 2; color: #d6d6d6; font-size: 16px; line-height: 1.5; max-width: 46ch; }
+.how-steps .cap { margin: 0 1px; vertical-align: 1px; }
+.how-foot { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; width: 100%; max-width: 1100px; margin: 34px auto 0; padding-top: 22px; border-top: 1px solid var(--seam); text-align: left; }
+.how-foot h3 { margin: 0 0 12px; font: 600 12px/1 var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.how-foot .keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.how-foot .keys li { display: grid; grid-template-columns: 116px 1fr; align-items: center; gap: 16px; font-size: 15px; }
+.how-foot .caps { display: flex; gap: 6px; }
+.lims { display: flex; margin-bottom: 12px; }
+.lims > span { flex: 1; display: grid; gap: 4px; font-size: 13px; color: var(--dim); padding-right: 12px; }
+.lims > span + span { padding-left: 14px; border-left: 1px solid var(--seam); }
+.lims b { font: 700 30px/1 var(--display); color: #fff; letter-spacing: 0.02em; }
+.how-foot .limits { border: 0; padding: 0; margin: 0; font-size: 14px; color: var(--dim); max-width: 46ch; }
+.view[data-view="how"] .nav { margin-top: 28px; }
+@media (max-width: 860px) { .how2, .how-foot { grid-template-columns: 1fr; gap: 26px; } }
+.view[data-view="how"] { padding-top: 64px; padding-bottom: 28px; }
+.view[data-view="how"] .how-foot { margin-top: 26px; }
+.view[data-view="how"] .nav { margin-top: 20px; }
+@media (max-width: 860px) { .view[data-view="how"] { padding-top: 76px; } }
+.d-anim .d-rocket > rect, .d-anim .d-rocket > path:not(.d-flame) { fill: #eef1f6; }
+.d-anim .d-fin { fill: #9aa4b5; }
+.d-anim .d-skirt { fill: #2a303b; }
+.d-anim .d-legs path { fill: none; stroke: #eef1f6; stroke-width: 2; stroke-linecap: round; }
+.d-rd { fill: #fff; font: 600 12px var(--body); letter-spacing: 0.12em; }
+.d-rv { fill: var(--blue-hi); font: 700 15px var(--display); letter-spacing: 0.04em; }
+@media (prefers-reduced-motion: reduce) { .d-read { display: none; } }

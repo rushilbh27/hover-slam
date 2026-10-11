@@ -8,7 +8,7 @@ import { icon } from './icons.js';
 import { drawCallout, drawCrosshair, tangents, magnifierSpot, LOOK } from './ui.js';
 import { initTooltips } from './tooltip.js';
 import { sendFeedback } from './feedback.js';
-import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
+import { LEVEL_COPY, levelSpecs, descentDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -411,6 +411,7 @@ function rateReset(o) {
   $('rate-more').classList.add('hidden');
   $('rate-text').value = '';
   $('rate-send').disabled = false;
+  $('rate-send').textContent = 'Send';
   $('rate-q').textContent = 'How was that run? Optional.';
   $('rate-note').classList.remove('hidden');
 }
@@ -427,6 +428,7 @@ $('rate-send').addEventListener('click', async () => {
   if (RATE.sent || !RATE.ctx) return;
   RATE.sent = true;
   $('rate-send').disabled = true;
+  $('rate-send').textContent = 'Sending';
   const ok = await sendFeedback({ ...RATE.ctx, rating: RATE.n || null, comment: $('rate-text').value });
   $('rate-q').textContent = ok ? 'Thanks, that helps.' : 'Thanks. It will send when you are back online.';
   $('rate-more').classList.add('hidden');
@@ -2212,23 +2214,27 @@ const startEl = $('start-screen');
 
 function renderHow() {
   $('view-how').innerHTML = `
-    <div class="vhead"><div><h2>How to play</h2><p class="lede">The engine can't hover, so there is one burn. Light it, hold your speed on the aim-for number, steer onto the pad.</p></div>
-    <div class="nav"><button id="how-back" class="ghost">Back</button><button id="how-go" class="primary big">Choose a level</button></div></div>
-    <div class="how">
-      <div class="how-figs">
-        <figure>${descentDiagram()}<figcaption>A whole descent, side on.</figcaption></figure>
-        <figure>${speedDiagram()}<figcaption>Falling speed against height. Light the engine early, brake onto the dotted aim-for line, then follow it down.</figcaption></figure>
+    <div class="vhead"><div><h2>How to play</h2><p class="lede">Land the booster on the floating pad. There are three things to do.</p></div></div>
+    <div class="how2">
+      <figure class="how-fig">${descentDiagram()}<figcaption>One descent, seen from the side.</figcaption></figure>
+      <ol class="how-steps">
+        <li><b>Fall</b><span>You start about 2,000 m up and the engine is off. Wait until about 1,600 m, then press <kbd class="cap wide">Space</kbd> to light it.</span></li>
+        <li><b>Slow down</b><span>Keep the dot on the centre tick of the speed gauge beside the booster. Dot below the tick means too fast: press <kbd class="cap">↑</kbd>. Above it: press <kbd class="cap">↓</kbd>.</span></li>
+        <li><b>Land</b><span>Steer with <kbd class="cap">←</kbd> <kbd class="cap">→</kbd> so the booster is over the green pad. Touch down slowly, standing upright.</span></li>
+      </ol>
+    </div>
+    <div class="how-foot">
+      <div>
+        <h3>Controls</h3>
+        <ul class="keys">${KEYS.map((k) => `<li><span class="caps">${keycaps(k.caps)}</span><span>${k.text}</span></li>`).join('')}</ul>
       </div>
-      <div class="plate">
-        <ol class="steps">
-          <li><span><b>Fall</b>The engine is off, and a reminder at the start says to press Space. Light it around 1,600 m so there is time to steer. Steering only works while the engine burns.</span></li>
-          <li><span><b>Burn</b>Press Space. Keep your falling speed on the aim-for number beside it: up slows you down, down speeds you up, and letting go holds your speed. Lean with left and right.</span></li>
-          <li><span><b>Touch down</b>Upright, over the green, and slow: under 3 m/s down, 1.5 m/s sideways and 6 degrees of tilt. Easy forgives more.</span></li>
-        </ol>
-        <ul class="keys">${KEYS.map((k) => `<li><span class="caps">${keycaps(k.caps)}</span>${k.text}</li>`).join('')}</ul>
-        <p class="limits">Every run is a different <b>scenario</b>: a high or low drop, a fuel leak, weak thrust, a flaky thruster. The briefing before each descent says what to expect.</p>
+      <div>
+        <h3>A good landing</h3>
+        <div class="lims"><span><b>3 m/s</b>down speed</span><span><b>1.5 m/s</b>sideways</span><span><b>6°</b>tilt</span></div>
+        <p class="limits">Hard limits. Easy forgives a little more. Every run is a different scenario, and the briefing before each descent says what to expect.</p>
       </div>
     </div>
+    <div class="nav"><button id="how-back" class="ghost">Back</button><button id="how-go" class="primary big">Choose a level</button></div>
     `;
   $('how-back').addEventListener('click', () => setView('welcome'));
   $('how-go').addEventListener('click', () => setView('levels'));
@@ -2243,7 +2249,7 @@ function renderLevelCards() {
     <div class="cards">${Object.entries(LEVELS).map(([k, lv]) => {
       const n = (BANK[k] || []).filter((sc) => cleared[sc.id]).length;
       const copy = LEVEL_COPY[k];
-      return `<button class="lvl-card" data-level="${k}">${levelThumb(k)}<span class="body"><span class="nm">${lv.label}</span><span class="tg">${copy.tagline}</span><span class="dt">${copy.detail}</span><span class="pr">${n ? `<b>${n}</b> of ${(BANK[k] || []).length} cleared${best[k] ? `, best ${best[k]}` : ''}` : `${(BANK[k] || []).length} scenarios, none flown yet`}</span></span></button>`;
+      return `<button class="lvl-card" data-level="${k}">${levelThumb(k)}<span class="body"><span class="nm">${lv.label}</span><span class="tg">${copy.tagline}</span><span class="dt">${copy.detail}</span><span class="specs">${levelSpecs(lv).map(([k2, v2]) => `<span><i>${k2}</i><b>${v2}</b></span>`).join('')}</span><span class="pr">${n ? `<b>${n}</b> of ${(BANK[k] || []).length} cleared${best[k] ? `, best ${best[k]}` : ''}` : `${(BANK[k] || []).length} scenarios, none flown yet`}</span></span></button>`;
     }).join('')}</div>
     <div class="nav"><button id="lv-back" class="ghost">Back</button><button id="lv-how" class="textlink">How to play</button></div>`;
   for (const c of document.querySelectorAll('.lvl-card')) c.addEventListener('click', () => chooseLevel(c.dataset.level));
