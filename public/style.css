@@ -486,3 +486,19 @@ body.in-menu .game-only { display: none; }
 #tip .cap { min-width: 22px; height: 20px; padding: 0 6px; margin: 0; font-size: 11px; }
 .tip-d { color: var(--dim); margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { #tip, #tip.on { transition: none; } }
+
+/* the optional rating on the result card */
+.rate { display: grid; gap: 8px; justify-items: center; margin: 0 0 18px; }
+.rate.hidden { display: none; }
+.rate-q { font-size: 13px; color: var(--dim); }
+.rate-stars { display: flex; gap: 2px; }
+.star { padding: 4px; background: transparent; border: 0; color: var(--muted); border-radius: 3px; }
+.star:hover:not(:disabled) { background: transparent; color: #fff; }
+.star.on { color: #fff; }
+.rate-more { display: flex; gap: 8px; width: 100%; align-items: flex-start; }
+.rate-more.hidden { display: none; }
+.rate-more textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; background: var(--plate); border: 1px solid var(--seam); border-radius: 4px; color: var(--ink); font: 400 14px/1.4 var(--body); }
+.rate-more textarea::placeholder { color: var(--muted); }
+.rate-more textarea:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.rate-note { font-size: 11.5px; color: var(--muted); }
+.rate-note.hidden { display: none; }

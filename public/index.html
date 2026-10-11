@@ -90,6 +90,15 @@
         <div class="o-title" id="o-title">Landed</div>
         <div class="o-sub" id="o-sub"></div>
         <div class="o-stats" id="o-stats"></div>
+        <div class="rate hidden" id="rate">
+          <div class="rate-q" id="rate-q">How was that run? Optional.</div>
+          <div class="rate-stars" id="rate-stars" role="radiogroup" aria-label="Rate this run"></div>
+          <div class="rate-more hidden" id="rate-more">
+            <textarea id="rate-text" maxlength="500" rows="2" placeholder="What worked, and what did not?" aria-label="Feedback, optional"></textarea>
+            <button id="rate-send" class="small primary">Send</button>
+          </div>
+          <div class="rate-note" id="rate-note">Sent with your level and result. No account.</div>
+        </div>
         <div class="o-actions"><button id="o-retry">Retry this one</button><button id="o-next" class="primary">New scenario</button></div>
       </div>
 
@@ -131,7 +140,7 @@
   </main>
   <div class="settings" id="settings" role="dialog" aria-label="Settings" inert>
     <div class="set-row"><span class="set-label">Level</span><div class="levels" id="levels" role="radiogroup" aria-label="Level"></div></div>
-    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts during a descent</small></span></label>
+    <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts on your first Easy descent</small></span></label>
     <label class="switch"><input type="checkbox" id="raw"><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Expert controls<small>Arrows swivel the engine, up and down move the throttle lever</small></span></label>
     <div class="set-actions">
       <button id="to-lab" class="ghost small" data-tip="Autopilot lab" data-tip-detail="Tune the flight computer and watch it fly."></button>

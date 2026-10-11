@@ -1,8 +1,17 @@
-// Zero-dependency static server for ./public.
+// Zero-dependency static server for ./public, plus POST /api/feedback (the same code Vercel runs).
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { handleFeedback } from './api/_feedback.js';
+
+// DATABASE_URL (the Neon connection string) may live in .env.local, which is git-ignored. Without it, feedback is politely refused.
+try {
+  for (const line of fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '.env.local'), 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (m && !line.trim().startsWith('#') && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+} catch { /* no .env.local */ }
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const PORT = Number(process.env.PORT || 3000);
@@ -11,6 +20,18 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  if (url.pathname === '/api/feedback') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 8192) req.destroy(); });
+    req.on('end', async () => {
+      let body = null;
+      try { body = JSON.parse(raw); } catch { /* not JSON */ }
+      const out = await handleFeedback({ method: req.method, body, ip: req.socket.remoteAddress });
+      res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(out.headers || {}) });
+      res.end(JSON.stringify(out.json));
+    });
+    return;
+  }
   const rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname).replace(/^\/+/, '');
   const file = path.resolve(PUBLIC, rel);
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end('Forbidden'); }

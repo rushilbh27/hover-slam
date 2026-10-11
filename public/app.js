@@ -6,6 +6,7 @@ import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenar
 import { audio } from './audio.js';
 import { icon } from './icons.js';
 import { initTooltips } from './tooltip.js';
+import { sendFeedback } from './feedback.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -322,7 +323,7 @@ function onEnd() {
   }
   app.cardTimer = setTimeout(() => showOutcome(o), o.landed || fx.standing ? 1500 : 1300);
   if (app.mode === 'sim') { renderReport(); app.labTimer = setTimeout(() => { if (app.ended && app.mode === 'sim') setDrawer(true); }, 2000); } // the report slides back in
-  if (COACH.on && COACH.step >= 2) store.set('hs.coachDone', store.get('hs.coachDone', 0) + 1); // a player who has used the engine and the lean has seen the lesson
+  if (COACH.on) store.set('hs.coachDone', 1); // the lesson is for the first game only, however it ended
   COACH.on = false;
   $('coach').classList.add('hidden');
   if (app.mode === 'game' && o.landed) {
@@ -394,8 +395,52 @@ function showOutcome(o) {
   // after a win the natural next step is a new scenario; after a loss it is another go
   $('o-next').classList.toggle('primary', !game || o.landed);
   $('o-retry').classList.toggle('primary', game && !o.landed);
+  rateReset(o);
   $('outcome').classList.remove('hidden');
 }
+
+// ---------- optional feedback after a landing ----------
+// Stars, then a note if the player wants to leave one. It is never required, never repeats within a run, and the keys stay free for the game.
+const RATE = { n: 0, sent: false, ctx: null };
+const RATE_WORDS = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+function ratePaint(n) {
+  for (const b of $('rate-stars').querySelectorAll('.star')) {
+    const on = Number(b.dataset.n) <= n;
+    b.classList.toggle('on', on);
+    b.innerHTML = icon(on ? 'star-fill' : 'star', 22);
+    b.setAttribute('aria-checked', String(Number(b.dataset.n) === RATE.n));
+  }
+}
+function rateReset(o) {
+  const show = app.mode === 'game' && Boolean(o.landed);
+  $('rate').classList.toggle('hidden', !show);
+  Object.assign(RATE, { n: 0, sent: false, ctx: show ? { level: app.level, scenarioId: app.scenario && app.scenario.id, outcome: 'Landed', score: scoreFlight(o) } : null });
+  $('rate-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="star" role="radio" aria-checked="false" aria-label="${n} out of 5, ${RATE_WORDS[n]}" data-n="${n}" data-tip="${RATE_WORDS[n]}" data-tip-pos="top"></button>`).join('');
+  ratePaint(0);
+  $('rate-more').classList.add('hidden');
+  $('rate-text').value = '';
+  $('rate-send').disabled = false;
+  $('rate-q').textContent = 'How was that run? Optional.';
+  $('rate-note').classList.remove('hidden');
+}
+$('rate-stars').addEventListener('click', (e) => {
+  const b = e.target.closest('.star');
+  if (!b || RATE.sent) return;
+  RATE.n = Number(b.dataset.n);
+  ratePaint(RATE.n);
+  $('rate-more').classList.remove('hidden');
+});
+$('rate-stars').addEventListener('pointerover', (e) => { const b = e.target.closest('.star'); if (b && !RATE.sent) ratePaint(Number(b.dataset.n)); });
+$('rate-stars').addEventListener('pointerleave', () => { if (!RATE.sent) ratePaint(RATE.n); });
+$('rate-send').addEventListener('click', async () => {
+  if (RATE.sent || !RATE.ctx) return;
+  RATE.sent = true;
+  $('rate-send').disabled = true;
+  const ok = await sendFeedback({ ...RATE.ctx, rating: RATE.n || null, comment: $('rate-text').value });
+  $('rate-q').textContent = ok ? 'Thanks, that helps.' : 'Thanks. It will send when you are back online.';
+  $('rate-more').classList.add('hidden');
+  $('rate-note').classList.add('hidden');
+});
 
 function gameHint(o) {
   const f = app.flight;
@@ -1823,10 +1868,10 @@ $('hints').addEventListener('change', (e) => { store.set('hs.hints', e.target.ch
 
 // ---------- the tutorial: key prompts at the moment they matter ----------
 // Space to light the engine, then the lean, then the speed. Each step ends when the player does the thing, and the lesson is
-// shown until a player has flown it through twice. Hints can be switched off, or back on, in settings.
+// shown on the first Easy game only. Hints can be switched off, or back on for the next Easy game, in settings.
 const COACH = { on: false, step: 0, lean: 0, speed: 0, t: 0, shown: '' };
 function coachStart() {
-  COACH.on = app.mode === 'game' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 2;
+  COACH.on = app.mode === 'game' && app.level === 'easy' && !app.attract && store.get('hs.hints', true) && store.get('hs.coachDone', 0) < 1; // Easy only, and only the first game
   Object.assign(COACH, { step: 0, lean: 0, speed: 0, t: 0, shown: '' });
   $('coach').classList.add('hidden');
 }
