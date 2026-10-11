@@ -46,6 +46,10 @@ export function descentProfile({ top = 2000, v0 = 150, lightAt = 1600, decel = 1
 const num = (n) => Math.round(n * 10) / 10;
 
 // Side view of a whole descent with the three stages marked on the path.
+// The rocket and the drawn line share these two curves, so it can never leave its path.
+const FALL_PATH = 'M330 24 C 345 60, 360 100, 372 140';
+const BURN_PATH = 'C 378 172, 406 196, 406 244';
+
 export function descentDiagram() {
   return `
 <svg class="diagram" viewBox="0 0 560 330" role="img" aria-label="A booster falls, lights its engine, brakes down toward the landing platform and touches down on the green landing zone.">
@@ -59,8 +63,8 @@ export function descentDiagram() {
   <rect x="318" y="262" width="176" height="9" fill="#586272"/>
   <rect x="318" y="271" width="176" height="5" fill="#1c2430"/>
   <rect x="372" y="260" width="68" height="3" class="d-pad"/>
-  <path d="M330 24 C 345 60, 360 100, 372 140" class="d-fall"/>
-  <path d="M372 140 C 378 172, 406 196, 406 244" class="d-burn"/>
+  <path d="${FALL_PATH}" class="d-fall"/>
+  <path d="M372 140 ${BURN_PATH}" class="d-burn"/>
   <g class="d-anim" aria-hidden="true">
     <g class="d-rocket">
       <g class="d-legs"><path d="M1 -4 L13 -12 M1 4 L13 12"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;0.66;0.72;1" dur="10s" repeatCount="indefinite"/></path></g>
@@ -70,7 +74,7 @@ export function descentDiagram() {
       <rect x="2" y="-3" width="3" height="6" class="d-skirt"/>
       <g><animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.43;0.44;0.93;0.94;1" dur="10s" repeatCount="indefinite"/>
         <path d="M5 -3 L26 0 L5 3 Z" class="d-flame"><animateTransform attributeName="transform" type="scale" values="1 1;1.35 0.85;0.9 1.05;1 1" dur="0.28s" repeatCount="indefinite" additive="sum"/></path></g>
-      <animateMotion dur="10s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;0.42;1;1" keyTimes="0;0.43;0.93;1" keySplines="0.4 0 1 1;0 0 0.3 1;0 0 1 1" path="M330 24 C 345 60, 360 100, 372 140 C 300 190, 406 190, 406 244"/>
+      <animateMotion dur="10s" repeatCount="indefinite" rotate="auto" calcMode="spline" keyPoints="0;0.52;1;1" keyTimes="0;0.43;0.93;1" keySplines="0.4 0 1 1;0 0 0.3 1;0 0 1 1" path="${FALL_PATH} ${BURN_PATH}"/>
     </g>
   </g>
   <g class="d-mark"><circle cx="330" cy="24" r="13"/><text x="330" y="29" text-anchor="middle">1</text></g>
