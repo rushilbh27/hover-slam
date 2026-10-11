@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleFeedback } from './api/_feedback.js';
+import { handleEvent, handleStats } from './api/_stats.js';
 
 // DATABASE_URL (the Neon connection string) may live in .env.local, which is git-ignored. Without it, feedback is politely refused.
 try {
@@ -27,6 +28,25 @@ http.createServer((req, res) => {
       let body = null;
       try { body = JSON.parse(raw); } catch { /* not JSON */ }
       const out = await handleFeedback({ method: req.method, body, ip: req.socket.remoteAddress });
+      res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(out.headers || {}) });
+      res.end(JSON.stringify(out.json));
+    });
+    return;
+  }
+  if (url.pathname === '/api/stats') {
+    handleStats({ method: req.method, token: String(req.headers['x-admin-key'] || url.searchParams.get('key') || '') }).then((out) => {
+      res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(out.headers || {}) });
+      res.end(JSON.stringify(out.json));
+    });
+    return;
+  }
+  if (url.pathname === '/api/event') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 4096) req.destroy(); });
+    req.on('end', async () => {
+      let body = null;
+      try { body = JSON.parse(raw); } catch { /* not JSON */ }
+      const out = await handleEvent({ method: req.method, body, ip: req.socket.remoteAddress });
       res.writeHead(out.status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...(out.headers || {}) });
       res.end(JSON.stringify(out.json));
     });

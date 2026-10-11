@@ -8,6 +8,7 @@ import { icon } from './icons.js';
 import { drawCallout, drawCrosshair, tangents, magnifierSpot, LOOK } from './ui.js';
 import { initTooltips } from './tooltip.js';
 import { sendFeedback } from './feedback.js';
+import { track, trackVisit } from './track.js';
 import { LEVEL_COPY, levelSpecs, descentDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +51,7 @@ function resize() {
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
 }
 window.addEventListener('resize', resize);
+trackVisit();
 
 // ---------- visual effects state ----------
 const freshFx = () => ({ queue: [], pool: 0, poolX: 0, scorch: null, column: null, ripples: [], foam: [], standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, legsAt: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
@@ -156,6 +158,8 @@ function newFlight() {
 function start() {
   newFlight();
   app.running = true;
+  app.startedAt = performance.now();
+  track('start', { mode: app.mode, level: app.mode === 'game' ? app.level : null, scenario_id: app.mode === 'game' && app.scenario ? app.scenario.id : null });
   $('intro').classList.add('hidden');
   if (app.mode === 'sim') { app.report = debrief(app.gains, app.seed); setDrawer(false); } // watch the flight with the whole scene
   coachStart();
@@ -310,6 +314,7 @@ function onEnd() {
     app.cardTimer = setTimeout(() => { if (app.attract) { app.attractIdx++; newFlight(); app.running = true; } }, 4200);
     return;
   }
+  track('end', { mode: app.mode, level: app.mode === 'game' ? app.level : null, scenario_id: app.mode === 'game' && app.scenario ? app.scenario.id : null, outcome: o.landed ? 'Landed' : o.reason, landed: Boolean(o.landed), score: app.mode === 'game' && o.landed ? scoreFlight(o) : null, duration_s: Math.round((performance.now() - (app.startedAt || performance.now())) / 1000) });
   if (o.landed) {
     fx.landedAt = performance.now();
     fx.ring = { r: 0, a: 1 };
