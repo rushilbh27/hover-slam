@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url';
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f) => fs.readFileSync(path.join(root, 'public', f), 'utf8');
 const strip = (js) => js.replace(/import \{[\s\S]*?\} from '\.\/[^']+';\n?/g, '').replace(/^export (const|function|let|class) /gm, '$1 ');
-const script = ['physics.js', 'explain.js', 'controls.js', 'scenario.js', 'bank.js', 'menu.js', 'audio.js', 'app.js'].map((f) => strip(read(f))).join('\n');
+const script = ['physics.js', 'explain.js', 'controls.js', 'scenario.js', 'bank.js', 'menu.js', 'icons.js', 'audio.js', 'app.js'].map((f) => strip(read(f))).join('\n');
+// the fonts go inside the file as data, so it still looks right when opened from disk
+const css = read('style.css').replace(/url\("(fonts\/[^"]+\.woff2)"\)/g, (_, f) => `url("data:font/woff2;base64,${fs.readFileSync(path.join(root, 'public', f)).toString('base64')}")`);
 const html = read('index.html')
-  .replace('<link rel="stylesheet" href="style.css">', () => `<style>\n${read('style.css')}\n</style>`)
+  .replace(/  <link rel="preload"[^\n]*\n/g, '')
+  .replace('<link rel="stylesheet" href="style.css">', () => `<style>\n${css}\n</style>`)
   .replace('<script type="module" src="app.js"></script>', () => `<script type="module">\n${script}\n</script>`);
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'hoverslam.html'), html);

@@ -1498,7 +1498,7 @@ function drawMinimap(f) {
     gtr.trace.forEach(([x, y], i) => (i ? mctx.lineTo(mx(x), my(y)) : mctx.moveTo(mx(x), my(y))));
     mctx.stroke();
   }
-  mctx.strokeStyle = 'rgba(255, 179, 71, 0.9)';
+  mctx.strokeStyle = 'rgba(110, 155, 255, 0.95)';
   mctx.lineWidth = 2;
   mctx.beginPath();
   app.trail.forEach(([x, y], i) => (i ? mctx.lineTo(mx(x), my(y)) : mctx.moveTo(mx(x), my(y))));

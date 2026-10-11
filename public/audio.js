@@ -3,6 +3,8 @@
 // drop dead the moment it cuts, the rush of air tracks falling speed, and the weather follows the level.
 // app.js calls tick() every frame with a small state object and fires one-off events (legs, touchdown...).
 // Browsers only allow audio after a click or key press, so the context is built on the first one.
+import { icon } from './icons.js';
+
 function createAudio() {
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } };
@@ -267,21 +269,15 @@ function createAudio() {
   function init() {
     const box = document.createElement('div');
     box.className = 'sound';
-    box.innerHTML = '<button type="button" class="small ghost" data-nosound data-snd></button><button type="button" class="small ghost" data-nosound data-mus></button>';
+    box.innerHTML = '<button type="button" class="icon-btn" data-nosound data-snd></button><button type="button" class="icon-btn" data-nosound data-mus></button>';
     document.body.appendChild(box);
     const snd = box.querySelector('[data-snd]'), mus = box.querySelector('[data-mus]');
-    const ICON = {
-      soundOn: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
-      soundOff: '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
-      music: '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>',
-      musicOff: '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/><path d="M3 3l18 18"/></svg>',
-    };
     const paint = () => {
-      snd.innerHTML = muted ? ICON.soundOff : ICON.soundOn;
+      snd.innerHTML = icon(muted ? 'sound-off' : 'sound-on', 20);
       snd.setAttribute('aria-pressed', String(!muted));
       snd.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
       snd.title = (muted ? 'Turn sound effects on' : 'Turn sound effects off') + ' (M)';
-      mus.innerHTML = musicOn ? ICON.music : ICON.musicOff;
+      mus.innerHTML = icon(musicOn ? 'music' : 'music-off', 20);
       mus.setAttribute('aria-pressed', String(musicOn));
       mus.setAttribute('aria-label', musicOn ? 'Music on' : 'Music off');
       mus.title = musicOn ? 'Turn music off' : 'Turn music on';
