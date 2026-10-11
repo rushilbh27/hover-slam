@@ -8,7 +8,7 @@ import { icon } from './icons.js';
 import { drawCallout, drawCrosshair, tangents, magnifierSpot, LOOK } from './ui.js';
 import { initTooltips } from './tooltip.js';
 import { sendFeedback } from './feedback.js';
-import { track, trackVisit } from './track.js';
+import { track, trackVisit, trackView, trackAction } from './track.js';
 import { LEVEL_COPY, levelSpecs, descentDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -236,7 +236,7 @@ window.addEventListener('keydown', (e) => {
     if (app.mode === 'game' && app.running) app.input.engine = !app.input.engine;
     return;
   }
-  if (e.code === 'KeyR') return app.mode === 'game' ? start() : showIntro();
+  if (e.code === 'KeyR') { trackAction('retry_key'); return app.mode === 'game' ? start() : showIntro(); }
   if (e.code === 'KeyN' && app.mode === 'game' && !e.ctrlKey && !e.metaKey) return showIntro(true);
   if (e.code === 'Enter' && !app.running) return start();
   const k = keys[e.code];
@@ -434,6 +434,7 @@ $('rate-send').addEventListener('click', async () => {
   RATE.sent = true;
   $('rate-send').disabled = true;
   $('rate-send').textContent = 'Sending';
+  trackAction('feedback_sent');
   const ok = await sendFeedback({ ...RATE.ctx, rating: RATE.n || null, comment: $('rate-text').value });
   $('rate-q').textContent = ok ? 'Thanks, that helps.' : 'Thanks. It will send when you are back online.';
   $('rate-more').classList.add('hidden');
@@ -458,8 +459,9 @@ function gameHint(o) {
   return '';
 }
 
-$('o-retry').addEventListener('click', () => start());
+$('o-retry').addEventListener('click', () => { trackAction(app.mode === 'game' ? 'retry' : 'run_again'); start(); });
 $('o-next').addEventListener('click', () => {
+  trackAction(app.mode === 'game' ? 'new_scenario' : 'next_wind');
   if (app.mode === 'game') return showIntro(true);
   app.seed = (app.seed % SEEDS.length) + 1; $('seed').value = app.seed; start();
 });
@@ -2166,7 +2168,8 @@ $('to-game').addEventListener('click', () => setMode('game'));
 $('to-how').addEventListener('click', () => { setDrawer(false); showStart('how'); });
 $('stage').addEventListener('pointerdown', () => { if (app.menuOpen) setDrawer(false); });
 $('hints').checked = store.get('hs.hints', true);
-$('hints').addEventListener('change', (e) => { store.set('hs.hints', e.target.checked); if (e.target.checked) store.set('hs.coachDone', 0); }); // turning hints on brings the lesson back
+$('raw').addEventListener('change', (e) => trackAction(e.target.checked ? 'expert_on' : 'expert_off'));
+$('hints').addEventListener('change', (e) => { trackAction(e.target.checked ? 'hints_on' : 'hints_off'); store.set('hs.hints', e.target.checked); if (e.target.checked) store.set('hs.coachDone', 0); }); // turning hints on brings the lesson back
 
 // ---------- the tutorial: key prompts at the moment they matter ----------
 // Space to light the engine, then the lean, then the speed. Each step ends when the player does the thing, and the lesson is
@@ -2263,6 +2266,7 @@ function renderLevelCards() {
 }
 
 function setView(v) {
+  if (v !== 'welcome') trackView(v);
   app.view = v;
   startEl.dataset.view = v;
   if (v === 'how') renderHow();
@@ -2298,6 +2302,7 @@ function leaveStart() {
 }
 
 function chooseLevel(k) {
+  trackAction('level_chosen', { level: k });
   app.level = k;
   store.set('hs.level', k);
   leaveStart();
@@ -2306,7 +2311,7 @@ function chooseLevel(k) {
 
 $('st-play').addEventListener('click', () => setView('levels'));
 $('st-how').addEventListener('click', () => setView('how'));
-$('st-tune').addEventListener('click', () => { leaveStart(); setMode('sim'); });
+$('st-tune').addEventListener('click', () => { trackView('lab'); leaveStart(); setMode('sim'); });
 $('menu-btn').addEventListener('click', () => showStart('levels'));
 
 // ---------- boot ----------

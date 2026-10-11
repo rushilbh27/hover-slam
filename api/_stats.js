@@ -11,7 +11,7 @@ export const EVENTS_DDL = `create table if not exists ${EVENTS} (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
   client_id text not null check (char_length(client_id) between 8 and 64),
-  kind text not null check (kind in ('visit', 'start', 'end')),
+  kind text not null check (kind in ('visit', 'start', 'end', 'view', 'action')),
   mode text check (mode in ('game', 'sim')),
   level text check (level in ('easy', 'medium', 'hard')),
   scenario_id text check (char_length(scenario_id) <= 20),
@@ -19,15 +19,31 @@ export const EVENTS_DDL = `create table if not exists ${EVENTS} (
   landed boolean,
   score smallint check (score between 0 and 100),
   duration_s smallint check (duration_s between 0 and 3600),
-  device text check (device in ('phone', 'desktop'))
+  device text check (device in ('phone', 'desktop')),
+  detail text check (char_length(detail) <= 40),
+  country text check (char_length(country) <= 8),
+  ref text check (char_length(ref) <= 60)
 )`;
+
+// Tables made by an earlier version get the new columns and the wider list of kinds.
+const UPGRADE = [
+  `alter table ${EVENTS} add column if not exists detail text`,
+  `alter table ${EVENTS} add column if not exists country text`,
+  `alter table ${EVENTS} add column if not exists ref text`,
+  `alter table ${EVENTS} drop constraint if exists ${EVENTS}_kind_check`,
+  `alter table ${EVENTS} add constraint ${EVENTS}_kind_check check (kind in ('visit', 'start', 'end', 'view', 'action'))`,
+];
+async function ensureEvents(env, fetchImpl) {
+  await sql(env.DATABASE_URL, EVENTS_DDL, [], fetchImpl);
+  for (const q of UPGRADE) await sql(env.DATABASE_URL, q, [], fetchImpl);
+}
 
 const text = (v, n) => (typeof v === 'string' && v ? v.slice(0, n) : null);
 
 // What the browser sent, cleaned into a row, or null if it is not an event.
 export function cleanEvent(b) {
   if (!b || typeof b !== 'object') return null;
-  if (!['visit', 'start', 'end'].includes(b.kind)) return null;
+  if (!['visit', 'start', 'end', 'view', 'action'].includes(b.kind)) return null;
   const client_id = text(b.client_id, 64);
   if (!client_id || client_id.length < 8) return null;
   const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
@@ -42,6 +58,8 @@ export function cleanEvent(b) {
     score: int(b.score, 0, 100),
     duration_s: int(b.duration_s, 0, 3600),
     device: ['phone', 'desktop'].includes(b.device) ? b.device : null,
+    detail: text(b.detail, 40),
+    ref: text(typeof b.ref === 'string' ? b.ref.replace(/^https?:\/\//, '').split('/')[0] : null, 60),
   };
 }
 
@@ -57,16 +75,16 @@ function limited(ip, now = Date.now(), max = 120, windowMs = 10 * 60 * 1000) {
 let ready = false;
 export function resetStatsForTests() { ready = false; hits.clear(); }
 
-export async function handleEvent({ method, body, ip = 'unknown', env = process.env, fetchImpl = fetch }) {
+export async function handleEvent({ method, body, ip = 'unknown', country = null, env = process.env, fetchImpl = fetch }) {
   if (method !== 'POST') return { status: 405, json: { error: 'POST only' }, headers: { Allow: 'POST' } };
   const row = cleanEvent(body);
   if (!row) return { status: 400, json: { error: 'Not an event' } };
   if (limited(ip)) return { status: 429, json: { error: 'Too many' } };
   if (!env.DATABASE_URL) return { status: 503, json: { error: 'Storage is not set up' } };
   try {
-    if (!ready) { await sql(env.DATABASE_URL, EVENTS_DDL, [], fetchImpl); ready = true; }
-    await sql(env.DATABASE_URL, `insert into ${EVENTS} (client_id, kind, mode, level, scenario_id, outcome, landed, score, duration_s, device) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [row.client_id, row.kind, row.mode, row.level, row.scenario_id, row.outcome, row.landed, row.score, row.duration_s, row.device], fetchImpl);
+    if (!ready) { await ensureEvents(env, fetchImpl); ready = true; }
+    await sql(env.DATABASE_URL, `insert into ${EVENTS} (client_id, kind, mode, level, scenario_id, outcome, landed, score, duration_s, device, detail, country, ref) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [row.client_id, row.kind, row.mode, row.level, row.scenario_id, row.outcome, row.landed, row.score, row.duration_s, row.device, row.detail, typeof country === 'string' && /^[A-Za-z]{2}$/.test(country) ? country.toUpperCase() : null, row.ref], fetchImpl);
     return { status: 201, json: { ok: true } };
   } catch {
     return { status: 502, json: { error: 'Could not save' } };
@@ -83,15 +101,30 @@ export function sameToken(a, b) {
 
 const n = (v) => Number(v) || 0;
 
-export async function handleStats({ method, token, env = process.env, fetchImpl = fetch }) {
+// "Authorization: Basic base64(user:password)" checked against ADMIN_USER (default "admin") and ADMIN_PASSWORD.
+export function basicOk(header, env = process.env) {
+  if (!env.ADMIN_PASSWORD) return false;
+  const m = /^Basic\s+(.+)$/i.exec(String(header || ''));
+  if (!m) return false;
+  let pair = '';
+  try { pair = Buffer.from(m[1], 'base64').toString('utf8'); } catch { return false; }
+  const i = pair.indexOf(':');
+  if (i < 0) return false;
+  const userOk = sameToken(pair.slice(0, i), env.ADMIN_USER || 'admin');
+  const passOk = sameToken(pair.slice(i + 1), env.ADMIN_PASSWORD);
+  return userOk && passOk;
+}
+export const CHALLENGE = { 'WWW-Authenticate': 'Basic realm="Hoverslam numbers", charset="UTF-8"' };
+
+export async function handleStats({ method, authorization, env = process.env, fetchImpl = fetch }) {
   if (method !== 'GET') return { status: 405, json: { error: 'GET only' }, headers: { Allow: 'GET' } };
-  if (!env.ADMIN_TOKEN) return { status: 503, json: { error: 'ADMIN_TOKEN is not set' } };
-  if (!sameToken(token, env.ADMIN_TOKEN)) return { status: 401, json: { error: 'Wrong key' } };
+  if (!env.ADMIN_PASSWORD) return { status: 503, json: { error: 'ADMIN_PASSWORD is not set' } };
+  if (!basicOk(authorization, env)) return { status: 401, json: { error: 'Login needed' }, headers: CHALLENGE };
   if (!env.DATABASE_URL) return { status: 503, json: { error: 'Storage is not set up' } };
   const q = async (query) => (await sql(env.DATABASE_URL, query, [], fetchImpl)).rows || [];
   try {
-    await sql(env.DATABASE_URL, EVENTS_DDL, [], fetchImpl);
-    const [[tot], [win], [ret], levels, outcomes, daily, devices, modes] = await Promise.all([
+    await ensureEvents(env, fetchImpl);
+    const [[tot], [win], [ret], levels, outcomes, daily, devices, modes, countries, refs, features] = await Promise.all([
       q(`select count(distinct client_id) players, count(*) filter (where kind = 'visit') visits, count(*) filter (where kind = 'start') starts, count(*) filter (where kind = 'end') ends, count(*) filter (where kind = 'end' and landed) landed, round(avg(duration_s) filter (where kind = 'end' and mode = 'game')) avg_dur from ${EVENTS}`),
       q(`select count(distinct client_id) filter (where created_at > now() - interval '1 day') d1, count(distinct client_id) filter (where created_at > now() - interval '7 days') d7, count(distinct client_id) filter (where created_at > now() - interval '30 days') d30 from ${EVENTS}`),
       q(`select count(*) n from (select client_id from ${EVENTS} group by client_id having count(distinct created_at::date) > 1) t`),
@@ -100,6 +133,9 @@ export async function handleStats({ method, token, env = process.env, fetchImpl 
       q(`select to_char(d, 'YYYY-MM-DD') as label, (select count(distinct client_id) from ${EVENTS} e where e.created_at::date = d::date) players, (select count(*) from ${EVENTS} e where e.kind = 'start' and e.created_at::date = d::date) games from generate_series(current_date - 13, current_date, interval '1 day') d order by d`),
       q(`select device, count(distinct client_id) n from ${EVENTS} where device is not null group by device`),
       q(`select mode, count(*) n from ${EVENTS} where kind = 'start' and mode is not null group by mode`),
+      q(`select country, count(distinct client_id) n from ${EVENTS} where country is not null group by country order by n desc limit 8`),
+      q(`select ref, count(distinct client_id) n from ${EVENTS} where kind = 'visit' and ref is not null and ref <> '' group by ref order by n desc limit 8`),
+      q(`select kind || ': ' || detail as label, count(*) n from ${EVENTS} where kind in ('view', 'action') and detail is not null group by 1 order by n desc limit 16`),
     ]);
     let feedback = { count: 0, avg: null, stars: [0, 0, 0, 0, 0], latest: [] };
     try {
@@ -117,6 +153,9 @@ export async function handleStats({ method, token, env = process.env, fetchImpl 
         daily: daily.map((r) => ({ day: r.label, players: n(r.players), games: n(r.games) })),
         devices: devices.map((r) => ({ device: r.device, n: n(r.n) })),
         modes: modes.map((r) => ({ mode: r.mode, n: n(r.n) })),
+        countries: countries.map((r) => ({ country: r.country, n: n(r.n) })),
+        refs: refs.map((r) => ({ ref: r.ref, n: n(r.n) })),
+        features: features.map((r) => ({ label: r.label, n: n(r.n) })),
         feedback,
       },
     };

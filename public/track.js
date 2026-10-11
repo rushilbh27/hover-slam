@@ -23,5 +23,13 @@ export function trackVisit() {
     if (sessionStorage.getItem('hs.visit')) return;
     sessionStorage.setItem('hs.visit', '1');
   } catch { /* storage blocked: count it anyway */ }
-  track('visit');
+  let ref = '';
+  try { ref = document.referrer && new URL(document.referrer).hostname !== location.hostname ? new URL(document.referrer).hostname : ''; } catch { /* no referrer */ }
+  track('visit', { ref });
 }
+
+// one-off interactions: screens opened, choices and settings changed
+export const trackView = (detail) => track('view', { detail });
+export const trackAction = (detail, data = {}) => track('action', { detail, ...data });
+// other modules announce things without importing this one
+window.addEventListener('hs:action', (e) => trackAction(String(e.detail || '').slice(0, 40)));
