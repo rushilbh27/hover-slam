@@ -48,7 +48,7 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // ---------- visual effects state ----------
-const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
+const freshFx = () => ({ standing: false, vent: [], plume: [], smoke: [], fire: [], debris: [], steam: [], dust: [], sparks: [], puffs: [], puffT: 0, flash: 0, shake: 0, ring: null, legs: 0, exploded: false, landedAt: 0, slow: 1, punch: 0, fin: 0, finCmd: 0, rcsCmd: 0, bolt: null, nextBolt: 3, bob: 0, scene: [], shoot: null, nextShoot: 4, sheet: null, nextSheet: 2.5, dol: null, nextDol: 5 });
 const fx = freshFx();
 const rain = [];
 
@@ -441,10 +441,13 @@ function updateFx(dt) {
   fx.punch = Math.max(0, fx.punch - dt * 1.4);
   fx.fin += (fx.finCmd - fx.fin) * Math.min(1, dt * 9);
 
-  // cold-gas thrusters near the top: the gas leaves on the side opposite the way the booster turns
-  if (!s.done && Math.abs(fx.rcsCmd) > 0.1 && Math.random() < Math.min(1, Math.abs(fx.rcsCmd) * 1.6)) {
-    fx.puffs.push({ side: -Math.sign(fx.rcsCmd), life: 0, max: 0.3, v: 0.6 + Math.abs(fx.rcsCmd) * 0.6, oy: (Math.random() - 0.5) * 0.9 });
-  }
+  // cold-gas thrusters near the top fire while a lean key is held, steadily, on the side opposite the turn.
+  // They follow the keys, not the control loop's small corrections, so what you see is what you pressed.
+  const lean = app.mode === 'game' && !app.attract && app.running ? (app.input.right ? 1 : 0) - (app.input.left ? 1 : 0) : 0;
+  if (!s.done && lean) {
+    const F2 = f.faults, weak = F2 && F2.weakSide && (F2.weakSide === 'left') === (lean < 0) ? F2.weakFactor : 1; // a weak side puffs weakly
+    for (fx.puffT -= dt; fx.puffT <= 0; fx.puffT += 0.045) fx.puffs.push({ side: -lean, life: 0, max: 0.3, v: 0.6 + 0.6 * weak, oy: (Math.random() - 0.5) * 0.9 });
+  } else fx.puffT = 0;
   for (const p of fx.puffs) p.life += dt;
   fx.puffs = fx.puffs.filter((p) => p.life < p.max);
 
