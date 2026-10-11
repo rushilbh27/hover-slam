@@ -280,11 +280,11 @@ function createAudio() {
       snd.innerHTML = icon(muted ? 'sound-off' : 'sound-on', 20);
       snd.setAttribute('aria-pressed', String(!muted));
       snd.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
-      snd.title = (muted ? 'Turn sound effects on' : 'Turn sound effects off') + ' (M)';
+      snd.dataset.tip = muted ? 'Sound effects off' : 'Sound effects on'; snd.dataset.key = 'M'; snd.dataset.tipDetail = muted ? 'Press to turn them on.' : 'Engine, birds and clicks. Press to turn them off.';
       mus.innerHTML = icon(musicOn ? 'music' : 'music-off', 20);
       mus.setAttribute('aria-pressed', String(musicOn));
       mus.setAttribute('aria-label', musicOn ? 'Music on' : 'Music off');
-      mus.title = musicOn ? 'Turn music off' : 'Turn music on';
+      mus.dataset.tip = musicOn ? 'Music on' : 'Music off'; mus.dataset.tipDetail = musicOn ? 'Press to turn it off.' : 'Press to turn it on.';
     };
     const flip = (which) => {
       unlock();

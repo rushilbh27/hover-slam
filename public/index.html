@@ -43,20 +43,20 @@
 
       <!-- the flight instruments ride with the booster, so the eyes never leave it -->
       <div id="focus" class="focus" aria-hidden="true">
-        <div class="dev" id="dev">
+        <div class="dev" id="dev" data-tip="Falling speed" data-tip-detail="Keep the dot on the centre tick. Below it you are falling faster than the plan, so slow down. Above it, speed up." data-tip-pos="left">
           <div class="dev-val"><b id="t-vy">0</b><i>m/s</i></div>
           <span class="dev-track"><span class="dev-end top">slow</span><i class="dev-tick"></i><i class="dev-dot" id="dev-dot"></i><span class="dev-end bottom">fast</span></span>
           <div class="dev-aim" id="t-vy-target">aim 0</div>
         </div>
         <dl class="data-table focus-table">
-          <dt>Altitude</dt><dd><b id="t-alt">0</b><i>m</i></dd>
-          <dt>To pad</dt><dd><span class="dir" id="pad-dir"></span><b id="t-dx">0</b><i>m</i><em class="lim" id="lim-dx"></em></dd>
-          <dt>Sideways</dt><dd><span class="dir" id="vx-dir"></span><b id="t-vx">0</b><i>m/s</i><em class="lim" id="lim-vx"></em></dd>
-          <dt>Tilt</dt><dd><b id="t-tilt">0</b><i>°</i><em class="lim" id="lim-tilt"></em></dd>
+          <dt data-tip="Altitude" data-tip-detail="Height of the engine above the deck." data-tip-pos="right">Altitude</dt><dd data-tip="Altitude" data-tip-detail="Height of the engine above the deck." data-tip-pos="right"><b id="t-alt">0</b><i>m</i></dd>
+          <dt data-tip="To pad" data-tip-detail="Distance to the middle of the pad. The arrow points the way to steer." data-tip-pos="right">To pad</dt><dd data-tip="To pad" data-tip-detail="Distance to the middle of the pad. The arrow points the way to steer." data-tip-pos="right"><span class="dir" id="pad-dir"></span><b id="t-dx">0</b><i>m</i><em class="lim" id="lim-dx"></em></dd>
+          <dt data-tip="Sideways speed" data-tip-detail="How fast you are moving across. Keep it under the limit at touchdown." data-tip-pos="right">Sideways</dt><dd data-tip="Sideways speed" data-tip-detail="How fast you are moving across. Keep it under the limit at touchdown." data-tip-pos="right"><span class="dir" id="vx-dir"></span><b id="t-vx">0</b><i>m/s</i><em class="lim" id="lim-vx"></em></dd>
+          <dt data-tip="Tilt" data-tip-detail="How far you lean from upright. Touch down upright." data-tip-pos="right">Tilt</dt><dd data-tip="Tilt" data-tip-detail="How far you lean from upright. Touch down upright." data-tip-pos="right"><b id="t-tilt">0</b><i>°</i><em class="lim" id="lim-tilt"></em></dd>
         </dl>
       </div>
 
-      <div id="strip" class="strip" aria-hidden="true">
+      <div id="strip" class="strip" aria-hidden="true" data-tip="Pad strip" data-tip-detail="You against the pad. The dot wants the middle tick, and the line shows which way you are drifting." data-tip-pos="top">
         <span class="strip-pad" id="strip-pad"></span><i class="strip-tick"></i>
         <i class="strip-dot" id="strip-dot"></i><i class="strip-vel" id="strip-vel"></i>
         <span class="strip-l">L</span><span class="strip-r">R</span>
@@ -64,17 +64,17 @@
 
       <div class="hud top-left">
         <div class="bars">
-          <div class="bar"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" title="Hover: above this it slows down, below it speeds up"></i></span><b id="t-thr">0%</b></div>
-          <div class="bar fuel" id="bar-fuel"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
+          <div class="bar" data-tip="Throttle" data-tip-detail="How hard the engine pushes. Once lit it cannot go below its minimum." data-tip-pos="bottom"><label>Throttle</label><span><em id="b-thr"></em><i id="hover-mark" class="hover-mark" data-tip="Hover mark" data-tip-detail="At this throttle the booster hovers. Above it you slow down, below it you speed up." data-tip-pos="bottom"></i></span><b id="t-thr">0%</b></div>
+          <div class="bar fuel" id="bar-fuel" data-tip="Fuel" data-tip-detail="Propellant left. A leak drains it, so the burn has to be short." data-tip-pos="bottom"><label>Fuel</label><span><em id="b-fuel"></em></span><b id="t-fuel">0 kg</b></div>
         </div>
-        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag">Legs stowed</span><span id="f-pilot" class="flag">You fly</span><span class="flag">Gimbal <b id="t-gim">0</b>°</span></div>
+        <div class="flags"><span id="f-engine" class="flag">Engine off</span><span id="f-legs" class="flag" data-tip="Landing legs" data-tip-detail="They open on their own as you near the deck." data-tip-pos="bottom">Legs stowed</span><span id="f-pilot" class="flag">You fly</span><span class="flag" data-tip="Engine angle" data-tip-detail="The engine swivels to steer. In degrees." data-tip-pos="bottom">Gimbal <b id="t-gim">0</b>°</span></div>
       </div>
 
       <div class="hud top-center"><div class="faults" id="faults"></div><span class="fault lamp-fuel hidden" id="lamp-fuel">Fuel low</span><span class="fault paused hidden" id="lamp-paused">Paused</span></div>
 
       <div class="hud top-right">
-        <div class="clock" id="t-clock">T+ 00:00</div>
-        <div class="wind">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
+        <div class="clock" id="t-clock" data-tip="Mission clock" data-tip-detail="Time since the descent began." data-tip-pos="bottom">T+ 00:00</div>
+        <div class="wind" data-tip="Wind" data-tip-detail="Crosswind in metres per second. The arrow shows which way it blows. It dies down near the surface." data-tip-pos="bottom">Wind <b id="t-wind">0</b> m/s <span id="wind-arrow">→</span></div>
         <div class="level-tag" id="t-level">Medium</div>
       </div>
 
@@ -83,7 +83,7 @@
       <div id="cue" class="cue hidden">Light the engine</div>
       <div id="caption" class="caption hidden" aria-live="polite">Landed</div>
 
-      <canvas id="minimap" width="360" height="220" aria-label="Approach overview"></canvas>
+      <canvas id="minimap" width="360" height="220" aria-label="Approach overview" data-tip="Approach view" data-tip-detail="Your path so far, and where the pad is." data-tip-pos="right"></canvas>
 
       <div id="outcome" class="outcome hidden" role="dialog" aria-live="polite">
         <div class="o-scn" id="o-scn"></div>
@@ -110,7 +110,7 @@
     </section>
 
     <aside class="panel" id="drawer" aria-label="Autopilot lab" inert>
-      <div class="panel-head"><span class="wm">Autopilot lab</span><span class="panel-head-actions"><button id="to-game" class="small ghost">Back to the game</button><button id="drawer-close" class="icon-btn" aria-label="Close" title="Close (Esc)"></button></span></div>
+      <div class="panel-head"><span class="wm">Autopilot lab</span><span class="panel-head-actions"><button id="to-game" class="small ghost">Back to the game</button><button id="drawer-close" class="icon-btn" aria-label="Close" data-tip="Close" data-key="Esc" data-tip-pos="bottom"></button></span></div>
       <div class="pane" data-pane="sim">
         <p>You don't fly this time. The flight computer does, using the nine settings below. Change them, press <b>Run flight</b>, and watch what happens.</p>
         <div class="run-row">
@@ -134,21 +134,21 @@
     <label class="switch"><input type="checkbox" id="hints" checked><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Hints<small>Key prompts during a descent</small></span></label>
     <label class="switch"><input type="checkbox" id="raw"><span class="sw-track" aria-hidden="true"></span><span class="sw-text">Expert controls<small>Arrows swivel the engine, up and down move the throttle lever</small></span></label>
     <div class="set-actions">
-      <button id="to-lab" class="ghost small"></button>
-      <button id="to-how" class="ghost small"></button>
-      <button id="menu-btn" class="ghost small">Main menu</button>
+      <button id="to-lab" class="ghost small" data-tip="Autopilot lab" data-tip-detail="Tune the flight computer and watch it fly."></button>
+      <button id="to-how" class="ghost small" data-tip="How to play" data-tip-detail="The descent, the controls and the landing limits."></button>
+      <button id="menu-btn" class="ghost small" data-tip="Main menu" data-tip-detail="Back to the start screen. This descent is dropped.">Main menu</button>
     </div>
     <a class="bugs" href="https://github.com/rushilbh27/hover-slam/issues/new?template=bug_report.md" target="_blank" rel="noopener">Found a bug? <u>Contribute here</u></a>
   </div>
   <nav id="dock" class="dock" aria-label="Controls">
-    <button class="icon-btn game-only" id="d-engine" aria-label="Engine" title="Engine (Space)"></button>
-    <button class="icon-btn game-only" id="d-retry" aria-label="Retry" title="Retry (R)"></button>
-    <button class="icon-btn game-only" id="d-new" aria-label="New scenario" title="New scenario (N)"></button>
+    <button class="icon-btn game-only" id="d-engine" aria-label="Engine" data-tip="Engine" data-key="Space" data-tip-detail="Light it, or cut it."></button>
+    <button class="icon-btn game-only" id="d-retry" aria-label="Retry" data-tip="Retry" data-key="R" data-tip-detail="Another go at this scenario."></button>
+    <button class="icon-btn game-only" id="d-new" aria-label="New scenario" data-tip="New scenario" data-key="N" data-tip-detail="A different drop at this level."></button>
     <span class="dock-sep game-only" aria-hidden="true"></span>
     <button class="icon-btn" data-snd data-nosound></button>
     <button class="icon-btn" data-mus data-nosound></button>
-    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="settings" aria-expanded="false" title="Settings (Esc)"></button>
-    <button class="icon-btn lab-only" id="d-lab" aria-label="Autopilot settings" aria-controls="drawer" aria-expanded="false" title="Autopilot settings (Esc)"></button>
+    <button class="icon-btn game-only" id="d-menu" aria-label="Settings" aria-controls="settings" aria-expanded="false" data-tip="Settings" data-key="Esc" data-tip-detail="Level, hints and expert controls. The flight pauses."></button>
+    <button class="icon-btn lab-only" id="d-lab" aria-label="Autopilot settings" aria-controls="drawer" aria-expanded="false" data-tip="Autopilot settings" data-key="Esc" data-tip-detail="The nine settings and the last report."></button>
   </nav>
   <script type="module" src="app.js"></script>
 </body>

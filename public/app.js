@@ -5,6 +5,7 @@ import { BANK } from './bank.js';
 import { nextScenario, bagProgress, scenarioFlight, faultLabels } from './scenario.js';
 import { audio } from './audio.js';
 import { icon } from './icons.js';
+import { initTooltips } from './tooltip.js';
 import { LEVEL_COPY, descentDiagram, speedDiagram, levelThumb, keycaps, KEYS } from './menu.js';
 
 const $ = (id) => document.getElementById(id);
@@ -161,9 +162,15 @@ function pickScenario() {
   app.scenario = nextScenario(app.level, BANK, store);
 }
 
+const FAULT_TIPS = {
+  leak: 'Propellant is draining from the tank. Light later and brake harder so the burn is short.',
+  thrustCap: 'The engine cannot give full thrust, so it brakes more slowly. Light it earlier.',
+  dropouts: 'The engine stops for a moment, more than once. Keep some height in hand.',
+  weakSide: 'The booster turns slowly toward one side. Start leaning early, and plan to steer the other way.',
+};
 function renderFaultChips() {
   const labels = app.mode === 'game' && app.scenario ? faultLabels(app.scenario.faults) : [];
-  $('faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}" data-k="${l.key}">${l.text}</span>`).join('');
+  $('faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}" data-k="${l.key}" data-tip="${l.short}" data-tip-detail="${FAULT_TIPS[l.key]}" data-tip-pos="bottom">${l.text}</span>`).join('');
   $('i-faults').innerHTML = labels.map((l) => `<span class="fault ${l.tone}">${l.text}</span>`).join('');
 }
 
@@ -1653,6 +1660,7 @@ function renderLevels() {
     b.setAttribute('role', 'radio');
     b.setAttribute('aria-checked', String(k === app.level));
     b.textContent = lv.label;
+    b.dataset.tip = lv.label; b.dataset.tipDetail = LEVEL_COPY[k].tagline;
     b.addEventListener('click', () => { app.level = k; store.set('hs.level', k); renderWindOptions(); setDrawer(false); showIntro(true); });
     box.appendChild(b);
   }
@@ -1952,6 +1960,7 @@ $('menu-btn').addEventListener('click', () => showStart('levels'));
 
 // ---------- boot ----------
 audio.init();
+initTooltips();
 resize();
 renderLevels();
 renderSliders();

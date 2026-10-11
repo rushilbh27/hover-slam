@@ -87,6 +87,7 @@ kbd, .cap {
 /* ---------- instruments ----------
    The numbers that decide a landing ride with the booster (.focus), so the eyes never leave it. The corners hold only what
    can wait: time, wind, fuel and throttle. Anything that is not flight data lives in the drawer. */
+.hud [data-tip], .focus [data-tip], .strip[data-tip] { pointer-events: auto; }
 .hud { position: absolute; pointer-events: none; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8); }
 .top-left { top: 18px; left: 22px; }
 .top-center { top: 18px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: min(560px, 46%); }
@@ -283,7 +284,13 @@ body.drawer-open #stage { filter: brightness(0.55); }
 .foot { margin-top: auto; color: var(--dim); font-size: 12.5px; }
 
 /* ---------- the start screen: a live landing behind, three views over it ---------- */
-.start[data-view="how"], .start[data-view="levels"] { background: rgba(0, 0, 0, 0.94); } /* the live landing fades back behind the reading screens */
+.start[data-view="welcome"] { background: linear-gradient(90deg, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.78) 38%, rgba(0, 0, 0, 0.12) 72%, transparent 100%); } /* the entry screen reads from the left, with the landing on the right */
+.start[data-view="how"], .start[data-view="levels"] { background: rgba(0, 0, 0, 0.94); }
+.view[data-view="welcome"] { align-items: flex-start; text-align: left; }
+.view[data-view="welcome"] .welcome { margin: auto 0; align-items: flex-start; max-width: 600px; }
+.view[data-view="welcome"] .pitch { margin: 28px 0 32px; max-width: 36ch; }
+.view[data-view="welcome"] .menu-actions { justify-content: flex-start; }
+.view[data-view="welcome"] .fine { margin: 0; } /* the live landing fades back behind the reading screens */
 .vhead { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; max-width: 1180px; margin: 0 auto 30px }
 .vhead .lede { margin: 0 auto }
 .vhead .nav { margin: 0; justify-content: center }
@@ -381,7 +388,7 @@ body.in-menu .panel, body.in-menu .hud, body.in-menu #focus, body.in-menu #strip
   .outcome, .intro { padding: 20px 22px; top: 44%; }
   .outcome { left: 50%; }
   .o-stats { gap: 6px 14px; }
-  .start { background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7)); }
+  .start, .start[data-view="welcome"] { background: linear-gradient(180deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7)); }
 }
 @media (max-width: 480px) {
   .touch .pad { gap: 8px; }
@@ -451,7 +458,7 @@ body[data-mode="sim"] #intro { display: none; } /* the lab's drawer already says
 .lab-only { display: none; }
 body[data-mode="sim"] .lab-only { display: inline-grid; }
 body.in-menu .lab-only { display: none; }
-body.in-menu .dock { left: auto; right: clamp(24px, 5vw, 64px); top: 22px; bottom: auto; transform: none; gap: 8px; padding: 0; background: none; border: 0; }
+body.in-menu .dock { left: clamp(24px, 5vw, 64px); top: 22px; bottom: auto; transform: none; gap: 8px; padding: 0; background: none; border: 0; }
 body.in-menu .dock .icon-btn { border-color: rgba(255, 255, 255, 0.28); background: rgba(0, 0, 0, 0.35); }
 body.in-menu .game-only { display: none; }
 .sound { position: fixed; left: clamp(24px, 5vw, 64px); top: 22px; z-index: 55; display: flex; gap: 8px; } /* only where there is no dock, as in the style guide */
@@ -465,5 +472,17 @@ body.in-menu .game-only { display: none; }
   .coach-keys .cap { min-width: 34px; height: 34px; }
   .settings { bottom: 76px; }
   .dock-sep { display: none; }
-  body.in-menu .dock { left: auto; right: 14px; top: 14px; flex-direction: row; }
+  body.in-menu .dock { left: clamp(24px, 5vw, 64px); right: auto; top: 22px; flex-direction: row; }
 }
+
+/* hover tooltips: one small plate, with the key shown as a keycap */
+#tip { position: fixed; z-index: 70; left: 0; top: 0; max-width: 264px; padding: 8px 11px; background: rgba(10, 10, 10, 0.97); border: 1px solid rgba(255, 255, 255, 0.24); border-radius: 4px; font-size: 12.5px; line-height: 1.4; pointer-events: none; opacity: 0; visibility: hidden; transform: translateY(3px); transition: opacity 0.12s ease-out, transform 0.12s ease-out, visibility 0s 0.12s; }
+#tip[data-pos="bottom"] { transform: translateY(-3px); }
+#tip[data-pos="left"] { transform: translateX(3px); }
+#tip[data-pos="right"] { transform: translateX(-3px); }
+#tip.on { opacity: 1; visibility: visible; transform: none; transition: opacity 0.12s ease-out, transform 0.12s ease-out, visibility 0s; }
+.tip-head { display: flex; align-items: center; gap: 8px; }
+.tip-t { font-weight: 700; font-size: 13px; }
+#tip .cap { min-width: 22px; height: 20px; padding: 0 6px; margin: 0; font-size: 11px; }
+.tip-d { color: var(--dim); margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { #tip, #tip.on { transition: none; } }

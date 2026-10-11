@@ -110,6 +110,15 @@
     <div class="strip on" data-s="amber" style="bottom: 24px;"><span class="strip-pad" style="width: 10%;"></span><i class="strip-tick"></i><i class="strip-dot" style="left: 62%;"></i><i class="strip-vel" style="left: 62%; width: 24px; transform: translateX(-100%);"></i><span class="strip-l">L</span><span class="strip-r">R</span></div>
   </div>
 
+  <h2>Tooltips</h2>
+  <p class="lede">Hover or tab to a control. A label, the key as a keycap, and one line of why. They open after a short pause, flip when there is no room, and never open on a touch screen.</p>
+  <div class="row" id="tip-demo">
+    <button class="icon-btn" data-tip="Engine" data-key="Space" data-tip-detail="Light it, or cut it." aria-label="Engine"></button>
+    <button class="icon-btn" data-tip="Retry" data-key="R" data-tip-detail="Another go at this scenario." aria-label="Retry"></button>
+    <button class="icon-btn" data-tip="Settings" data-key="Esc" data-tip-detail="Level, hints and expert controls. The flight pauses." data-tip-pos="bottom" aria-label="Settings"></button>
+    <span class="lamp warn" data-tip="Low thrust" data-tip-detail="The engine cannot give full thrust, so it brakes more slowly. Light it earlier." data-tip-pos="bottom">Thrust 70%</span>
+  </div>
+
   <h2>Icons</h2>
   <div class="icons" id="icons"></div>
 
@@ -118,6 +127,7 @@
 
   <script type="module">
     import { ICONS, icon } from './icons.js';
+    import { initTooltips } from './tooltip.js';
     import { drawCallout, drawCrosshair, drawPath, LOOK } from './ui.js';
 
     const sw = [['--hull', 'Canvas'], ['--console', 'Console'], ['--plate', 'Plate'], ['--plate-hi', 'Plate raised'], ['--seam', 'Hairline'], ['--ink', 'Ink'], ['--dim', 'Dim text'], ['--muted', 'Muted text'], ['--blue', 'Live data'], ['--blue-hi', 'Live data, text'], ['--amber', 'Warning'], ['--alarm', 'Alarm'], ['--flame', 'Flame (scene art)'], ['--pad', 'Pad (scene art)']];
@@ -125,6 +135,8 @@
     document.getElementById('swatches').innerHTML = sw.map(([v, n]) => `<div class="sw"><i style="background: var(${v})"></i><span><b>${n}</b>${cs.getPropertyValue(v).trim()}</span></div>`).join('');
 
     document.getElementById('sg-dir').innerHTML = icon('arrow-left', 13);
+    [...document.querySelectorAll('#tip-demo .icon-btn')].forEach((b, i) => { b.innerHTML = icon(['engine', 'retry', 'gear'][i], 20); });
+    initTooltips();
     document.getElementById('icons').innerHTML = Object.keys(ICONS).map((k) => `<div class="ic">${icon(k, 28)}<span>${k}</span></div>`).join('');
     document.getElementById('icon-buttons').innerHTML = ['engine', 'retry', 'shuffle', 'speed', 'sound-on', 'music', 'sliders', 'help', 'menu', 'close'].map((k) => `<button class="icon-btn" aria-label="${k}" title="${k}">${icon(k, 20)}</button>`).join('')
       + `<button class="icon-btn" aria-pressed="false" aria-label="sound off">${icon('sound-off', 20)}</button>`

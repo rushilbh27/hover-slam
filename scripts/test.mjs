@@ -698,6 +698,18 @@ test('every element id the game looks up exists in the page', () => {
   for (const id of ['focus', 'dev', 'strip', 'edge', 'dock', 'drawer', 'settings', 'coach', 'hints', 'raw', 'levels', 'd-engine', 'd-menu', 'd-lab', 't-vy', 't-alt', 't-dx', 't-vx', 't-tilt']) assert.ok(ids.has(id) || read('index.html').includes(`id="${id}"`), id);
 });
 
+test('tooltips: controls use data-tip (no native titles to double up), and every tip has words', () => {
+  const dir = path.join(import.meta.dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
+  assert.ok(!/<(button|canvas|i|span|div)[^>]*\stitle="/.test(html), 'a native title would show a second tooltip');
+  const tips = [...html.matchAll(/data-tip="([^"]*)"/g)].map((m) => m[1]);
+  assert.ok(tips.length >= 15, `${tips.length} tips in the page`);
+  for (const t of tips) assert.ok(t.trim().length > 2, 'a tip with no label');
+  for (const id of ['d-engine', 'd-retry', 'd-new', 'd-menu', 'd-lab']) assert.match(html, new RegExp(`id="${id}"[^>]*data-tip="[^"]+"[^>]*data-key="`), `${id} shows its key`);
+  const audio = fs.readFileSync(path.join(dir, 'audio.js'), 'utf8');
+  assert.ok(!/\.title\s*=/.test(audio), 'the sound toggles use tips, not titles');
+});
+
 // ---------- the single-file build ----------
 test('the single-file build is valid JavaScript with the bank inside it', () => {
   execFileSync(process.execPath, [path.join(import.meta.dirname, 'build-standalone.mjs')], { stdio: 'ignore' });
@@ -706,6 +718,7 @@ test('the single-file build is valid JavaScript with the bank inside it', () => 
   assert.ok(script.includes('const BANK ='), 'bank is bundled');
   assert.ok(html.includes('data:font/woff2;base64,') && !html.includes('url("fonts/'), 'the fonts are inside the file');
   assert.ok(script.includes('const ICONS ='), 'icons are bundled');
+  assert.ok(script.includes('function initTooltips'), 'tooltips are bundled');
   const file = path.join(os.tmpdir(), `hoverslam-check-${process.pid}.mjs`);
   fs.writeFileSync(file, script);
   try {
